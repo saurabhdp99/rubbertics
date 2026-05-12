@@ -1,19 +1,15 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
   Package,
   Truck,
-  Users,
-  BarChart3,
   Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Factory,
   FileText,
-  Boxes,
   Layers,
   ClipboardCheck,
   ClipboardList,
@@ -31,17 +27,12 @@ const navItems = [
   { icon: FileText, label: 'Work Order Master', path: '/work-order-details' },
   { icon: ClipboardCheck, label: 'Daily Finishing Output', path: '/daily-finishing-output' },
   { icon: Truck, label: 'Dispatch', path: '/dispatch' },
-  { icon: Factory, label: 'Production', path: '/production' },
-  { icon: Users, label: 'Parties', path: '/parties' },
-  { icon: FileText, label: 'Reports', path: '/reports' },
   { icon: FileText, label: 'Inward', path: '/inward' },
   { icon: ClipboardList, label: 'Requisition Slip', path: '/requisition-slip' },
   { icon: NotebookText, label: 'Enquiry Register', path: '/enquiry-register' },
   { icon: AlertCircle, label: 'Internal Complain Register', path: '/internal-complain-register' },
   { icon: ClipboardList, label: 'Process Control Standard', path: '/process-control-standard' },
   { icon: ClipboardList, label: 'Lot Details Register', path: '/lot-details-register' },
-  { icon: Boxes, label: 'Products', path: '/products' },
-  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
