@@ -28,6 +28,7 @@ import {
   Layers,
   ClipboardList
 } from 'lucide-react';
+import { Table } from '@heroui/react';
 
 const DUMMY_WORK_ORDERS = [
   {
@@ -256,57 +257,59 @@ export default function WorkOrderDetailsPage() {
       <div className="flex-1 overflow-hidden p-6">
         <div className="h-full bg-white rounded-[24px] border border-slate-200 shadow-xl shadow-slate-200/50 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full border-separate border-spacing-0">
-              <thead className="sticky top-0 z-20">
-                <tr>
-                  {columns.map((col, idx) => (
-                    <th key={idx} className={`px-4 py-3 bg-slate-50 border-b border-r border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap ${col.sticky ? 'sticky left-0 z-30 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] bg-slate-50' : ''}`}>
-                      {col.header}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider sticky right-0 z-30 shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.1)] text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
-                    {columns.map((col, colIdx) => {
-                      const value = order[col.accessor];
-                      const isStatus = col.accessor === 'status';
-                      const isWoNo = col.accessor === 'woNo';
-                      const isCompletion = col.accessor === 'completion';
-                      const isStage = col.accessor === 'stage';
-                      return (
-                        <td key={colIdx} className={`px-4 py-3 border-b border-r border-slate-100 text-[12px] font-semibold text-slate-600 whitespace-nowrap ${col.sticky ? 'sticky left-0 z-10 bg-white group-hover:bg-blue-50 transition-colors shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]' : ''} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}>
-                          {isStatus ? (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${getStatusColor(value)}`}>{value?.toUpperCase()}</span>
-                          ) : isStage ? (
-                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${getStageStyle(value)}`}>{value || 'PENDING'}</span>
-                          ) : isWoNo ? (
-                            <span className="text-blue-600 font-bold hover:underline cursor-pointer">{value}</span>
-                          ) : isCompletion ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-10 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500" style={{ width: value }} />
-                              </div>
-                              <span className="text-[10px] font-black text-slate-400">{value}</span>
-                            </div>
-                          ) : (
-                            value || '---'
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-3 border-b border-slate-100 text-center sticky right-0 z-10 bg-white group-hover:bg-blue-50 transition-colors shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.05)]">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleOpenModal(order)} className="p-1.5 rounded-lg text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Edit2 size={14} /></button>
-                        <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Work orders details">
+                  <Table.Header>
+                    {columns.map((col, idx) => (
+                      <Table.Column key={idx} className={`px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap ${col.sticky ? 'sticky left-0 z-30 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] bg-slate-50' : ''}`}>
+                        {col.header}
+                      </Table.Column>
+                    ))}
+                    <Table.Column className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider sticky right-0 z-30 shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.1)] text-center">Actions</Table.Column>
+                  </Table.Header>
+                  <Table.Body items={filteredOrders}>
+                    {(order) => (
+                      <Table.Row key={order.id} className="hover:bg-blue-50/30 transition-colors group">
+                        {columns.map((col, colIdx) => {
+                          const value = order[col.accessor];
+                          const isStatus = col.accessor === 'status';
+                          const isWoNo = col.accessor === 'woNo';
+                          const isCompletion = col.accessor === 'completion';
+                          const isStage = col.accessor === 'stage';
+                          return (
+                            <Table.Cell key={colIdx} className={`px-4 py-3 text-[12px] font-semibold text-slate-600 whitespace-nowrap ${col.sticky ? 'sticky left-0 z-10 bg-white group-hover:bg-blue-50 transition-colors shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]' : ''} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}>
+                              {isStatus ? (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${getStatusColor(value)}`}>{value?.toUpperCase()}</span>
+                              ) : isStage ? (
+                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${getStageStyle(value)}`}>{value || 'PENDING'}</span>
+                              ) : isWoNo ? (
+                                <span className="text-blue-600 font-bold hover:underline cursor-pointer">{value}</span>
+                              ) : isCompletion ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-10 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-500" style={{ width: value }} />
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-400">{value}</span>
+                                </div>
+                              ) : (
+                                value || '---'
+                              )}
+                            </Table.Cell>
+                          );
+                        })}
+                        <Table.Cell className="px-4 py-3 text-center sticky right-0 z-10 bg-white group-hover:bg-blue-50 transition-colors shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.05)]">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => handleOpenModal(order)} className="p-1.5 rounded-lg text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Edit2 size={14} /></button>
+                            <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><Trash2 size={14} /></button>
+                          </div>
+                        </Table.Cell>
+                      </Table.Row>
+                    )}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
           </div>
         </div>
       </div>

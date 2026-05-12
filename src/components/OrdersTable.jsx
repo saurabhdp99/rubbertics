@@ -4,6 +4,7 @@ import {
   Search, Plus, Filter, Download, Trash2, Eye, Edit, ChevronUp, ChevronDown,
   ChevronsUpDown, RefreshCw, SlidersHorizontal
 } from 'lucide-react';
+import { Table, Checkbox, Input, Select, Button } from '@heroui/react';
 
 const PRIORITY_STYLES = {
   Urgent: { bg: 'rgba(239,68,68,0.15)', text: '#f87171', dot: '#ef4444' },
@@ -26,9 +27,9 @@ const MANUAL_STATUS_STYLES = {
   Pending:     { text: '#f87171' },
 };
 
-function SortIcon({ field, sortField, sortDirection }) {
-  if (sortField !== field) return <ChevronsUpDown size={12} className="text-slate-600" />;
-  return sortDirection === 'asc'
+function SortIcon({ sortDirection }) {
+  if (!sortDirection) return <ChevronsUpDown size={12} className="text-slate-600" />;
+  return sortDirection === 'ascending'
     ? <ChevronUp size={12} className="text-indigo-400" />
     : <ChevronDown size={12} className="text-indigo-400" />;
 }
@@ -163,74 +164,85 @@ export default function OrdersTable() {
 
       {/* Table */}
       <div className="glass-card rounded-2xl overflow-hidden shadow-2xl pb-4">
-        <div className="overflow-x-auto px-4 pt-4">
-          <table className="w-full modern-table text-sm" style={{ minWidth: '1400px' }}>
-            <thead>
-              <tr>
-                {/* Checkbox */}
-                <th className="pl-4 pr-2 py-4 w-12 rounded-l-xl bg-slate-50 border-y border-l border-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() => toggleSelectAll(pageIds)}
-                    className="w-4 h-4 rounded bg-white border-slate-300 accent-emerald-500 cursor-pointer focus:ring-emerald-500/50"
-                  />
-                </th>
-                {/* Actions col */}
-                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest w-28 bg-slate-50 border-y border-slate-200">
-                  Actions
-                </th>
-                {COLUMNS.map((col, i) => (
-                  <th
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content
+              aria-label="Orders table"
+              className="min-w-[1400px]"
+              sortDescriptor={{ column: sortField, direction: sortDirection === 'asc' ? 'ascending' : 'descending' }}
+              onSortChange={(descriptor) => {
+                setSortField(descriptor.column);
+                setSortDirection(descriptor.direction === 'ascending' ? 'asc' : 'desc');
+              }}
+              selectedKeys={new Set(selectedOrders)}
+              selectionMode="multiple"
+              onSelectionChange={(keys) => {
+                const newSelected = Array.from(keys).map(k => String(k));
+                // Update selection in store
+                pageIds.forEach(id => {
+                  if (!newSelected.includes(String(id)) && selectedOrders.includes(id)) {
+                    toggleSelectOrder(id);
+                  } else if (newSelected.includes(String(id)) && !selectedOrders.includes(id)) {
+                    toggleSelectOrder(id);
+                  }
+                });
+              }}
+            >
+              <Table.Header>
+                <Table.Column className="w-12">
+                  <Checkbox aria-label="Select all" slot="selection">
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                  </Checkbox>
+                </Table.Column>
+                <Table.Column className="w-28">Actions</Table.Column>
+                {COLUMNS.map((col) => (
+                  <Table.Column
                     key={col.key}
-                    onClick={() => setSortField(col.key)}
-                    className={`px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:text-slate-800 transition-colors select-none bg-slate-50 border-y border-slate-200 ${i === COLUMNS.length - 1 ? 'border-r rounded-r-xl' : ''}`}
+                    id={col.key}
+                    allowsSorting
                     style={{ minWidth: col.width }}
                   >
-                    <span className="flex items-center gap-2">
-                      {col.label}
-                      <SortIcon field={col.key} sortField={sortField} sortDirection={sortDirection} />
-                    </span>
-                  </th>
+                    {({ sortDirection }) => (
+                      <span className="flex items-center gap-2">
+                        {col.label}
+                        <SortIcon sortDirection={sortDirection} />
+                      </span>
+                    )}
+                  </Table.Column>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paged.length === 0 ? (
-                <tr>
-                  <td colSpan={COLUMNS.length + 2} className="py-24 text-center text-slate-500 border border-slate-200 rounded-xl">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
-                        <SlidersHorizontal size={32} className="text-slate-400" />
-                      </div>
-                      <p className="text-sm font-medium">No orders found. Try adjusting your filters.</p>
+              </Table.Header>
+              <Table.Body items={paged} renderEmptyState={() => (
+                <div className="py-24 text-center text-slate-500">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                      <SlidersHorizontal size={32} className="text-slate-400" />
                     </div>
-                  </td>
-                </tr>
-              ) : (
-                paged.map((order, idx) => {
+                    <p className="text-sm font-medium">No orders found. Try adjusting your filters.</p>
+                  </div>
+                </div>
+              )}>
+                {(order) => {
                   const priStyle = PRIORITY_STYLES[order.priority] || PRIORITY_STYLES.Normal;
                   const statusStyle = STATUS_STYLES[order.finalStatus] || {};
                   const mStatusStyle = MANUAL_STATUS_STYLES[order.manualStatus] || {};
                   const isSelected = selectedOrders.includes(order.id);
 
                   return (
-                    <tr
-                      key={order.id}
-                      className={`text-[13px] hover:bg-slate-50/50 ${isSelected ? 'bg-indigo-50 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.3)]' : ''}`}
-                    >
-                      {/* Checkbox */}
-                      <td className="pl-4 pr-2 py-4 border-l border-y border-slate-100">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectOrder(order.id)}
-                          className="w-4 h-4 rounded bg-white border-slate-300 accent-indigo-500 cursor-pointer"
-                        />
-                      </td>
-
-                      {/* Action Buttons */}
-                      <td className="px-4 py-4 border-y border-slate-100">
+                    <Table.Row key={order.id} id={order.id}>
+                      <Table.Cell className="pr-0">
+                        <Checkbox
+                          aria-label={`Select ${order.poNo}`}
+                          slot="selection"
+                          variant="secondary"
+                        >
+                          <Checkbox.Control>
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                        </Checkbox>
+                      </Table.Cell>
+                      <Table.Cell>
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => openModal('view', order)}
@@ -254,37 +266,36 @@ export default function OrdersTable() {
                             <Trash2 size={15} />
                           </button>
                         </div>
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-y border-slate-100 font-mono text-[12px]">{order.date}</td>
-                      <td className="px-4 py-4 border-y border-slate-100"><span className="text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 whitespace-nowrap">{order.poNo}</span></td>
-                      <td className="px-4 py-4 border-y border-slate-100">
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-500 whitespace-nowrap font-mono text-[12px]">{order.date}</Table.Cell>
+                      <Table.Cell><span className="text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 whitespace-nowrap">{order.poNo}</span></Table.Cell>
+                      <Table.Cell>
                         <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${order.poType === 'Purchase' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
                           {order.poType}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 text-slate-700 font-semibold truncate max-w-[160px] border-y border-slate-100" title={order.partyName}>
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-700 font-semibold truncate max-w-[160px]" title={order.partyName}>
                         {order.partyName}
-                      </td>
-                      <td className="px-4 py-4 text-slate-500 whitespace-nowrap font-mono text-[12px] border-y border-slate-100">{order.partNo}</td>
-                      <td className="px-4 py-4 text-slate-700 truncate max-w-[220px] border-y border-slate-100" title={order.productName}>
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-500 whitespace-nowrap font-mono text-[12px]">{order.partNo}</Table.Cell>
+                      <Table.Cell className="text-slate-700 truncate max-w-[220px]" title={order.productName}>
                         {order.productName}
-                      </td>
-                      <td className="px-4 py-4 text-right text-slate-700 font-bold border-y border-slate-100">{order.orderQty.toLocaleString()}</td>
-                      <td className="px-4 py-4 text-right text-emerald-600 font-bold border-y border-slate-100">{order.dispatchQty.toLocaleString()}</td>
-                      <td className="px-4 py-4 text-right font-bold border-y border-slate-100" style={{ color: order.balanceQty > 0 ? '#ef4444' : '#10b981' }}>
+                      </Table.Cell>
+                      <Table.Cell className="text-right text-slate-700 font-bold">{order.orderQty.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right text-emerald-600 font-bold">{order.dispatchQty.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right font-bold" style={{ color: order.balanceQty > 0 ? '#ef4444' : '#10b981' }}>
                         {order.balanceQty.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap border-y border-slate-100 font-semibold" style={{ color: mStatusStyle.text || '#64748b' }}>
+                      </Table.Cell>
+                      <Table.Cell className="whitespace-nowrap font-semibold" style={{ color: mStatusStyle.text || '#64748b' }}>
                         {order.manualStatus}
-                      </td>
-                      <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-y border-slate-100 font-mono text-[12px]">{order.deliveryDate}</td>
-                      <td className="px-4 py-4 text-center border-y border-slate-100">
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-500 whitespace-nowrap font-mono text-[12px]">{order.deliveryDate}</Table.Cell>
+                      <Table.Cell className="text-center">
                         <span className={`font-bold px-2 py-1 rounded-md ${order.daysLeft <= 3 ? 'bg-red-50 text-red-600 border border-red-200' : order.daysLeft <= 10 ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'text-slate-500'}`}>
                           {order.daysLeft === 0 ? '—' : order.daysLeft}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 border-y border-slate-100">
+                      </Table.Cell>
+                      <Table.Cell>
                         <span
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
                           style={{ background: priStyle.bg, color: priStyle.text, border: `1px solid ${priStyle.bg.replace('0.15', '0.3')}` }}
@@ -292,11 +303,11 @@ export default function OrdersTable() {
                           <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: priStyle.dot }} />
                           {order.priority}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 text-slate-600 truncate max-w-[120px] border-y border-slate-100" title={order.remark}>
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-600 truncate max-w-[120px]" title={order.remark}>
                         {order.remark || '—'}
-                      </td>
-                      <td className="px-4 py-4 border-r border-y border-slate-100">
+                      </Table.Cell>
+                      <Table.Cell>
                         <span
                           className="inline-block px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider shadow-sm"
                           style={{
@@ -307,14 +318,14 @@ export default function OrdersTable() {
                         >
                           {order.finalStatus}
                         </span>
-                      </td>
-                    </tr>
+                      </Table.Cell>
+                    </Table.Row>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                }}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
 
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 pt-4 border-t border-slate-100">

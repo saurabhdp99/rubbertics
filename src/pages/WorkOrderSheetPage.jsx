@@ -24,6 +24,7 @@ import {
   Eye,
   ChevronLeft
 } from 'lucide-react';
+import { Table } from '@heroui/react';
 
 // --- DATA ---
 const WORK_ORDERS = [
@@ -141,30 +142,30 @@ function DetailTable({ title, columns, data, theme = 'emerald', noHeader = false
           </h3>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse border-slate-100">
-          <thead>
-            <tr className="bg-slate-50/50">
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Detail table">
+            <Table.Header>
               {columns.map((col, idx) => (
-                <th key={idx} className="px-2 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-r border-slate-100 last:border-r-0 whitespace-nowrap text-center">
+                <Table.Column key={idx} className="px-2 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap text-center">
                   {col}
-                </th>
+                </Table.Column>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, idx) => (
-              <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
-                {Object.values(row).map((val, vIdx) => (
-                  <td key={vIdx} className="px-2 py-2 text-[10px] font-semibold text-slate-600 border-r border-slate-50 last:border-r-0 text-center">
-                    {val || ''}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </Table.Header>
+            <Table.Body items={data}>
+              {(row) => (
+                <Table.Row key={row.id || JSON.stringify(row)}>
+                  {Object.values(row).map((val, vIdx) => (
+                    <Table.Cell key={vIdx} className="px-2 py-2 text-[10px] font-semibold text-slate-600 text-center">
+                      {val || ''}
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
+              )}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
     </div>
   );
 }
@@ -218,56 +219,55 @@ export default function WorkOrderSheetPage() {
       </div>
 
       <div className="bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Sr. No</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Work Order Info</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Details</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Part & Quantity</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((wo, idx) => (
-                <tr 
-                  key={wo.id} 
-                  className="hover:bg-emerald-50/30 transition-all cursor-pointer group"
-                  onClick={() => setSelectedOrder(wo)}
-                >
-                  <td className="px-6 py-6 text-center font-bold text-slate-400 text-sm">{idx + 1}</td>
-                  <td className="px-6 py-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-slate-800 group-hover:text-emerald-600 transition-colors">{wo.woNo}</span>
-                      <span className="text-[11px] font-bold text-slate-400 mt-1">{wo.woDate}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6 font-bold text-slate-700 text-sm">{wo.customer}</td>
-                  <td className="px-6 py-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">{wo.partName}</span>
-                      <span className="text-[11px] font-black text-emerald-600 mt-1 uppercase tracking-wider">{wo.orderQty} PCS</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${getStatusStyle(wo.status)}`}>
-                      {wo.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <div className="flex justify-center">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
-                        <ArrowRight size={18} />
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Work orders register">
+              <Table.Header>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Sr. No</Table.Column>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Work Order Info</Table.Column>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Details</Table.Column>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Part & Quantity</Table.Column>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</Table.Column>
+                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</Table.Column>
+              </Table.Header>
+              <Table.Body items={filtered}>
+                {(wo) => (
+                  <Table.Row 
+                    key={wo.id} 
+                    className="hover:bg-emerald-50/30 transition-all cursor-pointer group"
+                  >
+                    <Table.Cell className="px-6 py-6 text-center font-bold text-slate-400 text-sm">{filtered.indexOf(wo) + 1}</Table.Cell>
+                    <Table.Cell className="px-6 py-6">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-800 group-hover:text-emerald-600 transition-colors">{wo.woNo}</span>
+                        <span className="text-[11px] font-bold text-slate-400 mt-1">{wo.woDate}</span>
                       </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </Table.Cell>
+                    <Table.Cell className="px-6 py-6 font-bold text-slate-700 text-sm">{wo.customer}</Table.Cell>
+                    <Table.Cell className="px-6 py-6">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-700">{wo.partName}</span>
+                        <span className="text-[11px] font-black text-emerald-600 mt-1 uppercase tracking-wider">{wo.orderQty} PCS</span>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell className="px-6 py-6 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${getStatusStyle(wo.status)}`}>
+                        {wo.status}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="px-6 py-6 text-center">
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                          <ArrowRight size={18} />
+                        </div>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       </div>
     </div>
   );
