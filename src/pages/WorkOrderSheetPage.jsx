@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Printer,
@@ -172,6 +173,7 @@ function DetailTable({ title, columns, data, theme = 'emerald', noHeader = false
 
 // --- MAIN COMPONENT ---
 export default function WorkOrderSheetPage() {
+  const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -257,9 +259,12 @@ export default function WorkOrderSheetPage() {
                     </Table.Cell>
                     <Table.Cell className="px-6 py-6 text-center">
                       <div className="flex justify-center">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                        <button 
+                          onClick={() => navigate('/work-order-details')}
+                          className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm hover:shadow-md cursor-pointer"
+                        >
                           <ArrowRight size={18} />
-                        </div>
+                        </button>
                       </div>
                     </Table.Cell>
                   </Table.Row>
