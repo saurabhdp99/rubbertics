@@ -45,6 +45,7 @@ const LotDetailsRegisterPage = () => {
 
   const data = [
     { 
+      id: 'lot-1',
       srNo: 1, 
       date: '2026-05-01', 
       partName: 'EYE ROLLER', 
@@ -57,6 +58,7 @@ const LotDetailsRegisterPage = () => {
       remark: '' 
     },
     { 
+      id: 'lot-2',
       srNo: 2, 
       date: '2026-05-01', 
       partName: 'FOOD HUB AIRVENT', 
@@ -69,6 +71,7 @@ const LotDetailsRegisterPage = () => {
       remark: '' 
     },
     { 
+      id: 'lot-3',
       srNo: 3, 
       date: '2026-05-02', 
       partName: '206 O RING', 
@@ -81,6 +84,7 @@ const LotDetailsRegisterPage = () => {
       remark: '' 
     },
     { 
+      id: 'lot-4',
       srNo: 4, 
       date: '2026-05-02', 
       partName: 'SQ SEET', 
@@ -93,6 +97,7 @@ const LotDetailsRegisterPage = () => {
       remark: '' 
     },
     { 
+      id: 'lot-5',
       srNo: 5, 
       date: '2026-05-03', 
       partName: 'SQ R RING', 
@@ -105,6 +110,7 @@ const LotDetailsRegisterPage = () => {
       remark: '' 
     },
     { 
+      id: 'lot-6',
       srNo: 6, 
       date: '2026-05-03', 
       partName: 'BIG MORI BUSH COLOUR', 
