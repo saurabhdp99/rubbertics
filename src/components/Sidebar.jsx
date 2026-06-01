@@ -15,7 +15,10 @@ import {
   ClipboardList,
   NotebookText,
   AlertCircle,
+  Building2,
+  ChevronDown,
 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -36,6 +39,11 @@ const navItems = [
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
+  const { currentOrg, currentUser, logout, selectOrganization } = useAuthStore();
+
+  const handleSwitchOrg = () => {
+    selectOrganization(null);
+  };
   return (
     <aside
       className={`
@@ -75,7 +83,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
         {!collapsed && (
           <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Main Navigation</p>
         )}
@@ -119,20 +127,53 @@ export default function Sidebar({ collapsed, onToggle }) {
 
       {/* Footer */}
       <div className="p-4 border-t border-slate-100 pt-0">
+        {/* Org name chip */}
+        {!collapsed && currentOrg && (
+          <button
+            onClick={handleSwitchOrg}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 mb-2 hover:bg-emerald-100 transition-all group"
+            title="Switch organisation"
+            id="switch-org-btn"
+          >
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+              <Building2 size={14} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-[11px] font-semibold text-emerald-700 truncate leading-tight">{currentOrg.name}</p>
+              <p className="text-[10px] text-emerald-500 truncate">{currentUser?.name}</p>
+            </div>
+            <ChevronDown size={14} className="text-emerald-500 shrink-0 group-hover:text-emerald-700" />
+          </button>
+        )}
+
         <div className="flex flex-col gap-1">
           {collapsed && (
-            <button
-              onClick={onToggle}
-              className="flex items-center justify-center p-3 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all mb-2 border border-slate-100"
-            >
-              <ChevronRight size={20} />
-            </button>
+            <>
+              <button
+                onClick={handleSwitchOrg}
+                className="flex items-center justify-center p-3 rounded-xl text-emerald-600 hover:bg-emerald-50 transition-all mb-1 border border-emerald-100"
+                title="Switch organisation"
+                id="switch-org-btn-collapsed"
+              >
+                <Building2 size={20} />
+              </button>
+              <button
+                onClick={onToggle}
+                className="flex items-center justify-center p-3 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all mb-2 border border-slate-100"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </>
           )}
           <button className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all ${collapsed ? 'justify-center' : ''}`}>
             <Settings size={20} />
             {!collapsed && <span className="text-[14px] font-medium">Settings</span>}
           </button>
-          <button className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 transition-all ${collapsed ? 'justify-center' : ''}`}>
+          <button
+            onClick={logout}
+            id="sidebar-logout-btn"
+            className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 transition-all ${collapsed ? 'justify-center' : ''}`}
+          >
             <LogOut size={20} />
             {!collapsed && <span className="text-[14px] font-medium">Logout</span>}
           </button>
