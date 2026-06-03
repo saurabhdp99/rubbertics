@@ -17,12 +17,14 @@ import {
   AlertCircle,
   Building2,
   ChevronDown,
+  PackageSearch,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: ShoppingCart, label: 'Purchase Orders', path: '/orders' },
+  { icon: PackageSearch, label: 'Item Master', path: '/item-master' },
   { icon: Package, label: 'Inventory', path: '/inventory' },
   { icon: Layers, label: 'Mixing/Molding Plan', path: '/mixing-molding-plan' },
   { icon: Layers, label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan' },

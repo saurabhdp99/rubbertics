@@ -210,11 +210,13 @@ const initialWeeklyPlans = [
 
 let nextId = initialOrders.length + 1;
 let nextWeeklyPlanId = initialWeeklyPlans.length + 1;
+let nextItemMasterId = 1;
 
 export const useERPStore = create((set, get) => ({
   // Data
   orders: initialOrders,
   weeklyPlans: initialWeeklyPlans,
+  itemMasterItems: [],
   
   // UI State
   searchQuery: '',
@@ -226,6 +228,11 @@ export const useERPStore = create((set, get) => ({
   sortField: 'date',
   sortDirection: 'desc',
   selectedOrders: [],
+  itemMasterSearchQuery: '',
+  itemMasterCategoryFilter: 'All',
+  itemMasterStatusFilter: 'All',
+  itemMasterCurrentPage: 1,
+  itemMasterItemsPerPage: 10,
   
   // Modal State
   isModalOpen: false,
@@ -325,6 +332,35 @@ export const useERPStore = create((set, get) => ({
     set({ isWeeklyDeleteConfirmOpen: false, weeklyPlanToDelete: null });
   },
 
+  addItemMaster: (itemData) => {
+    const newItem = {
+      ...itemData,
+      id: nextItemMasterId++,
+      isActive: itemData.isActive || 'Yes',
+    };
+    set(state => ({
+      itemMasterItems: [newItem, ...state.itemMasterItems],
+      itemMasterCurrentPage: 1,
+    }));
+    get().addNotification('Item master created successfully!', 'success');
+  },
+
+  updateItemMaster: (id, itemData) => {
+    set(state => ({
+      itemMasterItems: state.itemMasterItems.map(item =>
+        item.id === id ? { ...item, ...itemData } : item
+      ),
+    }));
+    get().addNotification('Item master updated successfully!', 'success');
+  },
+
+  deleteItemMaster: (id) => {
+    set(state => ({
+      itemMasterItems: state.itemMasterItems.filter(item => item.id !== id),
+    }));
+    get().addNotification('Item master deleted successfully!', 'error');
+  },
+
   // Weekly Modal controls
   openWeeklyModal: (mode, plan = null) => {
     set({ isWeeklyModalOpen: true, weeklyModalMode: mode, selectedWeeklyPlan: plan });
@@ -386,6 +422,11 @@ export const useERPStore = create((set, get) => ({
   setFilterPoType: (t) => set({ filterPoType: t, currentPage: 1 }),
   setCurrentPage: (p) => set({ currentPage: p }),
   setItemsPerPage: (n) => set({ itemsPerPage: n, currentPage: 1 }),
+  setItemMasterSearchQuery: (q) => set({ itemMasterSearchQuery: q, itemMasterCurrentPage: 1 }),
+  setItemMasterCategoryFilter: (category) => set({ itemMasterCategoryFilter: category, itemMasterCurrentPage: 1 }),
+  setItemMasterStatusFilter: (status) => set({ itemMasterStatusFilter: status, itemMasterCurrentPage: 1 }),
+  setItemMasterCurrentPage: (page) => set({ itemMasterCurrentPage: page }),
+  setItemMasterItemsPerPage: (count) => set({ itemMasterItemsPerPage: count, itemMasterCurrentPage: 1 }),
   setSortField: (field) => {
     set(state => ({
       sortField: field,
@@ -433,6 +474,45 @@ export const useERPStore = create((set, get) => ({
       urgent: orders.filter(o => o.priority === 'Urgent' || o.priority === 'High').length,
       totalOrderQty: orders.reduce((s, o) => s + Number(o.orderQty), 0),
       totalDispatchQty: orders.reduce((s, o) => s + Number(o.dispatchQty), 0),
+    };
+  },
+
+  getFilteredItemMasterItems: () => {
+    const {
+      itemMasterItems,
+      itemMasterSearchQuery,
+      itemMasterCategoryFilter,
+      itemMasterStatusFilter,
+    } = get();
+
+    const query = itemMasterSearchQuery.toLowerCase().trim();
+
+    return itemMasterItems.filter(item => {
+      const matchesSearch =
+        !query ||
+        Object.values(item)
+          .some(value => String(value || '').toLowerCase().includes(query));
+      const matchesCategory = itemMasterCategoryFilter === 'All' || item.itemCategory === itemMasterCategoryFilter;
+      const matchesStatus = itemMasterStatusFilter === 'All' || item.isActive === itemMasterStatusFilter;
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  },
+
+  getItemMasterStats: () => {
+    const { itemMasterItems } = get();
+    const categories = new Set(itemMasterItems.map(item => item.itemCategory).filter(Boolean));
+    const active = itemMasterItems.filter(item => item.isActive === 'Yes').length;
+    const products = itemMasterItems.filter(item => item.isProduct === 'Yes').length;
+    const avgPrice = itemMasterItems.length
+      ? itemMasterItems.reduce((sum, item) => sum + Number(item.itemPrice || 0), 0) / itemMasterItems.length
+      : 0;
+
+    return {
+      total: itemMasterItems.length,
+      active,
+      products,
+      categories: categories.size,
+      avgPrice,
     };
   },
 }));

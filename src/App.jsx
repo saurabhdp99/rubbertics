@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Sidebar from './components/Sidebar';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import InventoryPage from './pages/InventoryPage';
+import ItemMasterPage from './pages/ItemMasterPage';
 import InwardPage from './pages/InwardPage';
 import MixingMoldingPlanPage from './pages/MixingMoldingPlanPage';
 import DailyFinishingOutputReportPage from './pages/DailyFinishingOutputReportPage';
@@ -40,6 +41,7 @@ function ERPApp() {
             <Route path="/" element={<Navigate to="/orders" replace />} />
             <Route path="/orders" element={<PurchaseOrdersPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/item-master" element={<ItemMasterPage />} />
             <Route path="/inward" element={<InwardPage />} />
             <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />
             <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />

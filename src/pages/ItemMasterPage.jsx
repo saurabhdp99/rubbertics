@@ -1,0 +1,479 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Activity,
+  ArrowLeft,
+  BadgeIndianRupee,
+  Boxes,
+  Edit,
+  Eye,
+  FileDown,
+  Hash,
+  PackageSearch,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
+import StatsCard from '../components/common/StatsCard';
+import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
+import { useERPStore } from '../store/erpStore';
+
+const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
+  item[field.key] = field.type === 'select' ? 'Yes' : '';
+  return item;
+}, {});
+
+const TABLE_COLUMNS = ITEM_MASTER_FIELDS.map(field => ({
+  ...field,
+  width: field.type === 'number' ? '120px' : field.type === 'select' ? '130px' : '180px',
+  align: field.type === 'number' ? 'right' : field.type === 'select' ? 'center' : 'left',
+}));
+
+const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References'];
+
+function FormField({ field, value, onChange, disabled, error }) {
+  const inputClass = `w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${
+    error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
+  } input-glow`;
+
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+        {field.label}
+        {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+      </span>
+      {field.type === 'select' ? (
+        <select
+          value={value || 'Yes'}
+          disabled={disabled}
+          onChange={(event) => onChange(field.key, event.target.value)}
+          className={inputClass}
+        >
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      ) : (
+        <input
+          type={field.type === 'number' ? 'number' : 'text'}
+          step={field.type === 'number' ? '0.01' : undefined}
+          value={value ?? ''}
+          disabled={disabled}
+          onChange={(event) => onChange(field.key, event.target.value)}
+          className={inputClass}
+          placeholder={field.label}
+        />
+      )}
+      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+    </label>
+  );
+}
+
+function ItemMasterForm({ mode, item, onBack }) {
+  const { addItemMaster, updateItemMaster } = useERPStore();
+  const [form, setForm] = useState(EMPTY_ITEM);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    setForm(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
+    setErrors({});
+  }, [item, mode]);
+
+  const isView = mode === 'view';
+  const isAdd = mode === 'add';
+  const groupedFields = SECTION_ORDER.map(section => ({
+    section,
+    fields: ITEM_MASTER_FIELDS.filter(field => field.section === section),
+  }));
+
+  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+
+  const validate = () => {
+    const nextErrors = {};
+    if (!String(form.itemCode || '').trim()) nextErrors.itemCode = 'Item code is required';
+    if (!String(form.itemName || '').trim()) nextErrors.itemName = 'Item name is required';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!validate()) return;
+    if (isAdd) addItemMaster(form);
+    else updateItemMaster(item.id, form);
+    onBack();
+  };
+
+  return (
+    <div className="animate-slide-up">
+      <div className="glass-card rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/80">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="w-11 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-100 flex items-center justify-center transition-all"
+              title="Back to table"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-50 border border-emerald-200 shadow-lg shadow-emerald-500/10">
+              {isView ? <Eye size={24} className="text-emerald-600" /> : <PackageSearch size={24} className="text-emerald-600" />}
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                {isView ? 'View Item Master' : isAdd ? 'Add Item Master' : 'Edit Item Master'}
+              </h2>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">
+                {form.itemCode || 'Manual entry from Sales Item Master template'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+            >
+              <X size={16} />
+              Back
+            </button>
+            {!isView && (
+              <button
+                type="submit"
+                form="item-master-page-form"
+                className="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+              >
+                <Save size={16} />
+                {isAdd ? 'Create Item' : 'Save Changes'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <form id="item-master-page-form" onSubmit={submit} className="p-6">
+          <div className="flex flex-col gap-7">
+            {groupedFields.map(group => (
+              <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                    <Tag size={15} className="text-emerald-600" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {group.fields.map(field => (
+                    <FormField
+                      key={field.key}
+                      field={field}
+                      value={form[field.key]}
+                      onChange={set}
+                      disabled={isView}
+                      error={errors[field.key]}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          {!isView && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+              >
+                <X size={16} />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+              >
+                <Save size={16} />
+                {isAdd ? 'Create Item' : 'Save Changes'}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default function ItemMasterPage() {
+  const {
+    itemMasterItems,
+    itemMasterSearchQuery,
+    itemMasterCategoryFilter,
+    itemMasterStatusFilter,
+    itemMasterCurrentPage,
+    itemMasterItemsPerPage,
+    setItemMasterSearchQuery,
+    setItemMasterCategoryFilter,
+    setItemMasterStatusFilter,
+    setItemMasterCurrentPage,
+    setItemMasterItemsPerPage,
+    deleteItemMaster,
+    getFilteredItemMasterItems,
+    getItemMasterStats,
+  } = useERPStore();
+  const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
+  const [deleteCandidateId, setDeleteCandidateId] = useState(null);
+
+  const filtered = getFilteredItemMasterItems();
+  const stats = getItemMasterStats();
+  const totalPages = Math.ceil(filtered.length / itemMasterItemsPerPage);
+  const pagedItems = filtered.slice(
+    (itemMasterCurrentPage - 1) * itemMasterItemsPerPage,
+    itemMasterCurrentPage * itemMasterItemsPerPage
+  );
+
+  const categories = useMemo(() => {
+    return ['All', ...Array.from(new Set(itemMasterItems.map(item => item.itemCategory).filter(Boolean))).sort()];
+  }, [itemMasterItems]);
+
+  const openForm = (mode, item = null) => {
+    setDeleteCandidateId(null);
+    setViewState({ type: 'form', mode, item });
+  };
+
+  const backToTable = () => setViewState({ type: 'table', mode: null, item: null });
+
+  const clearFilters = () => {
+    setItemMasterSearchQuery('');
+    setItemMasterCategoryFilter('All');
+    setItemMasterStatusFilter('All');
+  };
+
+  const exportCsv = () => {
+    const headers = ITEM_MASTER_FIELDS.map(field => field.label);
+    const rows = filtered.map(item => ITEM_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'item-master.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderCellValue = (item, column) => {
+    const value = item[column.key];
+
+    if (column.key === 'itemCode') {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 whitespace-nowrap">
+          <Hash size={12} /> {value || '-'}
+        </span>
+      );
+    }
+
+    if (column.key === 'itemName') {
+      return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
+    }
+
+    if (column.type === 'select') {
+      return (
+        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+          value === 'Yes'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-slate-100 text-slate-500 border-slate-200'
+        }`}>
+          {value || 'No'}
+        </span>
+      );
+    }
+
+    if (column.type === 'number') {
+      const numericValue = value === '' || value === null || value === undefined ? null : Number(value);
+      return <span className="font-semibold text-slate-800">{numericValue === null || Number.isNaN(numericValue) ? '-' : numericValue.toFixed(2)}</span>;
+    }
+
+    return <span className="block max-w-[220px] truncate" title={value}>{value || '-'}</span>;
+  };
+
+  return (
+    <div className="p-6 max-w-[1920px] mx-auto animate-slide-up">
+      <PageHeader
+        icon={PackageSearch}
+        title="Item Master"
+        description="Create and maintain sales item master records"
+        showLiveSync={true}
+        theme="emerald"
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <StatsCard label="Total Items" value={stats.total.toLocaleString()} icon={Boxes} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
+        <StatsCard label="Active Items" value={stats.active.toLocaleString()} icon={Activity} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
+        <StatsCard label="Categories" value={stats.categories.toLocaleString()} icon={Tag} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
+        <StatsCard label="Avg. Price" value={`Rs. ${stats.avgPrice.toFixed(2)}`} icon={BadgeIndianRupee} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
+      </div>
+
+      {viewState.type === 'form' ? (
+        <ItemMasterForm mode={viewState.mode} item={viewState.item} onBack={backToTable} />
+      ) : (
+        <>
+          <div className="glass-card rounded-2xl p-5 shadow-xl mb-6">
+            <div className="flex flex-col xl:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full min-w-0 group">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search by item code, item name, part no, customer..."
+                  value={itemMasterSearchQuery}
+                  onChange={event => setItemMasterSearchQuery(event.target.value)}
+                  className="w-full pl-11 pr-4 py-3 text-sm input-glow rounded-xl focus:border-emerald-500/50"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-3 w-full xl:w-auto">
+                <select
+                  value={itemMasterCategoryFilter}
+                  onChange={event => setItemMasterCategoryFilter(event.target.value)}
+                  className="px-4 py-3 text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 focus:border-emerald-500/50 transition-all outline-none cursor-pointer"
+                >
+                  {categories.map(category => <option key={category} value={category}>{category === 'All' ? 'All Categories' : category}</option>)}
+                </select>
+                <select
+                  value={itemMasterStatusFilter}
+                  onChange={event => setItemMasterStatusFilter(event.target.value)}
+                  className="px-4 py-3 text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 focus:border-emerald-500/50 transition-all outline-none cursor-pointer"
+                >
+                  {['All', 'Yes', 'No'].map(status => <option key={status} value={status}>{status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}</option>)}
+                </select>
+              </div>
+
+              <div className="flex gap-3 w-full xl:w-auto shrink-0">
+                <button onClick={exportCsv} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all flex-1 xl:flex-none">
+                  <FileDown size={18} />
+                  Export
+                </button>
+                <button onClick={() => openForm('add')} className="btn-primary flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30 flex-1 xl:flex-none">
+                  <Plus size={18} strokeWidth={2.5} />
+                  Add Item
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-4 px-1">
+              <p className="text-xs font-medium text-slate-500">
+                Showing <span className="text-slate-800 font-bold px-1">{filtered.length}</span> of <span className="text-slate-800 font-bold px-1">{itemMasterItems.length}</span> items
+              </p>
+              {(itemMasterSearchQuery || itemMasterCategoryFilter !== 'All' || itemMasterStatusFilter !== 'All') && (
+                <button onClick={clearFilters} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                  <RefreshCw size={12} /> Clear Filters
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card rounded-2xl overflow-hidden shadow-2xl pb-4">
+            <div className="overflow-auto custom-scrollbar">
+              <table className="w-full text-left" style={{ minWidth: `${TABLE_COLUMNS.length * 170 + 150}px` }}>
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80">
+                    <th className="sticky left-0 z-10 bg-slate-50 px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest w-[150px]">Actions</th>
+                    {TABLE_COLUMNS.map(column => (
+                      <th key={column.key} className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest" style={{ minWidth: column.width, textAlign: column.align || 'left' }}>
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={TABLE_COLUMNS.length + 1} className="py-20 text-center text-sm font-medium text-slate-500">
+                        No item master records yet. Use Add Item to create the first one.
+                      </td>
+                    </tr>
+                  ) : pagedItems.map(item => (
+                    <tr key={item.id} className="border-b border-slate-100 hover:bg-emerald-50/40 transition-colors">
+                      <td className="sticky left-0 z-10 bg-white px-4 py-3">
+                        {deleteCandidateId === item.id ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                deleteItemMaster(item.id);
+                                setDeleteCandidateId(null);
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setDeleteCandidateId(null)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="View">
+                              <Eye size={15} />
+                            </button>
+                            <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all" title="Edit">
+                              <Edit size={15} />
+                            </button>
+                            <button onClick={() => setDeleteCandidateId(item.id)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all" title="Delete">
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      {TABLE_COLUMNS.map(column => (
+                        <td key={column.key} className="px-4 py-3 text-[13px] text-slate-700" style={{ textAlign: column.align || 'left' }}>
+                          {renderCellValue(item, column)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
+                <span>Rows per page:</span>
+                <select
+                  value={itemMasterItemsPerPage}
+                  onChange={event => setItemMasterItemsPerPage(Number(event.target.value))}
+                  className="px-3 py-1.5 rounded-lg text-slate-700 bg-white border border-slate-200 outline-none focus:border-emerald-500/50 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  {[10, 20, 50, 100].map(count => <option key={count} value={count}>{count}</option>)}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setItemMasterCurrentPage(Math.max(1, itemMasterCurrentPage - 1))}
+                  disabled={itemMasterCurrentPage === 1}
+                  className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+                <p className="text-sm font-medium text-slate-500 px-2">
+                  Page <span className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{itemMasterCurrentPage}</span> of <span className="text-slate-800">{totalPages || 1}</span>
+                </p>
+                <button
+                  onClick={() => setItemMasterCurrentPage(Math.min(totalPages, itemMasterCurrentPage + 1))}
+                  disabled={itemMasterCurrentPage === totalPages || totalPages === 0}
+                  className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
