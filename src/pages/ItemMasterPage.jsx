@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Save,
   Search,
+  SlidersHorizontal,
   Tag,
   Trash2,
   X,
@@ -21,6 +22,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useERPStore } from '../store/erpStore';
+import { Table } from '@heroui/react';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = field.type === 'select' ? 'Yes' : '';
@@ -374,70 +376,83 @@ export default function ItemMasterPage() {
           </div>
 
           <div className="glass-card rounded-2xl overflow-hidden shadow-2xl pb-4">
-            <div className="overflow-auto custom-scrollbar">
-              <table className="w-full text-left" style={{ minWidth: `${TABLE_COLUMNS.length * 170 + 150}px` }}>
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/80">
-                    <th className="sticky left-0 z-10 bg-slate-50 px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest w-[150px]">Actions</th>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content
+                  aria-label="Item master table"
+                  className="text-left"
+                  style={{ minWidth: `${TABLE_COLUMNS.length * 170 + 150}px` }}
+                >
+                  <Table.Header>
+                    <Table.Column className="w-28 whitespace-nowrap">
+                      Actions
+                    </Table.Column>
                     {TABLE_COLUMNS.map(column => (
-                      <th key={column.key} className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest" style={{ minWidth: column.width, textAlign: column.align || 'left' }}>
+                      <Table.Column
+                        key={column.key}
+                        className="whitespace-nowrap"
+                        style={{ minWidth: column.width, textAlign: column.align || 'left' }}
+                      >
                         {column.label}
-                      </th>
+                      </Table.Column>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={TABLE_COLUMNS.length + 1} className="py-20 text-center text-sm font-medium text-slate-500">
-                        No item master records yet. Use Add Item to create the first one.
-                      </td>
-                    </tr>
-                  ) : pagedItems.map(item => (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-emerald-50/40 transition-colors">
-                      <td className="sticky left-0 z-10 bg-white px-4 py-3">
-                        {deleteCandidateId === item.id ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                deleteItemMaster(item.id);
-                                setDeleteCandidateId(null);
-                              }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
-                            >
-                              Delete
-                            </button>
-                            <button
-                              onClick={() => setDeleteCandidateId(null)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="View">
-                              <Eye size={15} />
-                            </button>
-                            <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all" title="Edit">
-                              <Edit size={15} />
-                            </button>
-                            <button onClick={() => setDeleteCandidateId(item.id)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all" title="Delete">
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      {TABLE_COLUMNS.map(column => (
-                        <td key={column.key} className="px-4 py-3 text-[13px] text-slate-700" style={{ textAlign: column.align || 'left' }}>
-                          {renderCellValue(item, column)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </Table.Header>
+                  <Table.Body items={pagedItems} renderEmptyState={() => (
+                    <div className="py-24 text-center text-slate-500">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                          <SlidersHorizontal size={32} className="text-slate-400" />
+                        </div>
+                        <p className="text-sm font-medium">No items found. Try adjusting your filters.</p>
+                      </div>
+                    </div>
+                  )}>
+                    {(item) => (
+                      <Table.Row key={item.id} className="group">
+                        <Table.Cell>
+                          {deleteCandidateId === item.id ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  deleteItemMaster(item.id);
+                                  setDeleteCandidateId(null);
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => setDeleteCandidateId(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                              <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
+                                <Eye size={15} />
+                              </button>
+                              <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
+                                <Edit size={15} />
+                              </button>
+                              <button onClick={() => setDeleteCandidateId(item.id)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-all" title="Delete">
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          )}
+                        </Table.Cell>
+                        {TABLE_COLUMNS.map(column => (
+                          <Table.Cell key={column.key} className="text-[13px] text-slate-700" style={{ textAlign: column.align || 'left' }}>
+                            {renderCellValue(item, column)}
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    )}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
@@ -459,9 +474,31 @@ export default function ItemMasterPage() {
                 >
                   Previous
                 </button>
-                <p className="text-sm font-medium text-slate-500 px-2">
-                  Page <span className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{itemMasterCurrentPage}</span> of <span className="text-slate-800">{totalPages || 1}</span>
-                </p>
+
+                <div className="flex items-center gap-1 hidden sm:flex">
+                  {Array.from({ length: Math.min(5, totalPages || 1) }, (_, index) => {
+                    let page;
+                    if (totalPages <= 5) page = index + 1;
+                    else if (itemMasterCurrentPage <= 3) page = index + 1;
+                    else if (itemMasterCurrentPage >= totalPages - 2) page = totalPages - 4 + index;
+                    else page = itemMasterCurrentPage - 2 + index;
+
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setItemMasterCurrentPage(page)}
+                        className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${
+                          itemMasterCurrentPage === page
+                            ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
+                            : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <button
                   onClick={() => setItemMasterCurrentPage(Math.min(totalPages, itemMasterCurrentPage + 1))}
                   disabled={itemMasterCurrentPage === totalPages || totalPages === 0}
@@ -470,6 +507,11 @@ export default function ItemMasterPage() {
                   Next
                 </button>
               </div>
+
+              <p className="text-sm font-medium text-slate-500">
+                Page <span className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{itemMasterCurrentPage}</span> of{' '}
+                <span className="text-slate-800">{totalPages || 1}</span>
+              </p>
             </div>
           </div>
         </>

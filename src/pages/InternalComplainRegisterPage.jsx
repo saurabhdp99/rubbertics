@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Search, Plus, Trash2, Edit2, X, Save, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Plus, Trash2, Edit2, X, Save, AlertCircle, SlidersHorizontal } from 'lucide-react';
+import { Table } from '@heroui/react';
 
 const initialComplaints = [
   {
@@ -128,81 +129,80 @@ export default function InternalComplainRegisterPage() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider w-12">SR.NO</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider w-28">DATE</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">PART NAME</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">IMPROVEMENT PERSON</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">CHECKED PERSON</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">DEPARTMENT</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">ROUTE CARD</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider w-20">SHIFT</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider">RESPONSIBILITY</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider min-w-[200px]">ISSUE</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider min-w-[200px]">ROOT CAUSE</th>
-                <th className="text-left px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider min-w-[250px]">ACTION</th>
-                <th className="text-center px-4 py-4 font-bold text-slate-600 uppercase text-[11px] tracking-wider w-24">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <AlertCircle size={32} className="text-slate-200" />
-                      <p>No complaint records found.</p>
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Internal complaint register table" className="min-w-[1800px]">
+              <Table.Header>
+                <Table.Column className="w-16 whitespace-nowrap">SR.NO</Table.Column>
+                <Table.Column className="w-28 whitespace-nowrap">DATE</Table.Column>
+                <Table.Column className="whitespace-nowrap">PART NAME</Table.Column>
+                <Table.Column className="whitespace-nowrap">IMPROVEMENT PERSON</Table.Column>
+                <Table.Column className="whitespace-nowrap">CHECKED PERSON</Table.Column>
+                <Table.Column className="whitespace-nowrap">DEPARTMENT</Table.Column>
+                <Table.Column className="whitespace-nowrap">ROUTE CARD</Table.Column>
+                <Table.Column className="w-20 whitespace-nowrap">SHIFT</Table.Column>
+                <Table.Column className="whitespace-nowrap">RESPONSIBILITY</Table.Column>
+                <Table.Column className="whitespace-nowrap" style={{ minWidth: '220px' }}>ISSUE</Table.Column>
+                <Table.Column className="whitespace-nowrap" style={{ minWidth: '220px' }}>ROOT CAUSE</Table.Column>
+                <Table.Column className="whitespace-nowrap" style={{ minWidth: '260px' }}>ACTION</Table.Column>
+                <Table.Column className="w-24 text-center whitespace-nowrap">ACTIONS</Table.Column>
+              </Table.Header>
+              <Table.Body items={filtered} renderEmptyState={() => (
+                <div className="py-24 text-center text-slate-500">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                      <SlidersHorizontal size={32} className="text-slate-400" />
                     </div>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-slate-50/80 transition-colors group"
-                  >
-                    <td className="px-4 py-4 text-slate-500 font-medium">{index + 1}</td>
-                    <td className="px-4 py-4 text-slate-700">{item.date}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-900">{item.partName}</td>
-                    <td className="px-4 py-4 text-slate-700">{item.improvementPerson}</td>
-                    <td className="px-4 py-4 text-slate-700">{item.checkedPersonName}</td>
-                    <td className="px-4 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                        {item.department}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">{item.routeCardNo}</td>
-                    <td className="px-4 py-4 text-slate-600">{item.shift}</td>
-                    <td className="px-4 py-4 text-slate-700">{item.responsibility}</td>
-                    <td className="px-4 py-4 text-slate-700 leading-relaxed">{item.issue}</td>
-                    <td className="px-4 py-4 text-slate-700 leading-relaxed">{item.rootCause}</td>
-                    <td className="px-4 py-4 text-slate-700 leading-relaxed whitespace-pre-line">{item.action}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                          title="Edit"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <p className="text-sm font-medium">No complaint records found. Try adjusting your search.</p>
+                  </div>
+                </div>
+              )}>
+                {(item) => {
+                  const index = filtered.findIndex((entry) => entry.id === item.id);
+
+                  return (
+                    <Table.Row key={item.id} className="group">
+                      <Table.Cell className="text-slate-500 font-medium">{index + 1}</Table.Cell>
+                      <Table.Cell className="text-slate-700 whitespace-nowrap">{item.date}</Table.Cell>
+                      <Table.Cell className="font-semibold text-slate-900">{item.partName}</Table.Cell>
+                      <Table.Cell className="text-slate-700">{item.improvementPerson}</Table.Cell>
+                      <Table.Cell className="text-slate-700">{item.checkedPersonName}</Table.Cell>
+                      <Table.Cell>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                          {item.department}
+                        </span>
+                      </Table.Cell>
+                      <Table.Cell className="text-slate-600 whitespace-nowrap">{item.routeCardNo || '-'}</Table.Cell>
+                      <Table.Cell className="text-slate-600 whitespace-nowrap">{item.shift || '-'}</Table.Cell>
+                      <Table.Cell className="text-slate-700">{item.responsibility || '-'}</Table.Cell>
+                      <Table.Cell className="text-slate-700 leading-relaxed">{item.issue || '-'}</Table.Cell>
+                      <Table.Cell className="text-slate-700 leading-relaxed">{item.rootCause || '-'}</Table.Cell>
+                      <Table.Cell className="text-slate-700 leading-relaxed whitespace-pre-line">{item.action || '-'}</Table.Cell>
+                      <Table.Cell>
+                        <div className="flex items-center justify-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                          <button
+                            onClick={() => openEdit(item)}
+                            className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all"
+                            title="Edit"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                }}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       </div>
 
       {/* Modal */}

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
@@ -21,22 +20,17 @@ import OrgSelectPage from './pages/OrgSelectPage';
 import { useAuthStore } from './store/authStore';
 
 function ERPApp() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   return (
     <div className="min-h-screen bg-slate-50" style={{ background: '#f8fafc' }}>
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-      />
+      <Sidebar />
       <main
         className="transition-all duration-300 ease-in-out"
         style={{
-          marginLeft: sidebarCollapsed ? '80px' : '220px',
+          marginLeft: '220px',
           minHeight: 'calc(100vh - 64px)',
         }}
       >
-        <div className={`transition-all duration-300 ${sidebarCollapsed ? 'px-0' : 'px-1'}`}>
+        <div className="px-1">
           <Routes>
             <Route path="/" element={<Navigate to="/orders" replace />} />
             <Route path="/orders" element={<PurchaseOrdersPage />} />
