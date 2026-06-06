@@ -48,8 +48,8 @@
     "section": "Basic Details"
   },
   {
-    "key": "itemAlloy",
-    "label": "Item Alloy",
+    "key": "aliasName",
+    "label": "Alias Name",
     "type": "text",
     "section": "Basic Details"
   },
