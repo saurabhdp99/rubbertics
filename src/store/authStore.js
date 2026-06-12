@@ -329,4 +329,24 @@ export const useAuthStore = create((set, get) => ({
   },
 
   clearError: () => set({ authError: null }),
+
+  // ─── Update own email (admin/staff) ─────────────────────────────────
+  updateEmail: async (newEmail) => {
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) return { success: false, error: error.message };
+    // Also update profiles table
+    const userId = get().currentUser?.id;
+    if (userId) {
+      await supabase.from('profiles').update({ email: newEmail }).eq('id', userId);
+      set({ currentUser: { ...get().currentUser, email: newEmail } });
+    }
+    return { success: true };
+  },
+
+  // ─── Update own password ─────────────────────────────────────────────
+  updatePassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  },
 }));

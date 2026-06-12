@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building } from 'lucide-react';
+import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 function StaffBadge({ role }) {
@@ -81,7 +81,7 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
 }
 
 export default function SettingsPage() {
-  const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading } = useAuthStore();
+  const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading, updateEmail, updatePassword } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
 
   // Staff form state
@@ -96,6 +96,20 @@ export default function SettingsPage() {
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [activeTab, setActiveTab] = useState('staff');
   const [manageOrgsStaff, setManageOrgsStaff] = useState(null);
+
+  // Account – change email
+  const [emailForm, setEmailForm] = useState({ newEmail: '' });
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
+
+  // Account – change password
+  const [pwdForm, setPwdForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
 
   useEffect(() => {
     if (isAdmin) loadStaff();
@@ -164,6 +178,51 @@ export default function SettingsPage() {
   const strengthScore = getPasswordStrength(form.password);
   const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][strengthScore];
   const strengthColor = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'][strengthScore];
+
+  const getPwdStrength = (pwd) => {
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score;
+  };
+  const newPwdScore = getPwdStrength(pwdForm.newPassword);
+  const newPwdLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][newPwdScore];
+  const newPwdColor = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'][newPwdScore];
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    setEmailError(''); setEmailSuccess('');
+    if (!emailForm.newEmail.trim()) { setEmailError('Please enter a new email.'); return; }
+    if (emailForm.newEmail.trim() === currentUser?.email) { setEmailError('New email is the same as current.'); return; }
+    setEmailLoading(true);
+    const result = await updateEmail(emailForm.newEmail.trim());
+    setEmailLoading(false);
+    if (result.success) {
+      setEmailSuccess('Email updated successfully!');
+      setEmailForm({ newEmail: '' });
+    } else {
+      setEmailError(result.error || 'Failed to update email.');
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwdError(''); setPwdSuccess('');
+    if (!pwdForm.newPassword) { setPwdError('Please enter a new password.'); return; }
+    if (pwdForm.newPassword.length < 8) { setPwdError('Password must be at least 8 characters.'); return; }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) { setPwdError('Passwords do not match.'); return; }
+    setPwdLoading(true);
+    const result = await updatePassword(pwdForm.newPassword);
+    setPwdLoading(false);
+    if (result.success) {
+      setPwdSuccess('Password changed successfully!');
+      setPwdForm({ newPassword: '', confirmPassword: '' });
+    } else {
+      setPwdError(result.error || 'Failed to update password.');
+    }
+  };
 
   return (
     <div className="settings-page">
@@ -407,6 +466,7 @@ export default function SettingsPage() {
       {/* ── Account Tab ── */}
       {activeTab === 'account' && (
         <div className="settings-content">
+          {/* Profile info card */}
           <div className="settings-card">
             <div className="settings-card-header">
               <Shield size={20} />
@@ -438,11 +498,204 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-            <div className="account-password-hint">
+          </div>
+
+          {/* Change Email – admin only */}
+          {isAdmin && (
+            <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+              <div className="settings-card-header">
+                <Mail size={20} />
+                <div>
+                  <h2 className="settings-card-title">Change Email</h2>
+                  <p className="settings-card-sub">Update the email address used to log in</p>
+                </div>
+              </div>
+
+              {emailError && (
+                <div className="settings-alert error">
+                  <AlertCircle size={16} />
+                  <span>{emailError}</span>
+                  <button onClick={() => setEmailError('')}><X size={14} /></button>
+                </div>
+              )}
+              {emailSuccess && (
+                <div className="settings-alert success">
+                  <CheckCircle size={16} />
+                  <span>{emailSuccess}</span>
+                  <button onClick={() => setEmailSuccess('')}><X size={14} /></button>
+                </div>
+              )}
+
+              <form onSubmit={handleChangeEmail} id="change-email-form">
+                <div className="staff-form-grid">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="current-email">
+                      <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      Current Email
+                    </label>
+                    <input
+                      id="current-email"
+                      type="email"
+                      value={currentUser?.email || ''}
+                      disabled
+                      className="settings-input"
+                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="new-email">
+                      <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      New Email
+                    </label>
+                    <input
+                      id="new-email"
+                      type="email"
+                      value={emailForm.newEmail}
+                      onChange={(e) => setEmailForm({ newEmail: e.target.value })}
+                      placeholder="new@example.com"
+                      className="settings-input"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="staff-form-footer">
+                  <div className="staff-form-note">
+                    <Shield size={14} />
+                    <span>A confirmation may be sent to both old and new email addresses.</span>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={emailLoading}
+                    className="staff-create-btn"
+                    id="change-email-submit-btn"
+                  >
+                    {emailLoading ? (
+                      <><Loader2 size={16} className="spin" /><span>Updating…</span></>
+                    ) : (
+                      <><Mail size={16} /><span>Update Email</span></>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Change Password – admin only */}
+          {isAdmin && (
+            <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+              <div className="settings-card-header">
+                <KeyRound size={20} />
+                <div>
+                  <h2 className="settings-card-title">Change Password</h2>
+                  <p className="settings-card-sub">Set a new password for your account</p>
+                </div>
+              </div>
+
+              {pwdError && (
+                <div className="settings-alert error">
+                  <AlertCircle size={16} />
+                  <span>{pwdError}</span>
+                  <button onClick={() => setPwdError('')}><X size={14} /></button>
+                </div>
+              )}
+              {pwdSuccess && (
+                <div className="settings-alert success">
+                  <CheckCircle size={16} />
+                  <span>{pwdSuccess}</span>
+                  <button onClick={() => setPwdSuccess('')}><X size={14} /></button>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} id="change-password-form">
+                <div className="staff-form-grid">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="new-password">
+                      <Lock size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      New Password
+                    </label>
+                    <div className="settings-input-wrapper">
+                      <input
+                        id="new-password"
+                        type={showNewPwd ? 'text' : 'password'}
+                        value={pwdForm.newPassword}
+                        onChange={(e) => setPwdForm(f => ({ ...f, newPassword: e.target.value }))}
+                        placeholder="Min. 8 characters"
+                        className="settings-input with-icon"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowNewPwd(v => !v)} className="settings-eye-btn" tabIndex={-1}>
+                        {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {pwdForm.newPassword && (
+                      <div className="password-strength" style={{ marginTop: '0.4rem' }}>
+                        <div className="strength-bars">
+                          {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="strength-bar" style={{ background: i <= newPwdScore ? newPwdColor : 'var(--border-color)' }} />
+                          ))}
+                        </div>
+                        <span style={{ fontSize: '0.73rem', color: newPwdColor }}>{newPwdLabel}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="confirm-password">
+                      <Lock size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      Confirm Password
+                    </label>
+                    <div className="settings-input-wrapper">
+                      <input
+                        id="confirm-password"
+                        type={showConfirmPwd ? 'text' : 'password'}
+                        value={pwdForm.confirmPassword}
+                        onChange={(e) => setPwdForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                        placeholder="Re-enter new password"
+                        className="settings-input with-icon"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowConfirmPwd(v => !v)} className="settings-eye-btn" tabIndex={-1}>
+                        {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {pwdForm.confirmPassword && pwdForm.newPassword !== pwdForm.confirmPassword && (
+                      <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.3rem' }}>Passwords do not match</p>
+                    )}
+                    {pwdForm.confirmPassword && pwdForm.newPassword === pwdForm.confirmPassword && (
+                      <p style={{ fontSize: '0.75rem', color: '#22c55e', marginTop: '0.3rem' }}>✓ Passwords match</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="staff-form-footer">
+                  <div className="staff-form-note">
+                    <Shield size={14} />
+                    <span>Use a strong password with uppercase, numbers, and special characters.</span>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={pwdLoading}
+                    className="staff-create-btn"
+                    id="change-password-submit-btn"
+                  >
+                    {pwdLoading ? (
+                      <><Loader2 size={16} className="spin" /><span>Saving…</span></>
+                    ) : (
+                      <><KeyRound size={16} /><span>Change Password</span></>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Non-admin hint */}
+          {!isAdmin && (
+            <div className="account-password-hint" style={{ marginTop: '1.5rem' }}>
               <Shield size={14} />
               <span>To change your password, use <strong>Forgot Password</strong> from the login page or contact your admin.</span>
             </div>
-          </div>
+          )}
         </div>
       )}
 

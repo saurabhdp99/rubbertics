@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import ItemMasterPage from './pages/ItemMasterPage';
@@ -28,9 +29,10 @@ function ERPApp() {
   return (
     <div className="min-h-screen bg-slate-50" style={{ background: '#f8fafc' }}>
       <Sidebar />
+      <Topbar />
       <main
         className="transition-all duration-300 ease-in-out"
-        style={{ marginLeft: '220px', minHeight: '100vh' }}
+        style={{ marginLeft: '220px', minHeight: '100vh', paddingTop: '56px' }}
       >
         <div className="px-1">
           <Routes>

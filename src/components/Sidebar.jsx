@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Settings, LogOut, Building2, ChevronDown, Check, Plus, Factory, Hash,
+  Building2, ChevronDown, Check, Plus,
 } from 'lucide-react';
+
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
@@ -149,32 +150,6 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* User Info Strip */}
-      {currentUser && (
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center shrink-0 text-white text-[12px] font-bold">
-              {currentUser.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-bold text-slate-800 truncate leading-tight">{currentUser.name}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
-                  isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {isAdmin ? '👑 Admin' : '👤 Staff'}
-                </span>
-                {currentUser.staff_id && (
-                  <span className="flex items-center gap-0.5 text-[9px] text-slate-400 font-mono">
-                    <Hash size={9} />{currentUser.staff_id}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
         <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Main Navigation</p>
@@ -195,32 +170,6 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-100">
-        <div className="flex flex-col gap-1">
-          {isAdmin && (
-            <NavLink
-              to="/settings"
-              id="sidebar-settings-btn"
-              className={({ isActive }) => `
-                flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all
-                ${isActive ? 'sidebar-active-item' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}
-              `}
-            >
-              <Settings size={20} />
-              <span className="text-[14px] font-medium">Settings</span>
-            </NavLink>
-          )}
-          <button
-            onClick={logout}
-            id="sidebar-logout-btn"
-            className="flex items-center gap-3.5 px-4 py-3 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-          >
-            <LogOut size={20} />
-            <span className="text-[14px] font-medium">Logout</span>
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }
