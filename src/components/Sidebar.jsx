@@ -1,48 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Truck,
   Settings,
   LogOut,
-  Factory,
-  FileText,
-  Layers,
-  ClipboardCheck,
-  ClipboardList,
-  NotebookText,
-  AlertCircle,
   Building2,
   ChevronDown,
-  PackageSearch,
   Check,
   Plus,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: ShoppingCart, label: 'Purchase Orders', path: '/orders' },
-  { icon: PackageSearch, label: 'Item Master', path: '/item-master' },
-  { icon: Package, label: 'Inventory', path: '/inventory' },
-  { icon: Layers, label: 'Mixing/Molding Plan', path: '/mixing-molding-plan' },
-  { icon: Layers, label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan' },
-  { icon: FileText, label: 'Work Order Sheet', path: '/work-order-sheet' },
-  { icon: FileText, label: 'Work Order Master', path: '/work-order-details' },
-  { icon: ClipboardCheck, label: 'Daily Finishing Output', path: '/daily-finishing-output' },
-  { icon: Truck, label: 'Dispatch', path: '/dispatch' },
-  { icon: FileText, label: 'Inward', path: '/inward' },
-  { icon: ClipboardList, label: 'Requisition Slip', path: '/requisition-slip' },
-  { icon: NotebookText, label: 'Enquiry Register', path: '/enquiry-register' },
-  { icon: AlertCircle, label: 'Internal Complain Register', path: '/internal-complain-register' },
-  { icon: ClipboardList, label: 'Process Control Standard', path: '/process-control-standard' },
-  { icon: ClipboardList, label: 'Lot Details Register', path: '/lot-details-register' },
+  { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Purchase Orders', path: '/orders' },
+  { label: 'Item Master', path: '/item-master' },
+  { label: 'Inventory', path: '/inventory' },
+  { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan' },
+  { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan' },
+  { label: 'Work Order Sheet', path: '/work-order-sheet' },
+  { label: 'Work Order Master', path: '/work-order-details' },
+  { label: 'Daily Finishing Output', path: '/daily-finishing-output' },
+  { label: 'Dispatch', path: '/dispatch' },
+  { label: 'Inward', path: '/inward' },
+  { label: 'Requisition Slip', path: '/requisition-slip' },
+  { label: 'Enquiry Register', path: '/enquiry-register' },
+  { label: 'Internal Complain Register', path: '/internal-complain-register' },
+  { label: 'Process Control Standard', path: '/process-control-standard' },
+  { label: 'Lot Details Register', path: '/lot-details-register' },
 ];
 
 export default function Sidebar() {
-  const { currentOrg, currentUser, logout, selectOrganization, organizations } = useAuthStore();
+  const { currentOrg, logout, selectOrganization, organizations } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -143,30 +131,22 @@ export default function Sidebar() {
       <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
         <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Main Navigation</p>
         <div className="flex flex-col gap-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => `
-                  relative flex items-center gap-3.5 px-4 py-3 rounded-xl
-                  transition-all duration-200 group
-                  ${isActive
-                    ? 'sidebar-active-item'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  }
-                `}
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon size={20} className={`${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                    <span className="text-[14px] font-medium">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `
+                relative flex items-center gap-3.5 px-4 py-3 rounded-xl
+                transition-all duration-200 group
+                ${isActive
+                  ? 'sidebar-active-item'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                }
+              `}
+            >
+              <span className="text-[14px] font-medium">{item.label}</span>
+            </NavLink>
+          ))}
         </div>
       </nav>
 

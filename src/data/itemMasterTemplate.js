@@ -60,30 +60,6 @@
     "section": "Basic Details"
   },
   {
-    "key": "itemPurchaseMeasurement",
-    "label": "Item Purchase Measurement",
-    "type": "text",
-    "section": "Measurements"
-  },
-  {
-    "key": "itemStockMeasurement",
-    "label": "Item Stock Measurement",
-    "type": "text",
-    "section": "Measurements"
-  },
-  {
-    "key": "convFactorRate",
-    "label": "Conv. Factor Rate",
-    "type": "number",
-    "section": "Measurements"
-  },
-  {
-    "key": "itemWeightMeasurement",
-    "label": "Item Weight Measurement",
-    "type": "text",
-    "section": "Measurements"
-  },
-  {
     "key": "itemStdWeight",
     "label": "Item Std Weight",
     "type": "number",
