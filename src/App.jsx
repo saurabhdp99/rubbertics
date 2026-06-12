@@ -27,12 +27,11 @@ import { useAuthStore } from './store/authStore';
 // ─── ERP Shell (authenticated, org selected) ────────────────────────────────
 function ERPApp() {
   return (
-    <div className="min-h-screen bg-slate-50" style={{ background: '#f8fafc' }}>
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
       <Topbar />
       <main
-        className="transition-all duration-300 ease-in-out"
-        style={{ marginLeft: '220px', minHeight: '100vh', paddingTop: '56px' }}
+        className="transition-all duration-300 ease-in-out ml-[230px] min-h-screen pt-16"
       >
         <div className="px-1">
           <Routes>
@@ -52,7 +51,6 @@ function ERPApp() {
             <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />
             <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />
             <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/orders" replace />} />
           </Routes>
         </div>
@@ -64,17 +62,10 @@ function ERPApp() {
 // ─── Loading Spinner ─────────────────────────────────────────────────────────
 function AppLoader() {
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#0f1117',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: '50%',
-          border: '3px solid #10b981', borderTopColor: 'transparent',
-          animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem',
-        }} />
-        <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading Rubbertics…</div>
+    <div className="min-h-screen flex items-center justify-center bg-[#0f1117]">
+      <div className="text-center">
+        <div className="w-12 h-12 rounded-full border-[3px] border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
+        <div className="text-slate-400 text-[0.9rem]">Loading Rubbertics…</div>
       </div>
     </div>
   );
@@ -106,6 +97,13 @@ export default function App() {
             : isAdmin
               ? <OrgSelectPage />
               : <Navigate to="/" replace />
+        } />
+
+        {/* Settings — authenticated, no org needed, but usually accessed with org or as admin */}
+        <Route path="/settings" element={
+          !isAuthenticated
+            ? <Navigate to="/" replace />
+            : <div className="min-h-screen bg-slate-50"><SettingsPage /></div>
         } />
 
         {/* All other routes */}

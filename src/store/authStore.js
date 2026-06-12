@@ -44,8 +44,12 @@ export const useAuthStore = create((set, get) => ({
 
     // Listen for auth state changes
     supabase.auth.onAuthStateChange(async (event, session) => {
+      // Prevent redundant fetches if the user is already authenticated and loaded
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
+          // If we already have the current user loaded in state, no need to refetch everything
+          if (get().currentUser?.id === session.user.id) return;
+
           const profile = await get()._fetchProfile(session.user.id);
           if (!profile || !profile.is_active) {
             await supabase.auth.signOut();

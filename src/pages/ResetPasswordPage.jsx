@@ -71,15 +71,15 @@ export default function ResetPasswordPage() {
           <div className="grid-overlay" />
         </div>
         <div className="auth-centered-container">
-          <div className="auth-card" style={{ textAlign: 'center' }}>
-            <div className="brand-icon" style={{ margin: '0 auto 1.5rem', width: 52, height: 52 }}>
+          <div className="auth-card text-center">
+            <div className="brand-icon mx-auto mb-6 w-[52px] h-[52px]">
               <Factory size={26} className="text-white" />
             </div>
             <h2 className="auth-card-title">Invalid reset link</h2>
             <p className="auth-card-subtitle">
               This link has expired or is invalid. Please request a new password reset.
             </p>
-            <button onClick={() => navigate('/forgot-password')} className="login-submit-btn" style={{ marginTop: '1.5rem' }}>
+            <button onClick={() => navigate('/forgot-password')} className="login-submit-btn mt-6">
               Request new link
             </button>
           </div>
@@ -97,13 +97,13 @@ export default function ResetPasswordPage() {
 
       <div className="auth-centered-container">
         <div className="auth-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-            <div className="brand-icon" style={{ width: 44, height: 44 }}>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="brand-icon w-11 h-11">
               <ShieldCheck size={22} className="text-white" />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Set new password</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rubbertics ERP</div>
+              <div className="font-bold text-[1.1rem] text-[var(--text-primary)]">Set new password</div>
+              <div className="text-[0.75rem] text-[var(--text-muted)]">Rubbertics ERP</div>
             </div>
           </div>
 
@@ -159,7 +159,7 @@ export default function ResetPasswordPage() {
                           />
                         ))}
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: strengthColor }}>{strengthLabel}</span>
+                      <span className="text-[0.75rem]" style={{ color: strengthColor }}>{strengthLabel}</span>
                     </div>
                   )}
                 </div>

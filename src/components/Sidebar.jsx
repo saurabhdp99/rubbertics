@@ -2,26 +2,29 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Building2, ChevronDown, Check, Plus,
+  ShoppingBag, Package, Boxes, CalendarDays, CalendarRange,
+  FileText, Layers, TrendingUp, Truck, ArrowDownLeft,
+  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
-  { label: 'Purchase Orders', path: '/orders' },
-  { label: 'Item Master', path: '/item-master' },
-  { label: 'Inventory', path: '/inventory' },
-  { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan' },
-  { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan' },
-  { label: 'Work Order Sheet', path: '/work-order-sheet' },
-  { label: 'Work Order Master', path: '/work-order-details' },
-  { label: 'Daily Finishing Output', path: '/daily-finishing-output' },
-  { label: 'Dispatch', path: '/dispatch' },
-  { label: 'Inward', path: '/inward' },
-  { label: 'Requisition Slip', path: '/requisition-slip' },
-  { label: 'Enquiry Register', path: '/enquiry-register' },
-  { label: 'Internal Complain Register', path: '/internal-complain-register' },
-  { label: 'Process Control Standard', path: '/process-control-standard' },
-  { label: 'Lot Details Register', path: '/lot-details-register' },
+  { label: 'Purchase Orders', path: '/orders', icon: ShoppingBag },
+  { label: 'Item Master', path: '/item-master', icon: Package },
+  { label: 'Inventory', path: '/inventory', icon: Boxes },
+  { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan', icon: CalendarDays },
+  { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan', icon: CalendarRange },
+  { label: 'Work Order Sheet', path: '/work-order-sheet', icon: FileText },
+  { label: 'Work Order Master', path: '/work-order-details', icon: Layers },
+  { label: 'Daily Finishing Output', path: '/daily-finishing-output', icon: TrendingUp },
+  { label: 'Dispatch', path: '/dispatch', icon: Truck },
+  { label: 'Inward', path: '/inward', icon: ArrowDownLeft },
+  { label: 'Requisition Slip', path: '/requisition-slip', icon: ClipboardList },
+  { label: 'Enquiry Register', path: '/enquiry-register', icon: BookOpen },
+  { label: 'Internal Complain Register', path: '/internal-complain-register', icon: AlertTriangle },
+  { label: 'Process Control Standard', path: '/process-control-standard', icon: Sliders },
+  { label: 'Lot Details Register', path: '/lot-details-register', icon: Barcode },
 ];
 
 export default function Sidebar() {
@@ -52,23 +55,23 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-56 z-30 flex flex-col bg-white border-r border-slate-200">
+    <aside className="fixed top-0 left-0 h-screen w-[230px] z-30 flex flex-col bg-white border-r border-slate-200">
 
       {/* Org Switcher Header (Admin or Staff with multiple orgs) */}
-      <div className="relative border-b border-slate-100">
+      <div className="relative border-b border-slate-200">
         {isAdmin || organizations.length > 1 ? (
           /* Clickable org switcher */
           <div className="flex items-center h-16 px-4 justify-between gap-2">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 text-left truncate hover:bg-slate-50 p-1.5 rounded-xl border border-slate-100/80 transition-all flex-1 min-w-0 group cursor-pointer"
+              className="flex items-center gap-2 text-left truncate hover:bg-slate-50 p-1.5 rounded-xl border border-slate-200/60 transition-all flex-1 min-w-0 group cursor-pointer"
               id="org-selector-btn"
             >
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/10">
-                <Building2 size={16} className="text-white" />
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                <Building2 size={16} className="text-emerald-700" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold text-slate-800 truncate leading-tight">
+                <p className="text-[12px] font-bold text-slate-800 truncate leading-tight uppercase">
                   {currentOrg?.name || 'Select Organisation'}
                 </p>
                 <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider truncate leading-none mt-0.5">
@@ -84,8 +87,8 @@ export default function Sidebar() {
         ) : (
           /* Staff with 1 org: read-only brand header showing current org */
           <div className="flex items-center h-16 px-4 gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/10">
-              <Building2 size={16} className="text-white" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+              <Building2 size={16} className="text-emerald-700" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-bold text-slate-800 truncate leading-tight">
@@ -102,7 +105,7 @@ export default function Sidebar() {
         {(isAdmin || organizations.length > 1) && dropdownOpen && (
           <div
             ref={dropdownRef}
-            className="absolute top-full mt-1.5 left-4 right-4 bg-white border border-slate-200/80 rounded-xl shadow-xl z-50 py-1.5"
+            className="absolute top-full mt-1.5 left-4 right-4 bg-white border border-slate-200 rounded-xl z-50 py-1.5"
           >
             <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-1">
               Organisations
@@ -121,7 +124,7 @@ export default function Sidebar() {
                     onClick={() => handleSwitchOrg(org)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-50 transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50/40' : ''}`}
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       <Building2 size={14} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -151,22 +154,25 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
-        <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Main Navigation</p>
-        <div className="flex flex-col gap-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `
-                relative flex items-center gap-3.5 px-4 py-3 rounded-xl
-                transition-all duration-200 group
-                ${isActive ? 'sidebar-active-item' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}
-              `}
-            >
-              <span className="text-[14px] font-medium">{item.label}</span>
-            </NavLink>
-          ))}
+      <nav className="flex-1 p-3 overflow-y-auto custom-scrollbar overflow-x-hidden">
+        <div className="flex flex-col gap-1.5">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => `
+                  relative flex items-center gap-3 px-3 py-2.5 rounded-xl
+                  transition-all duration-200 group
+                  ${isActive ? 'sidebar-active-item' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}
+                `}
+              >
+                {Icon && <Icon size={16} className="shrink-0 transition-colors" />}
+                <span className="text-[13px] font-medium truncate">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
 

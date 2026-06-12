@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Factory, Plus, Building2, ChevronRight, LogOut, X,
   Loader2, Check, Users, Briefcase, Edit2, Trash2,
-  AlertTriangle, Settings, ArrowRight,
+  AlertTriangle, Settings, ArrowRight, ChevronDown,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
@@ -60,11 +61,7 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
 
         <form onSubmit={handleSubmit} className="create-org-form" id="org-form">
           {error && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-              background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 10,
-              color: '#be123c', fontSize: 13, marginBottom: 14,
-            }}>
+            <div className="flex items-center gap-2 px-3.5 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-[13px] mb-3.5">
               <AlertTriangle size={15} />
               {error}
             </div>
@@ -149,34 +146,24 @@ function DeleteConfirmModal({ org, onClose, onDeleted }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="create-org-modal" onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400 }}>
-        <div style={{ padding: '28px 28px 0', textAlign: 'center' }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%', background: '#fff1f2',
-            border: '2px solid #fecdd3', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', margin: '0 auto 16px',
-          }}>
-            <Trash2 size={24} style={{ color: '#e11d48' }} />
+      <div className="create-org-modal max-w-[400px]" onClick={(e) => e.stopPropagation()}>
+        <div className="pt-7 px-7 pb-0 text-center">
+          <div className="w-14 h-14 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center mx-auto mb-4">
+            <Trash2 size={24} className="text-rose-600" />
           </div>
-          <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+          <h3 className="text-[17px] font-extrabold text-slate-900 mb-2">
             Delete Organisation?
           </h3>
-          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
+          <p className="text-[13px] text-slate-500 leading-relaxed mb-6">
             <strong>"{org.name}"</strong> will be permanently deleted. This action cannot be undone.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, padding: '0 28px 28px' }}>
-          <button onClick={onClose} className="btn-cancel" style={{ flex: 1 }}>Cancel</button>
+        <div className="flex gap-2.5 px-7 pb-7 pt-0">
+          <button onClick={onClose} className="btn-cancel flex-1">Cancel</button>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            style={{
-              flex: 1, padding: '12px', borderRadius: 12, background: '#e11d48',
-              color: 'white', fontWeight: 700, fontSize: 14, border: 'none',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif',
-            }}
+            className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-bold text-[14px] border-none cursor-pointer flex items-center justify-center gap-2 font-sans hover:bg-rose-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {deleting ? <Loader2 size={16} className="spin" /> : <Trash2 size={16} />}
             {deleting ? 'Deleting…' : 'Delete'}
@@ -195,9 +182,25 @@ export default function OrgSelectPage() {
   } = useAuthStore();
 
   const isAdmin = currentUser?.role === 'admin';
+  const navigate = useNavigate();
 
   const [modal, setModal] = useState(null); // null | 'create' | { type:'edit', org } | { type:'delete', org }
   const [selecting, setSelecting] = useState(null);
+  const [openUserMenu, setOpenUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!openUserMenu) return;
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setOpenUserMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openUserMenu]);
+
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
 
   useEffect(() => { loadOrganizations(); }, []);
 
@@ -217,7 +220,6 @@ export default function OrgSelectPage() {
 
   const handleDeleted = () => {
     setModal(null);
-    loadOrganizations();
   };
 
   return (
@@ -238,17 +240,63 @@ export default function OrgSelectPage() {
           </div>
           <span className="org-topbar-name">Rubbertics ERP</span>
         </div>
-        <div className="org-topbar-user">
-          <div className="user-avatar">
-            {currentUser?.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="user-info">
-            <p className="user-name">{currentUser?.name}</p>
-            <p className="user-email">{currentUser?.email}</p>
-          </div>
-          <button onClick={logout} className="logout-btn-sm" id="org-page-logout-btn" title="Sign out">
-            <LogOut size={18} />
+        <div className="erp-topbar-right" ref={userMenuRef}>
+          <button
+            className="erp-topbar-user-btn"
+            onClick={() => setOpenUserMenu(v => !v)}
+            id="org-page-user-menu-btn"
+          >
+            <div className="erp-topbar-avatar">{initials}</div>
+            <div className="erp-topbar-user-info">
+              <span className="erp-topbar-name">{currentUser?.name}</span>
+              <span className={`erp-topbar-role ${isAdmin ? 'admin' : 'staff'}`}>
+                {isAdmin ? '👑 Admin' : '👤 Staff'}
+              </span>
+            </div>
+            <ChevronDown
+              size={15}
+              className={`erp-topbar-chevron transition-transform duration-200 ${openUserMenu ? 'rotate-180' : 'rotate-0'}`}
+            />
           </button>
+
+          {openUserMenu && (
+            <div className="erp-topbar-dropdown">
+              <div className="erp-drop-user-card">
+                <div className="erp-drop-avatar-lg">{initials}</div>
+                <div>
+                  <div className="erp-drop-name">{currentUser?.name}</div>
+                  <div className="erp-drop-email">{currentUser?.email}</div>
+                </div>
+              </div>
+
+              <div className="erp-drop-divider" />
+
+              {isAdmin && (
+                <button
+                  className="erp-drop-item"
+                  onClick={() => { setOpenUserMenu(false); navigate('/settings'); }}
+                >
+                  <div className="erp-drop-item-icon">
+                    <Settings size={15} />
+                  </div>
+                  <span>Settings</span>
+                </button>
+              )}
+
+              <div className="erp-drop-divider" />
+
+              <button
+                className="erp-drop-item danger"
+                onClick={() => { setOpenUserMenu(false); logout(); }}
+                id="org-page-logout-btn"
+              >
+                <div className="erp-drop-item-icon danger">
+                  <LogOut size={15} />
+                </div>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -264,10 +312,9 @@ export default function OrgSelectPage() {
           </p>
         </div>
 
-        {/* Loading state */}
         {orgsLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 0', color: '#64748b', fontSize: 14 }}>
-            <Loader2 size={22} className="spin" style={{ color: '#10b981' }} />
+          <div className="flex items-center justify-center gap-3 py-10 text-slate-500 text-[14px]">
+            <Loader2 size={22} className="spin text-emerald-500" />
             Loading organisations…
           </div>
         )}
@@ -276,13 +323,12 @@ export default function OrgSelectPage() {
           <div className="org-cards-grid" id="org-cards-grid">
             {/* Existing org cards */}
             {organizations.map((org) => (
-              <div key={org.id} style={{ position: 'relative' }}>
+              <div key={org.id} className="relative">
                 <button
                   onClick={() => handleSelect(org)}
                   disabled={!!selecting}
-                  className={`org-card ${selecting === org.id ? 'org-card-loading' : ''}`}
+                  className={`org-card pr-20 ${selecting === org.id ? 'org-card-loading' : ''}`}
                   id={`org-card-${org.id}`}
-                  style={{ paddingRight: 80 }}
                 >
                   <div className="org-card-icon">
                     <Building2 size={26} className="text-emerald-600" />
@@ -308,38 +354,19 @@ export default function OrgSelectPage() {
                   </div>
                 </button>
 
-                {/* Admin-only edit/delete actions */}
                 {isAdmin && (
-                  <div style={{
-                    position: 'absolute', top: '50%', right: 52,
-                    transform: 'translateY(-50%)',
-                    display: 'flex', gap: 4,
-                  }}>
+                  <div className="absolute top-1/2 right-[52px] -translate-y-1/2 flex gap-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); setModal({ type: 'edit', org }); }}
                       title="Edit organisation"
-                      style={{
-                        width: 32, height: 32, borderRadius: 8, background: '#f1f5f9',
-                        border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', cursor: 'pointer', color: '#64748b',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+                      className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 transition-all duration-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
                     >
                       <Edit2 size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setModal({ type: 'delete', org }); }}
                       title="Delete organisation"
-                      style={{
-                        width: 32, height: 32, borderRadius: 8, background: '#f1f5f9',
-                        border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', cursor: 'pointer', color: '#64748b',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#e11d48'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+                      className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 transition-all duration-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -361,7 +388,7 @@ export default function OrgSelectPage() {
                 </div>
                 <div className="org-card-info">
                   <span className="org-card-name">Create new Organisation</span>
-                  <p className="org-demo-note" style={{ marginTop: 6 }}>
+                  <p className="org-demo-note mt-1.5">
                     Set up a fresh workspace with your company name and data
                   </p>
                 </div>
@@ -371,12 +398,8 @@ export default function OrgSelectPage() {
               </button>
             )}
 
-            {/* Empty state */}
             {organizations.length === 0 && (
-              <div style={{
-                gridColumn: '1 / -1', textAlign: 'center', padding: '20px 20px 0',
-                color: '#94a3b8', fontSize: 14,
-              }}>
+              <div className="col-span-full text-center pt-5 px-5 pb-0 text-slate-400 text-[14px]">
                 {isAdmin
                   ? "No organisations yet. Create your first one above ↑"
                   : "You have not been granted access to any organisations. Please contact your administrator."}
@@ -385,20 +408,7 @@ export default function OrgSelectPage() {
           </div>
         )}
 
-        {/* Go to settings link (Admin only) */}
-        {isAdmin && (
-          <div style={{ textAlign: 'center', marginTop: 28 }}>
-            <a href="/settings" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5,
-              color: '#94a3b8', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.color = '#10b981'}
-              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
-            >
-              <Settings size={14} /> Manage staff & settings
-            </a>
-          </div>
-        )}
+
       </main>
 
       {/* Modals */}
@@ -412,7 +422,7 @@ export default function OrgSelectPage() {
         <OrgFormModal
           editOrg={modal.org}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); loadOrganizations(); }}
+          onSaved={handleSaved}
         />
       )}
       {modal?.type === 'delete' && (

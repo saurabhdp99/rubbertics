@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 function StaffBadge({ role }) {
@@ -48,27 +49,27 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="create-org-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
-        <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Manage Access: {staff.name}</h3>
-            <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
+      <div className="create-org-modal max-w-[500px]" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-[18px] font-bold m-0">Manage Access: {staff.name}</h3>
+            <button onClick={onClose} className="border-none bg-transparent cursor-pointer text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 0 }}>Select organisations this staff member can access.</p>
+          <p className="text-[13px] text-slate-500 mt-2 mb-0">Select organisations this staff member can access.</p>
         </div>
-        <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto' }}>
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}><Loader2 className="spin" size={24} /></div>
+            <div className="flex justify-center p-5"><Loader2 className="spin" size={24} /></div>
           ) : organizations.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14 }}>No organisations exist yet.</p>
+            <p className="text-center text-slate-500 text-[14px]">No organisations exist yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="flex flex-col gap-3">
               {organizations.map(org => (
-                <label key={org.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', transition: 'border-color 0.2s' }}>
-                  <input type="checkbox" checked={!!accessMap[org.id]} onChange={() => handleToggle(org.id)} style={{ width: 18, height: 18, accentColor: '#10b981' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>{org.name}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{org.industry}</div>
+                <label key={org.id} className="flex items-center gap-3 p-3 px-4 border border-slate-200 rounded-lg cursor-pointer transition-colors duration-200 hover:border-emerald-500">
+                  <input type="checkbox" checked={!!accessMap[org.id]} onChange={() => handleToggle(org.id)} className="w-4.5 h-4.5 accent-emerald-500" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-[14px] text-slate-900">{org.name}</div>
+                    <div className="text-[12px] text-slate-500">{org.industry}</div>
                   </div>
                 </label>
               ))}
@@ -83,6 +84,7 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
 export default function SettingsPage() {
   const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading, updateEmail, updatePassword } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
+  const navigate = useNavigate();
 
   // Staff form state
   const [form, setForm] = useState({ name: '', email: '', password: '', staffId: '' });
@@ -226,8 +228,14 @@ export default function SettingsPage() {
 
   return (
     <div className="settings-page">
-      <div className="settings-header">
+      <div className="settings-header relative pt-4">
         <div>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-emerald-600 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
           <h1 className="settings-title">Settings</h1>
           <p className="settings-subtitle">Manage your account and team members</p>
         </div>
@@ -296,7 +304,7 @@ export default function SettingsPage() {
               <div className="staff-form-grid">
                 <div className="form-group">
                   <label className="form-label" htmlFor="staff-name">
-                    <User size={13} style={{ display: 'inline', marginRight: 4 }} />
+                    <User size={13} className="inline mr-1" />
                     Full Name
                   </label>
                   <input
@@ -312,7 +320,7 @@ export default function SettingsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="staff-email">
-                    <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
+                    <Mail size={13} className="inline mr-1" />
                     Email Address
                   </label>
                   <input
@@ -328,7 +336,7 @@ export default function SettingsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="staff-id">
-                    <Hash size={13} style={{ display: 'inline', marginRight: 4 }} />
+                    <Hash size={13} className="inline mr-1" />
                     Staff ID
                     <span className="form-label-hint">Unique identifier for backend</span>
                   </label>
@@ -361,13 +369,13 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   {form.password && (
-                    <div className="password-strength" style={{ marginTop: '0.4rem' }}>
+                    <div className="password-strength mt-1.5">
                       <div className="strength-bars">
                         {[1, 2, 3, 4].map(i => (
-                          <div key={i} className="strength-bar" style={{ background: i <= strengthScore ? strengthColor : 'var(--border-color)' }} />
+                          <div key={i} className="strength-bar" style={{ background: i <= strengthScore ? strengthColor : '#e2e8f0' }} />
                         ))}
                       </div>
-                      <span style={{ fontSize: '0.73rem', color: strengthColor }}>{strengthLabel}</span>
+                      <span className="text-[11.5px]" style={{ color: strengthColor }}>{strengthLabel}</span>
                     </div>
                   )}
                 </div>
@@ -395,7 +403,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Staff List Card */}
-          <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+          <div className="settings-card mt-6">
             <div className="settings-card-header">
               <Users size={20} />
               <div>
@@ -411,7 +419,7 @@ export default function SettingsPage() {
               </div>
             ) : staffList.length === 0 ? (
               <div className="staff-list-empty">
-                <Users size={32} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                <Users size={32} className="text-[var(--text-muted)] opacity-40" />
                 <p>No staff accounts yet. Create one above.</p>
               </div>
             ) : (
@@ -438,9 +446,8 @@ export default function SettingsPage() {
                       {staff.role === 'staff' && (
                         <button
                           onClick={() => setManageOrgsStaff(staff)}
-                          className="staff-toggle-btn"
+                          className="staff-toggle-btn text-slate-900 bg-slate-100 border-slate-200"
                           title="Manage Workspace Access"
-                          style={{ color: '#0f172a', background: '#f1f5f9', borderColor: '#e2e8f0' }}
                         >
                           <Building size={16} /> Access
                         </button>
@@ -502,7 +509,7 @@ export default function SettingsPage() {
 
           {/* Change Email – admin only */}
           {isAdmin && (
-            <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+            <div className="settings-card mt-6">
               <div className="settings-card-header">
                 <Mail size={20} />
                 <div>
@@ -530,7 +537,7 @@ export default function SettingsPage() {
                 <div className="staff-form-grid">
                   <div className="form-group">
                     <label className="form-label" htmlFor="current-email">
-                      <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      <Mail size={13} className="inline mr-1" />
                       Current Email
                     </label>
                     <input
@@ -538,13 +545,12 @@ export default function SettingsPage() {
                       type="email"
                       value={currentUser?.email || ''}
                       disabled
-                      className="settings-input"
-                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                      className="settings-input opacity-60 cursor-not-allowed"
                     />
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="new-email">
-                      <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      <Mail size={13} className="inline mr-1" />
                       New Email
                     </label>
                     <input
@@ -582,7 +588,7 @@ export default function SettingsPage() {
 
           {/* Change Password – admin only */}
           {isAdmin && (
-            <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+            <div className="settings-card mt-6">
               <div className="settings-card-header">
                 <KeyRound size={20} />
                 <div>
@@ -610,7 +616,7 @@ export default function SettingsPage() {
                 <div className="staff-form-grid">
                   <div className="form-group">
                     <label className="form-label" htmlFor="new-password">
-                      <Lock size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      <Lock size={13} className="inline mr-1" />
                       New Password
                     </label>
                     <div className="settings-input-wrapper">
@@ -628,20 +634,20 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     {pwdForm.newPassword && (
-                      <div className="password-strength" style={{ marginTop: '0.4rem' }}>
+                      <div className="password-strength mt-1.5">
                         <div className="strength-bars">
                           {[1, 2, 3, 4].map(i => (
                             <div key={i} className="strength-bar" style={{ background: i <= newPwdScore ? newPwdColor : 'var(--border-color)' }} />
                           ))}
                         </div>
-                        <span style={{ fontSize: '0.73rem', color: newPwdColor }}>{newPwdLabel}</span>
+                        <span className="text-[0.73rem]" style={{ color: newPwdColor }}>{newPwdLabel}</span>
                       </div>
                     )}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="confirm-password">
-                      <Lock size={13} style={{ display: 'inline', marginRight: 4 }} />
+                      <Lock size={13} className="inline mr-1" />
                       Confirm Password
                     </label>
                     <div className="settings-input-wrapper">
@@ -659,10 +665,10 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     {pwdForm.confirmPassword && pwdForm.newPassword !== pwdForm.confirmPassword && (
-                      <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.3rem' }}>Passwords do not match</p>
+                      <p className="text-[0.75rem] text-red-500 mt-1">Passwords do not match</p>
                     )}
                     {pwdForm.confirmPassword && pwdForm.newPassword === pwdForm.confirmPassword && (
-                      <p style={{ fontSize: '0.75rem', color: '#22c55e', marginTop: '0.3rem' }}>✓ Passwords match</p>
+                      <p className="text-[0.75rem] text-emerald-500 mt-1">✓ Passwords match</p>
                     )}
                   </div>
                 </div>
@@ -691,7 +697,7 @@ export default function SettingsPage() {
 
           {/* Non-admin hint */}
           {!isAdmin && (
-            <div className="account-password-hint" style={{ marginTop: '1.5rem' }}>
+            <div className="account-password-hint mt-6">
               <Shield size={14} />
               <span>To change your password, use <strong>Forgot Password</strong> from the login page or contact your admin.</span>
             </div>

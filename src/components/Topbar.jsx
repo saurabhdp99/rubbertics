@@ -83,8 +83,7 @@ export default function Topbar() {
           </div>
           <ChevronDown
             size={15}
-            className="erp-topbar-chevron"
-            style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+            className={`erp-topbar-chevron transition-transform duration-200 ${open ? 'rotate-180' : 'rotate-0'}`}
           />
         </button>
 
