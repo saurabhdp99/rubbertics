@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
-// Persist selected org in sessionStorage so it survives page refresh but not new tab
+// Persist selected org in localStorage so it survives tab closes and browser reopens
 const CURRENT_ORG_KEY = 'rubbertics_current_org';
 
 export const useAuthStore = create((set, get) => ({
@@ -26,13 +26,13 @@ export const useAuthStore = create((set, get) => ({
       
       if (!profile || !profile.is_active) {
         await supabase.auth.signOut();
-        sessionStorage.removeItem(CURRENT_ORG_KEY);
+        localStorage.removeItem(CURRENT_ORG_KEY);
         set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [], isInitialized: true });
         return;
       }
 
-      // Restore previously selected org from sessionStorage
-      const storedOrg = sessionStorage.getItem(CURRENT_ORG_KEY);
+      // Restore previously selected org from localStorage
+      const storedOrg = localStorage.getItem(CURRENT_ORG_KEY);
       const currentOrg = storedOrg ? JSON.parse(storedOrg) : null;
       set({ isAuthenticated: true, currentUser: profile, currentOrg, isInitialized: true });
       // Load orgs in background
@@ -49,18 +49,18 @@ export const useAuthStore = create((set, get) => ({
           const profile = await get()._fetchProfile(session.user.id);
           if (!profile || !profile.is_active) {
             await supabase.auth.signOut();
-            sessionStorage.removeItem(CURRENT_ORG_KEY);
+            localStorage.removeItem(CURRENT_ORG_KEY);
             set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [] });
             return;
           }
-          const storedOrg = sessionStorage.getItem(CURRENT_ORG_KEY);
+          const storedOrg = localStorage.getItem(CURRENT_ORG_KEY);
           const currentOrg = storedOrg ? JSON.parse(storedOrg) : null;
           set({ isAuthenticated: true, currentUser: profile, currentOrg });
           get().loadOrganizations();
           get()._setupRealtimeProfileListener(profile.id);
         }
       } else if (event === 'SIGNED_OUT') {
-        sessionStorage.removeItem(CURRENT_ORG_KEY);
+        localStorage.removeItem(CURRENT_ORG_KEY);
         set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [] });
         get()._teardownRealtimeProfileListener();
       }
@@ -128,7 +128,7 @@ export const useAuthStore = create((set, get) => ({
   // ─── Logout ─────────────────────────────────────────────────────────
   logout: async () => {
     await supabase.auth.signOut();
-    sessionStorage.removeItem(CURRENT_ORG_KEY);
+    localStorage.removeItem(CURRENT_ORG_KEY);
     set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [], authError: null });
   },
 
@@ -197,12 +197,12 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Select an org (persists in sessionStorage)
+  // Select an org (persists in localStorage)
   selectOrganization: (org) => {
     if (org) {
-      sessionStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(org));
+      localStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(org));
     } else {
-      sessionStorage.removeItem(CURRENT_ORG_KEY);
+      localStorage.removeItem(CURRENT_ORG_KEY);
     }
     set({ currentOrg: org });
   },
@@ -236,7 +236,7 @@ export const useAuthStore = create((set, get) => ({
     set({ organizations: orgs });
     // If we updated the currently selected org, update it too
     if (get().currentOrg?.id === id) {
-      sessionStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(data));
+      localStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(data));
       set({ currentOrg: data });
     }
     return { success: true, data };
@@ -253,7 +253,7 @@ export const useAuthStore = create((set, get) => ({
     set({ organizations: orgs });
     // If deleted org was selected, clear selection
     if (get().currentOrg?.id === id) {
-      sessionStorage.removeItem(CURRENT_ORG_KEY);
+      localStorage.removeItem(CURRENT_ORG_KEY);
       set({ currentOrg: null });
     }
     return { success: true };

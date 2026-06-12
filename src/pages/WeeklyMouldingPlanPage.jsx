@@ -13,7 +13,6 @@ import {
   Eye
 } from 'lucide-react';
 import { useERPStore } from '../store/erpStore';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import WeeklyMouldingPlanModal from '../components/WeeklyMouldingPlanModal';
 
@@ -43,15 +42,6 @@ export default function WeeklyMouldingPlanPage() {
 
   return (
     <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
-      {/* Page Header */}
-      <PageHeader
-        icon={Layers}
-        title="Weekly Moulding Plan Sheet"
-        description="View production targets and actual achievements"
-        showLiveSync={true}
-        theme="emerald"
-      />
-
       {/* Header Info Banner */}
       <div className="glass-card rounded-2xl p-6 mb-8 border border-white/40 shadow-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 backdrop-blur-md">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

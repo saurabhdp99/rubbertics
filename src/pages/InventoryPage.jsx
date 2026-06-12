@@ -14,7 +14,6 @@ import {
   MapPin,
   Tag
 } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import TableToolbar from '../components/common/TableToolbar';
 import DataTable from '../components/common/DataTable';
@@ -186,15 +185,6 @@ export default function InventoryPage() {
 
   return (
     <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
-      {/* Page Header */}
-      <PageHeader
-        icon={Package}
-        title="Inventory Ledger"
-        description="Track material movement and stock balance"
-        showLiveSync={true}
-        theme="emerald"
-      />
-
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard

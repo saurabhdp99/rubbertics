@@ -1,26 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Settings, LogOut, ChevronDown, User } from 'lucide-react';
+import { Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
-// Map routes → page titles (same as navItems in Sidebar)
+// Map routes → page titles
 const PAGE_TITLES = {
-  '/orders':                        'Purchase Orders',
-  '/item-master':                   'Item Master',
-  '/inventory':                     'Inventory',
-  '/mixing-molding-plan':           'Mixing / Molding Plan',
-  '/weekly-moulding-plan':          'Weekly Moulding Plan',
-  '/work-order-sheet':              'Work Order Sheet',
-  '/work-order-details':            'Work Order Master',
-  '/daily-finishing-output':        'Daily Finishing Output',
-  '/dispatch':                      'Dispatch',
-  '/inward':                        'Inward',
-  '/requisition-slip':              'Requisition Slip',
-  '/enquiry-register':              'Enquiry Register',
-  '/internal-complain-register':    'Internal Complain Register',
-  '/process-control-standard':      'Process Control Standard',
-  '/lot-details-register':          'Lot Details Register',
-  '/settings':                      'Settings',
+  '/orders':                      'Purchase Orders',
+  '/item-master':                 'Item Master',
+  '/inventory':                   'Inventory',
+  '/mixing-molding-plan':         'Mixing / Molding Plan',
+  '/weekly-moulding-plan':        'Weekly Moulding Plan',
+  '/work-order-sheet':            'Work Order Sheet',
+  '/work-order-details':          'Work Order Master',
+  '/daily-finishing-output':      'Daily Finishing Output',
+  '/dispatch':                    'Dispatch',
+  '/inward':                      'Inward',
+  '/requisition-slip':            'Requisition Slip',
+  '/enquiry-register':            'Enquiry Register',
+  '/internal-complain-register':  'Internal Complain Register',
+  '/process-control-standard':    'Process Control Standard',
+  '/lot-details-register':        'Lot Details Register',
+  '/settings':                    'Settings',
 };
 
 export default function Topbar() {
@@ -32,7 +32,7 @@ export default function Topbar() {
   const [open, setOpen] = useState(false);
   const dropRef = useRef(null);
 
-  const pageTitle = PAGE_TITLES[location.pathname] || 'Dashboard';
+  const pageTitle    = PAGE_TITLES[location.pathname]    || 'Dashboard';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -62,7 +62,9 @@ export default function Topbar() {
     <header className="erp-topbar">
       {/* Left – page title */}
       <div className="erp-topbar-left">
-        <h2 className="erp-topbar-title">{pageTitle}</h2>
+        <div>
+          <h2 className="erp-topbar-title">{pageTitle}</h2>
+        </div>
       </div>
 
       {/* Right – user avatar + dropdown */}

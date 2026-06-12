@@ -1,6 +1,5 @@
 import React from 'react';
 import { ClipboardList, ExternalLink, Search, Filter, Download } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import DataTable from '../components/common/DataTable';
 
 const LotDetailsRegisterPage = () => {
@@ -126,14 +125,6 @@ const LotDetailsRegisterPage = () => {
 
   return (
     <div className="p-8 animate-slide-up">
-      <PageHeader 
-        icon={ClipboardList} 
-        title="Lot Details Register" 
-        description="Monitor and track lot-wise production quantities, order statuses, and documentation."
-        showLiveSync={true}
-        theme="emerald"
-      />
-
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-white shadow-xl shadow-slate-200/50">
         <div className="flex items-center gap-3 flex-1 min-w-[300px]">

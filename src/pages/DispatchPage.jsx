@@ -11,7 +11,6 @@ import {
   MapPin,
   ClipboardList,
 } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import TableToolbar from '../components/common/TableToolbar';
 import DataTable from '../components/common/DataTable';
@@ -85,13 +84,6 @@ export default function DispatchPage() {
 
   return (
     <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-6">
-      {/* Page Header */}
-      <PageHeader
-        icon={Truck}
-        title="Dispatch"
-        description="Track and manage all dispatch and delivery records"
-        theme="emerald"
-      />
 
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

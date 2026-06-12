@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Calendar,
 } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import TableToolbar from '../components/common/TableToolbar';
 import DataTable from '../components/common/DataTable';
@@ -377,14 +376,6 @@ export default function MixingMoldingPlanPage() {
 
   return (
     <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
-      {/* Page Header */}
-      <PageHeader
-        icon={Layers}
-        title="Mixing/Molding Plan"
-        description="Manage and track mixing and molding batch operations"
-        showLiveSync={false}
-        theme="emerald"
-      />
 
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

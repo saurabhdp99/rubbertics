@@ -11,7 +11,6 @@ import {
   FileText,
   User
 } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import TableToolbar from '../components/common/TableToolbar';
 import DataTable from '../components/common/DataTable';
@@ -79,14 +78,6 @@ export default function InwardPage() {
 
   return (
     <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-6">
-      {/* Page Header */}
-      <PageHeader
-        icon={FileDown}
-        title="Goods Receipt Note"
-        description="Manage and track inward material receipts"
-        theme="indigo"
-      />
-
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard

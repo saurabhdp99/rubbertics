@@ -18,7 +18,6 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import PageHeader from '../components/common/PageHeader';
 import StatsCard from '../components/common/StatsCard';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useERPStore } from '../store/erpStore';
@@ -302,14 +301,6 @@ export default function ItemMasterPage() {
 
   return (
     <div className="p-6 max-w-[1920px] mx-auto animate-slide-up">
-      <PageHeader
-        icon={PackageSearch}
-        title="Item Master"
-        description="Create and maintain sales item master records"
-        showLiveSync={true}
-        theme="emerald"
-      />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard label="Total Items" value={stats.total.toLocaleString()} icon={Boxes} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
         <StatsCard label="Active Items" value={stats.active.toLocaleString()} icon={Activity} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
