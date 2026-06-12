@@ -384,7 +384,7 @@ export default function ItemMasterPage() {
                   style={{ minWidth: `${TABLE_COLUMNS.length * 170 + 150}px` }}
                 >
                   <Table.Header>
-                    <Table.Column className="w-28 whitespace-nowrap">
+                    <Table.Column isRowHeader className="w-28 whitespace-nowrap">
                       Actions
                     </Table.Column>
                     {TABLE_COLUMNS.map(column => (

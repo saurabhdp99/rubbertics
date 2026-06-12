@@ -148,7 +148,7 @@ function DetailTable({ title, columns, data, theme = 'emerald', noHeader = false
           <Table.Content aria-label="Detail table">
             <Table.Header>
               {columns.map((col, idx) => (
-                <Table.Column key={idx} className="px-2 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap text-center">
+                <Table.Column key={idx} isRowHeader={idx === 0} className="px-2 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap text-center">
                   {col}
                 </Table.Column>
               ))}
@@ -225,7 +225,7 @@ export default function WorkOrderSheetPage() {
           <Table.ScrollContainer>
             <Table.Content aria-label="Work orders register">
               <Table.Header>
-                <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Sr. No</Table.Column>
+                <Table.Column isRowHeader className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Sr. No</Table.Column>
                 <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Work Order Info</Table.Column>
                 <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Details</Table.Column>
                 <Table.Column className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Part & Quantity</Table.Column>

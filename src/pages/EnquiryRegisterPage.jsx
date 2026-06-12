@@ -142,7 +142,7 @@ export default function EnquiryRegisterPage() {
           <Table.ScrollContainer>
             <Table.Content aria-label="Enquiry register table" className="min-w-[1200px]">
               <Table.Header>
-                <Table.Column className="w-16 whitespace-nowrap">Sr.</Table.Column>
+                <Table.Column isRowHeader className="w-16 whitespace-nowrap">Sr.</Table.Column>
                 <Table.Column className="whitespace-nowrap">Name</Table.Column>
                 <Table.Column className="whitespace-nowrap">Company Name</Table.Column>
                 <Table.Column className="whitespace-nowrap">Person Name</Table.Column>

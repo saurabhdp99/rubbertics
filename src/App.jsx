@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
@@ -15,20 +16,21 @@ import LotDetailsRegisterPage from './pages/LotDetailsRegisterPage';
 import WeeklyMouldingPlanPage from './pages/WeeklyMouldingPlanPage';
 import WorkOrderSheetPage from './pages/WorkOrderSheetPage';
 import WorkOrderDetailsPage from './pages/WorkOrderDetailsPage';
+import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import OrgSelectPage from './pages/OrgSelectPage';
 import { useAuthStore } from './store/authStore';
 
+// ─── ERP Shell (authenticated, org selected) ────────────────────────────────
 function ERPApp() {
   return (
     <div className="min-h-screen bg-slate-50" style={{ background: '#f8fafc' }}>
       <Sidebar />
       <main
         className="transition-all duration-300 ease-in-out"
-        style={{
-          marginLeft: '220px',
-          minHeight: 'calc(100vh - 64px)',
-        }}
+        style={{ marginLeft: '220px', minHeight: '100vh' }}
       >
         <div className="px-1">
           <Routes>
@@ -48,7 +50,7 @@ function ERPApp() {
             <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />
             <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />
             <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />
-            {/* Fallback */}
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/orders" replace />} />
           </Routes>
         </div>
@@ -57,35 +59,62 @@ function ERPApp() {
   );
 }
 
+// ─── Loading Spinner ─────────────────────────────────────────────────────────
+function AppLoader() {
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: '#0f1117',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          border: '3px solid #10b981', borderTopColor: 'transparent',
+          animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem',
+        }} />
+        <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading Rubbertics…</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const { isAuthenticated, currentOrg } = useAuthStore();
+  const { isAuthenticated, isInitialized, currentUser, currentOrg, initialize } = useAuthStore();
 
-  // Not logged in → Login page
-  if (!isAuthenticated) {
-    return (
-      <Router>
-        <Routes>
-          <Route path="*" element={<LoginPage />} />
-        </Routes>
-      </Router>
-    );
-  }
+  useEffect(() => { initialize(); }, []);
 
-  // Logged in but no org selected → Org selection
-  if (!currentOrg) {
-    return (
-      <Router>
-        <Routes>
-          <Route path="*" element={<OrgSelectPage />} />
-        </Routes>
-      </Router>
-    );
-  }
+  if (!isInitialized) return <AppLoader />;
 
-  // Fully authenticated → ERP app
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
     <Router>
-      <ERPApp />
+      <Routes>
+        {/* Always-public routes */}
+        <Route path="/forgot-password" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <ForgotPasswordPage />
+        } />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        {/* Org select — admin only, no org selected */}
+        <Route path="/select-org" element={
+          !isAuthenticated
+            ? <Navigate to="/" replace />
+            : isAdmin
+              ? <OrgSelectPage />
+              : <Navigate to="/" replace />
+        } />
+
+        {/* All other routes */}
+        <Route path="/*" element={
+          !isAuthenticated
+            ? <LoginPage />
+            : isAdmin && !currentOrg
+              ? <OrgSelectPage />          // Admin must pick an org first
+              : <ERPApp />                 // Staff OR admin with org → ERP
+        } />
+      </Routes>
     </Router>
   );
 }

@@ -265,6 +265,7 @@ export default function WorkOrderDetailsPage() {
                     {columns.map((col, idx) => (
                       <Table.Column
                         key={idx}
+                        isRowHeader={idx === 0}
                         className="whitespace-nowrap"
                         style={{ minWidth: col.width?.replace('min-w-[', '').replace(']', '') }}
                       >

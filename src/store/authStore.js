@@ -1,105 +1,332 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { supabase } from '../lib/supabase';
 
-// Demo organization with pre-seeded data
-const DEMO_ORG = {
-  id: 'demo-org',
-  name: 'Nisarg Industries (Demo)',
-  slug: 'nisarg-industries',
-  industry: 'Manufacturing',
-  size: '51-200',
-  logo: null,
-  createdAt: '2024-01-01',
-  isDemo: true,
-};
+// Persist selected org in sessionStorage so it survives page refresh but not new tab
+const CURRENT_ORG_KEY = 'rubbertics_current_org';
 
-// Hardcoded demo users for the demo org
-const DEMO_USERS = [
-  { email: 'admin@nisarg.com', password: 'admin123', name: 'Admin User', role: 'Admin' },
-  { email: 'demo@rubbertics.com', password: 'demo123', name: 'Demo User', role: 'Manager' },
-];
+export const useAuthStore = create((set, get) => ({
+  // ─── Auth state ──────────────────────────────────────────────────────
+  isAuthenticated: false,
+  currentUser: null,   // { id, email, name, role, staff_id, is_active }
+  authError: null,
+  isLoading: false,
+  isInitialized: false,
+  _profileChannel: null,
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      // Auth state
-      isAuthenticated: false,
-      currentUser: null,
-      authError: null,
-      isLoading: false,
+  // ─── Organization state ──────────────────────────────────────────────
+  organizations: [],
+  currentOrg: null,    // { id, name, industry, size }
+  orgsLoading: false,
 
-      // Organization state
-      currentOrg: null,
-      organizations: [DEMO_ORG],
+  // ─── Initialize (call once on app mount) ────────────────────────────
+  initialize: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const profile = await get()._fetchProfile(session.user.id);
+      
+      if (!profile || !profile.is_active) {
+        await supabase.auth.signOut();
+        sessionStorage.removeItem(CURRENT_ORG_KEY);
+        set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [], isInitialized: true });
+        return;
+      }
 
-      // --- ACTIONS ---
-
-      login: async (email, password) => {
-        set({ isLoading: true, authError: null });
-        await new Promise((r) => setTimeout(r, 900)); // simulate network
-
-        const user = DEMO_USERS.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-        );
-
-        if (user) {
-          set({
-            isAuthenticated: true,
-            currentUser: { email: user.email, name: user.name, role: user.role },
-            authError: null,
-            isLoading: false,
-          });
-          return true;
-        } else {
-          set({
-            authError: 'Invalid email or password. Try demo@rubbertics.com / demo123',
-            isLoading: false,
-          });
-          return false;
-        }
-      },
-
-      logout: () => {
-        set({
-          isAuthenticated: false,
-          currentUser: null,
-          currentOrg: null,
-          authError: null,
-        });
-      },
-
-      selectOrganization: (org) => {
-        set({ currentOrg: org });
-      },
-
-      createOrganization: (orgData) => {
-        const newOrg = {
-          id: `org-${Date.now()}`,
-          name: orgData.name,
-          slug: orgData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-          industry: orgData.industry,
-          size: orgData.size,
-          logo: null,
-          createdAt: new Date().toISOString().split('T')[0],
-          isDemo: false,
-        };
-        set((state) => ({
-          organizations: [...state.organizations, newOrg],
-          currentOrg: newOrg,
-        }));
-        return newOrg;
-      },
-
-      clearError: () => set({ authError: null }),
-    }),
-    {
-      name: 'rubbertics-auth',
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        currentUser: state.currentUser,
-        currentOrg: state.currentOrg,
-        organizations: state.organizations,
-      }),
+      // Restore previously selected org from sessionStorage
+      const storedOrg = sessionStorage.getItem(CURRENT_ORG_KEY);
+      const currentOrg = storedOrg ? JSON.parse(storedOrg) : null;
+      set({ isAuthenticated: true, currentUser: profile, currentOrg, isInitialized: true });
+      // Load orgs in background
+      get().loadOrganizations();
+      get()._setupRealtimeProfileListener(profile.id);
+    } else {
+      set({ isInitialized: true });
     }
-  )
-);
+
+    // Listen for auth state changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          const profile = await get()._fetchProfile(session.user.id);
+          if (!profile || !profile.is_active) {
+            await supabase.auth.signOut();
+            sessionStorage.removeItem(CURRENT_ORG_KEY);
+            set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [] });
+            return;
+          }
+          const storedOrg = sessionStorage.getItem(CURRENT_ORG_KEY);
+          const currentOrg = storedOrg ? JSON.parse(storedOrg) : null;
+          set({ isAuthenticated: true, currentUser: profile, currentOrg });
+          get().loadOrganizations();
+          get()._setupRealtimeProfileListener(profile.id);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        sessionStorage.removeItem(CURRENT_ORG_KEY);
+        set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [] });
+        get()._teardownRealtimeProfileListener();
+      }
+    });
+  },
+
+  // ─── Internal: fetch profile from DB ────────────────────────────────
+  _fetchProfile: async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, name, role, staff_id, is_active')
+      .eq('id', userId)
+      .single();
+    if (error || !data) return null;
+    return data;
+  },
+
+  _setupRealtimeProfileListener: (userId) => {
+    get()._teardownRealtimeProfileListener();
+    const channel = supabase.channel(`profile-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+        (payload) => {
+          if (payload.new && payload.new.is_active === false) {
+            get().logout();
+            set({ authError: 'Your account has been deactivated by an administrator.' });
+          } else if (payload.new) {
+            set({ currentUser: payload.new });
+          }
+        }
+      )
+      .subscribe();
+    set({ _profileChannel: channel });
+  },
+
+  _teardownRealtimeProfileListener: () => {
+    const channel = get()._profileChannel;
+    if (channel) {
+      supabase.removeChannel(channel);
+      set({ _profileChannel: null });
+    }
+  },
+
+  // ─── Login ──────────────────────────────────────────────────────────
+  login: async (email, password) => {
+    set({ isLoading: true, authError: null });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      set({ authError: error.message, isLoading: false });
+      return false;
+    }
+    const profile = await get()._fetchProfile(data.user.id);
+    if (!profile || !profile.is_active) {
+      await supabase.auth.signOut();
+      set({ authError: 'Account is disabled. Contact administrator.', isLoading: false });
+      return false;
+    }
+    set({ isAuthenticated: true, currentUser: profile, authError: null, isLoading: false });
+    // Load orgs after login
+    get().loadOrganizations();
+    return true;
+  },
+
+  // ─── Logout ─────────────────────────────────────────────────────────
+  logout: async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem(CURRENT_ORG_KEY);
+    set({ isAuthenticated: false, currentUser: null, currentOrg: null, organizations: [], authError: null });
+  },
+
+  // ─── Forgot password ────────────────────────────────────────────────
+  forgotPassword: async (email) => {
+    set({ isLoading: true, authError: null });
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) {
+      set({ authError: error.message, isLoading: false });
+      return false;
+    }
+    set({ isLoading: false });
+    return true;
+  },
+
+  // ─── Reset password ──────────────────────────────────────────────────
+  resetPassword: async (newPassword) => {
+    set({ isLoading: true, authError: null });
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      set({ authError: error.message, isLoading: false });
+      return false;
+    }
+    set({ isLoading: false });
+    return true;
+  },
+
+  // ─── ORGANIZATION ACTIONS ─────────────────────────────────────────────
+
+  // Load all organizations from Supabase
+  loadOrganizations: async () => {
+    set({ orgsLoading: true });
+    const currentUser = get().currentUser;
+    const isAdmin = currentUser?.role === 'admin';
+
+    let query = supabase.from('organizations').select('*').order('created_at', { ascending: true });
+
+    if (!isAdmin && currentUser) {
+      // Fetch orgs staff has access to
+      const { data: accessData } = await supabase
+        .from('staff_org_access')
+        .select('org_id')
+        .eq('staff_id', currentUser.id);
+      
+      const allowedOrgIds = accessData ? accessData.map(a => a.org_id) : [];
+      
+      if (allowedOrgIds.length === 0) {
+        set({ organizations: [], orgsLoading: false });
+        return;
+      }
+      query = query.in('id', allowedOrgIds);
+    }
+
+    const { data, error } = await query;
+    if (!error) {
+      const orgs = data || [];
+      set({ organizations: orgs, orgsLoading: false });
+      
+      // Auto-select if staff and exactly 1 org, and no currentOrg is selected
+      if (!isAdmin && orgs.length === 1 && !get().currentOrg) {
+        get().selectOrganization(orgs[0]);
+      }
+    } else {
+      set({ orgsLoading: false });
+    }
+  },
+
+  // Select an org (persists in sessionStorage)
+  selectOrganization: (org) => {
+    if (org) {
+      sessionStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(org));
+    } else {
+      sessionStorage.removeItem(CURRENT_ORG_KEY);
+    }
+    set({ currentOrg: org });
+  },
+
+  // Create org (admin only)
+  createOrganization: async ({ name, industry, size }) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    const { data, error } = await supabase
+      .from('organizations')
+      .insert({ name, industry, size, created_by: userId })
+      .select()
+      .single();
+    if (error) return { success: false, error: error.message };
+    // Refresh list
+    const orgs = get().organizations;
+    set({ organizations: [...orgs, data] });
+    return { success: true, data };
+  },
+
+  // Update org (admin only)
+  updateOrganization: async (id, { name, industry, size }) => {
+    const { data, error } = await supabase
+      .from('organizations')
+      .update({ name, industry, size })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) return { success: false, error: error.message };
+    const orgs = get().organizations.map(o => o.id === id ? data : o);
+    set({ organizations: orgs });
+    // If we updated the currently selected org, update it too
+    if (get().currentOrg?.id === id) {
+      sessionStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(data));
+      set({ currentOrg: data });
+    }
+    return { success: true, data };
+  },
+
+  // Delete org (admin only)
+  deleteOrganization: async (id) => {
+    const { error } = await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', id);
+    if (error) return { success: false, error: error.message };
+    const orgs = get().organizations.filter(o => o.id !== id);
+    set({ organizations: orgs });
+    // If deleted org was selected, clear selection
+    if (get().currentOrg?.id === id) {
+      sessionStorage.removeItem(CURRENT_ORG_KEY);
+      set({ currentOrg: null });
+    }
+    return { success: true };
+  },
+
+  // ─── STAFF ACTIONS ────────────────────────────────────────────────────
+
+  createStaff: async ({ email, password, name, staffId }) => {
+    set({ isLoading: true, authError: null });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) {
+      set({ authError: 'Not authenticated', isLoading: false });
+      return { success: false };
+    }
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-staff`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email, password, name, staff_id: staffId }),
+      }
+    );
+    const result = await res.json();
+    set({ isLoading: false });
+    if (!res.ok) return { success: false, error: result.error || 'Failed to create staff' };
+    return { success: true, data: result };
+  },
+
+  listStaff: async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, name, role, staff_id, is_active, created_at')
+      .eq('role', 'staff')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  toggleStaffStatus: async (staffId, isActive) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: isActive })
+      .eq('id', staffId);
+    return !error;
+  },
+
+  getStaffOrgAccess: async (staffId) => {
+    const { data, error } = await supabase
+      .from('staff_org_access')
+      .select('org_id')
+      .eq('staff_id', staffId);
+    if (error) return [];
+    return data.map(d => d.org_id);
+  },
+
+  toggleStaffOrgAccess: async (staffId, orgId, grantAccess) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminId = sessionData?.session?.user?.id;
+
+    if (grantAccess) {
+      const { error } = await supabase
+        .from('staff_org_access')
+        .insert({ staff_id: staffId, org_id: orgId, granted_by: adminId });
+      return !error;
+    } else {
+      const { error } = await supabase
+        .from('staff_org_access')
+        .delete()
+        .match({ staff_id: staffId, org_id: orgId });
+      return !error;
+    }
+  },
+
+  clearError: () => set({ authError: null }),
+}));

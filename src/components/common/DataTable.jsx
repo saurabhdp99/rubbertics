@@ -15,6 +15,7 @@ const DataTable = ({ columns, data, minWidth = '1200px', emptyMessage = 'No data
               {columns.map((column, index) => (
                 <Table.Column
                   key={index}
+                  isRowHeader={index === 0}
                   className="text-xs font-bold text-slate-500 uppercase tracking-widest"
                   style={column.align === 'center' ? { textAlign: 'center' } : column.align === 'right' ? { textAlign: 'right' } : {}}
                 >

@@ -133,7 +133,7 @@ export default function InternalComplainRegisterPage() {
           <Table.ScrollContainer>
             <Table.Content aria-label="Internal complaint register table" className="min-w-[1800px]">
               <Table.Header>
-                <Table.Column className="w-16 whitespace-nowrap">SR.NO</Table.Column>
+                <Table.Column isRowHeader className="w-16 whitespace-nowrap">SR.NO</Table.Column>
                 <Table.Column className="w-28 whitespace-nowrap">DATE</Table.Column>
                 <Table.Column className="whitespace-nowrap">PART NAME</Table.Column>
                 <Table.Column className="whitespace-nowrap">IMPROVEMENT PERSON</Table.Column>

@@ -189,7 +189,7 @@ export default function OrdersTable() {
               }}
             >
               <Table.Header>
-                <Table.Column className="w-12">
+                <Table.Column isRowHeader className="w-12">
                   <Checkbox aria-label="Select all" slot="selection">
                     <Checkbox.Control>
                       <Checkbox.Indicator />
