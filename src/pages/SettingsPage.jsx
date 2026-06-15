@@ -18,6 +18,104 @@ function StatusBadge({ isActive }) {
   );
 }
 
+function useAccessToggles(accessMap, setAccessMap) {
+  return {
+    handleToggleOrg: (orgId) => {
+      const currentState = accessMap[orgId] || { hasAccess: false, allowedPages: null };
+      const newHasAccess = !currentState.hasAccess;
+      setAccessMap(prev => ({ ...prev, [orgId]: { hasAccess: newHasAccess, allowedPages: null, hasChanged: true } }));
+    },
+    handleTogglePage: (orgId, pagePath) => {
+      const currentState = accessMap[orgId];
+      if (!currentState || !currentState.hasAccess) return;
+      let currentPages = currentState.allowedPages;
+      let newPages = [];
+      if (currentPages === null) {
+        newPages = navItems.filter(item => item.path !== pagePath).map(item => item.path);
+      } else {
+        if (currentPages.includes(pagePath)) {
+          newPages = currentPages.filter(p => p !== pagePath);
+        } else {
+          newPages = [...currentPages, pagePath];
+        }
+      }
+      setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
+    },
+    handleToggleAllPages: (orgId) => {
+      const currentState = accessMap[orgId];
+      if (!currentState || !currentState.hasAccess) return;
+      const isAllChecked = currentState.allowedPages === null || currentState.allowedPages.length === navItems.length;
+      const newPages = isAllChecked ? [] : null;
+      setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
+    }
+  };
+}
+
+function OrgAccessSelector({ organizations, accessMap, onToggleOrg, onTogglePage, onToggleAllPages }) {
+  if (organizations.length === 0) {
+    return <p className="text-center text-slate-500 text-[14px]">No organisations exist yet.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {organizations.map(org => {
+        const orgAccess = accessMap[org.id];
+        const hasAccess = !!orgAccess?.hasAccess;
+        const allowedPages = orgAccess?.allowedPages;
+        const allPagesChecked = hasAccess && (allowedPages === null || allowedPages.length === navItems.length);
+
+        return (
+          <div key={org.id} className={`border rounded-xl transition-colors duration-200 ${hasAccess ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'}`}>
+            <label className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 rounded-t-xl">
+              <input 
+                type="checkbox" 
+                checked={hasAccess} 
+                onChange={() => onToggleOrg(org.id)} 
+                className="w-4.5 h-4.5 accent-emerald-500 rounded" 
+              />
+              <div className="flex-1">
+                <div className="font-bold text-[14px] text-slate-900">{org.name}</div>
+                <div className="text-[12px] text-slate-500">{org.industry}</div>
+              </div>
+            </label>
+            
+            {hasAccess && (
+              <div className="px-4 pb-4 pt-1 border-t border-slate-100/60">
+                <div className="flex justify-between items-center mb-3 mt-2">
+                  <span className="text-[12px] font-semibold text-slate-600 uppercase tracking-wider">Allowed Pages</span>
+                  <button 
+                    type="button"
+                    onClick={() => onToggleAllPages(org.id)}
+                    className="text-[12px] text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer bg-transparent border-none"
+                  >
+                    {allPagesChecked ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                  {navItems.map(item => {
+                    const isChecked = allowedPages === null || allowedPages.includes(item.path);
+                    return (
+                      <label key={item.path} className="flex items-center gap-2.5 cursor-pointer group">
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => onTogglePage(org.id, item.path)}
+                          className="w-4 h-4 accent-emerald-500 rounded border-slate-300"
+                        />
+                        <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{item.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ManageStaffOrgsModal({ staff, organizations, onClose }) {
   const { getStaffOrgAccess, updateStaffOrgAccess } = useAuthStore();
   const [accessMap, setAccessMap] = useState({});
@@ -37,43 +135,7 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
     fetchAccess();
   }, [staff.id, getStaffOrgAccess]);
 
-  const handleToggleOrg = (orgId) => {
-    const currentState = accessMap[orgId] || { hasAccess: false, allowedPages: null };
-    const newHasAccess = !currentState.hasAccess;
-    const newAllowedPages = newHasAccess ? null : null; // default to full access when newly checked
-
-    setAccessMap(prev => ({ ...prev, [orgId]: { hasAccess: newHasAccess, allowedPages: newAllowedPages, hasChanged: true } }));
-  };
-
-  const handleTogglePage = (orgId, pagePath) => {
-    const currentState = accessMap[orgId];
-    if (!currentState || !currentState.hasAccess) return;
-
-    let currentPages = currentState.allowedPages;
-    let newPages = [];
-    
-    if (currentPages === null) {
-      newPages = navItems.filter(item => item.path !== pagePath).map(item => item.path);
-    } else {
-      if (currentPages.includes(pagePath)) {
-        newPages = currentPages.filter(p => p !== pagePath);
-      } else {
-        newPages = [...currentPages, pagePath];
-      }
-    }
-
-    setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
-  };
-
-  const handleToggleAllPages = (orgId) => {
-    const currentState = accessMap[orgId];
-    if (!currentState || !currentState.hasAccess) return;
-    
-    const isAllChecked = currentState.allowedPages === null || currentState.allowedPages.length === navItems.length;
-    const newPages = isAllChecked ? [] : null; // toggle between none and all
-
-    setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
-  };
+  const { handleToggleOrg, handleTogglePage, handleToggleAllPages } = useAccessToggles(accessMap, setAccessMap);
 
   const handleSave = async () => {
     setSaving(true);
@@ -103,64 +165,14 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
         <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {loading ? (
             <div className="flex justify-center p-5"><Loader2 className="spin" size={24} /></div>
-          ) : organizations.length === 0 ? (
-            <p className="text-center text-slate-500 text-[14px]">No organisations exist yet.</p>
           ) : (
-            <div className="flex flex-col gap-4">
-              {organizations.map(org => {
-                const orgAccess = accessMap[org.id];
-                const hasAccess = !!orgAccess?.hasAccess;
-                const allowedPages = orgAccess?.allowedPages;
-                const allPagesChecked = hasAccess && (allowedPages === null || allowedPages.length === navItems.length);
-
-                return (
-                  <div key={org.id} className={`border rounded-xl transition-colors duration-200 ${hasAccess ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'}`}>
-                    <label className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 rounded-t-xl">
-                      <input 
-                        type="checkbox" 
-                        checked={hasAccess} 
-                        onChange={() => handleToggleOrg(org.id)} 
-                        className="w-4.5 h-4.5 accent-emerald-500 rounded" 
-                      />
-                      <div className="flex-1">
-                        <div className="font-bold text-[14px] text-slate-900">{org.name}</div>
-                        <div className="text-[12px] text-slate-500">{org.industry}</div>
-                      </div>
-                    </label>
-                    
-                    {hasAccess && (
-                      <div className="px-4 pb-4 pt-1 border-t border-slate-100/60">
-                        <div className="flex justify-between items-center mb-3 mt-2">
-                          <span className="text-[12px] font-semibold text-slate-600 uppercase tracking-wider">Allowed Pages</span>
-                          <button 
-                            onClick={() => handleToggleAllPages(org.id)}
-                            className="text-[12px] text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer bg-transparent border-none"
-                          >
-                            {allPagesChecked ? 'Deselect All' : 'Select All'}
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                          {navItems.map(item => {
-                            const isChecked = allowedPages === null || allowedPages.includes(item.path);
-                            return (
-                              <label key={item.path} className="flex items-center gap-2.5 cursor-pointer group">
-                                <input 
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => handleTogglePage(org.id, item.path)}
-                                  className="w-4 h-4 accent-emerald-500 rounded border-slate-300"
-                                />
-                                <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{item.label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <OrgAccessSelector 
+              organizations={organizations} 
+              accessMap={accessMap} 
+              onToggleOrg={handleToggleOrg} 
+              onTogglePage={handleTogglePage} 
+              onToggleAllPages={handleToggleAllPages} 
+            />
           )}
         </div>
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-xl">
@@ -185,7 +197,7 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
 }
 
 export default function SettingsPage() {
-  const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading, updateEmail, updatePassword } = useAuthStore();
+  const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading, updateEmail, updatePassword, updateStaffOrgAccess } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
   const navigate = useNavigate();
 
@@ -195,6 +207,12 @@ export default function SettingsPage() {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [newStaffAccessMap, setNewStaffAccessMap] = useState({});
+  const { 
+    handleToggleOrg: handleNewStaffToggleOrg, 
+    handleTogglePage: handleNewStaffTogglePage, 
+    handleToggleAllPages: handleNewStaffToggleAllPages 
+  } = useAccessToggles(newStaffAccessMap, setNewStaffAccessMap);
 
   // Staff list state
   const [staffList, setStaffList] = useState([]);
@@ -245,6 +263,12 @@ export default function SettingsPage() {
       return;
     }
 
+    const hasAnyOrgSelected = Object.values(newStaffAccessMap).some(org => org.hasAccess);
+    if (!hasAnyOrgSelected) {
+      setFormError('Please assign access to at least one workspace and select allowed pages.');
+      return;
+    }
+
     setIsCreating(true);
     const result = await createStaff({
       email: form.email,
@@ -252,15 +276,27 @@ export default function SettingsPage() {
       name: form.name,
       staffId: form.staffId,
     });
-    setIsCreating(false);
 
     if (result.success) {
+      // Find the new staff to assign access
+      const updatedStaffList = await listStaff();
+      const newStaff = updatedStaffList.find(s => s.email === form.email);
+      if (newStaff) {
+         const changedOrgs = Object.keys(newStaffAccessMap).filter(orgId => newStaffAccessMap[orgId].hasAccess);
+         await Promise.all(changedOrgs.map(orgId => {
+           const orgState = newStaffAccessMap[orgId];
+           return updateStaffOrgAccess(newStaff.id, orgId, orgState.hasAccess, orgState.allowedPages);
+         }));
+      }
+
       setFormSuccess(`Staff member "${form.name}" (ID: ${form.staffId}) created successfully!`);
       setForm({ name: '', email: '', password: '', staffId: '' });
-      loadStaff();
+      setNewStaffAccessMap({});
+      setStaffList(updatedStaffList);
     } else {
       setFormError(result.error || 'Failed to create staff. Please try again.');
     }
+    setIsCreating(false);
   };
 
   const handleToggleStatus = async (staffMember) => {
@@ -484,7 +520,24 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="staff-form-footer">
+              {/* Workspace Access Assignment */}
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <h3 className="text-[14px] font-bold text-slate-800 mb-1">
+                  Assign Workspace Access <span className="text-red-500">*</span>
+                </h3>
+                <p className="text-[12px] text-slate-500 mb-4">Select which workspaces and pages this staff member can access immediately after creation. It is mandatory.</p>
+                <div className="max-h-[300px] overflow-y-auto custom-scrollbar pr-2 border border-slate-100 rounded-xl p-3 bg-white">
+                  <OrgAccessSelector 
+                    organizations={organizations} 
+                    accessMap={newStaffAccessMap} 
+                    onToggleOrg={handleNewStaffToggleOrg} 
+                    onTogglePage={handleNewStaffTogglePage} 
+                    onToggleAllPages={handleNewStaffToggleAllPages} 
+                  />
+                </div>
+              </div>
+
+              <div className="staff-form-footer mt-6">
                 <div className="staff-form-note">
                   <Shield size={14} />
                   <span>Staff will be created with <strong>staff</strong> role. Only admins can access Settings.</span>
