@@ -26,6 +26,13 @@ import { useAuthStore } from './store/authStore';
 
 // ─── ERP Shell (authenticated, org selected) ────────────────────────────────
 function ERPApp() {
+  const { currentUser, currentOrg, staffOrgAccessMap } = useAuthStore();
+  const isAdmin = currentUser?.role === 'admin';
+  const allowedPages = (!isAdmin && currentOrg && staffOrgAccessMap) ? staffOrgAccessMap[currentOrg.id] : null;
+
+  const canAccess = (path) => isAdmin || !allowedPages || allowedPages.includes(path);
+  const defaultPath = allowedPages && allowedPages.length > 0 ? allowedPages[0] : '/orders';
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />
@@ -35,23 +42,23 @@ function ERPApp() {
       >
         <div className="px-1">
           <Routes>
-            <Route path="/" element={<Navigate to="/orders" replace />} />
-            <Route path="/orders" element={<PurchaseOrdersPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/item-master" element={<ItemMasterPage />} />
-            <Route path="/inward" element={<InwardPage />} />
-            <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />
-            <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />
-            <Route path="/dispatch" element={<DispatchPage />} />
-            <Route path="/requisition-slip" element={<RequisitionSlipPage />} />
-            <Route path="/enquiry-register" element={<EnquiryRegisterPage />} />
-            <Route path="/internal-complain-register" element={<InternalComplainRegisterPage />} />
-            <Route path="/process-control-standard" element={<ProcessControlStandardPage />} />
-            <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />
-            <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />
-            <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />
-            <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />
-            <Route path="*" element={<Navigate to="/orders" replace />} />
+            <Route path="/" element={<Navigate to={defaultPath} replace />} />
+            {canAccess('/orders') && <Route path="/orders" element={<PurchaseOrdersPage />} />}
+            {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
+            {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
+            {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
+            {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
+            {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}
+            {canAccess('/dispatch') && <Route path="/dispatch" element={<DispatchPage />} />}
+            {canAccess('/requisition-slip') && <Route path="/requisition-slip" element={<RequisitionSlipPage />} />}
+            {canAccess('/enquiry-register') && <Route path="/enquiry-register" element={<EnquiryRegisterPage />} />}
+            {canAccess('/internal-complain-register') && <Route path="/internal-complain-register" element={<InternalComplainRegisterPage />} />}
+            {canAccess('/process-control-standard') && <Route path="/process-control-standard" element={<ProcessControlStandardPage />} />}
+            {canAccess('/lot-details-register') && <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />}
+            {canAccess('/weekly-moulding-plan') && <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />}
+            {canAccess('/work-order-sheet') && <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />}
+            {canAccess('/work-order-details') && <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />}
+            <Route path="*" element={<Navigate to={defaultPath} replace />} />
           </Routes>
         </div>
       </main>

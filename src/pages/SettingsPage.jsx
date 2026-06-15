@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { navItems } from '../components/Sidebar';
 
 function StaffBadge({ role }) {
   return (
@@ -18,63 +19,165 @@ function StatusBadge({ isActive }) {
 }
 
 function ManageStaffOrgsModal({ staff, organizations, onClose }) {
-  const { getStaffOrgAccess, toggleStaffOrgAccess } = useAuthStore();
+  const { getStaffOrgAccess, updateStaffOrgAccess } = useAuthStore();
   const [accessMap, setAccessMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function fetchAccess() {
-      const orgIds = await getStaffOrgAccess(staff.id);
+      const accessData = await getStaffOrgAccess(staff.id);
       const initialMap = {};
-      orgIds.forEach(id => initialMap[id] = true);
+      accessData.forEach(item => {
+        initialMap[item.org_id] = { hasAccess: true, allowedPages: item.allowed_pages, hasChanged: false };
+      });
       setAccessMap(initialMap);
       setLoading(false);
     }
     fetchAccess();
   }, [staff.id, getStaffOrgAccess]);
 
-  const handleToggle = async (orgId) => {
-    const currentlyHasAccess = !!accessMap[orgId];
-    const newAccess = !currentlyHasAccess;
+  const handleToggleOrg = (orgId) => {
+    const currentState = accessMap[orgId] || { hasAccess: false, allowedPages: null };
+    const newHasAccess = !currentState.hasAccess;
+    const newAllowedPages = newHasAccess ? null : null; // default to full access when newly checked
+
+    setAccessMap(prev => ({ ...prev, [orgId]: { hasAccess: newHasAccess, allowedPages: newAllowedPages, hasChanged: true } }));
+  };
+
+  const handleTogglePage = (orgId, pagePath) => {
+    const currentState = accessMap[orgId];
+    if (!currentState || !currentState.hasAccess) return;
+
+    let currentPages = currentState.allowedPages;
+    let newPages = [];
     
-    // Optimistic update
-    setAccessMap(prev => ({ ...prev, [orgId]: newAccess }));
-    
-    const success = await toggleStaffOrgAccess(staff.id, orgId, newAccess);
-    if (!success) {
-      // Revert if failed
-      setAccessMap(prev => ({ ...prev, [orgId]: currentlyHasAccess }));
+    if (currentPages === null) {
+      newPages = navItems.filter(item => item.path !== pagePath).map(item => item.path);
+    } else {
+      if (currentPages.includes(pagePath)) {
+        newPages = currentPages.filter(p => p !== pagePath);
+      } else {
+        newPages = [...currentPages, pagePath];
+      }
     }
+
+    setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
+  };
+
+  const handleToggleAllPages = (orgId) => {
+    const currentState = accessMap[orgId];
+    if (!currentState || !currentState.hasAccess) return;
+    
+    const isAllChecked = currentState.allowedPages === null || currentState.allowedPages.length === navItems.length;
+    const newPages = isAllChecked ? [] : null; // toggle between none and all
+
+    setAccessMap(prev => ({ ...prev, [orgId]: { ...currentState, allowedPages: newPages, hasChanged: true } }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    // find all organizations that were changed
+    const changedOrgs = Object.keys(accessMap).filter(orgId => accessMap[orgId].hasChanged);
+    
+    // update all in parallel
+    await Promise.all(changedOrgs.map(orgId => {
+      const orgState = accessMap[orgId];
+      return updateStaffOrgAccess(staff.id, orgId, orgState.hasAccess, orgState.allowedPages);
+    }));
+
+    setSaving(false);
+    onClose();
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="create-org-modal max-w-[500px]" onClick={e => e.stopPropagation()}>
+      <div className="create-org-modal max-w-[600px] w-full" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-200">
           <div className="flex justify-between items-center">
             <h3 className="text-[18px] font-bold m-0">Manage Access: {staff.name}</h3>
             <button onClick={onClose} className="border-none bg-transparent cursor-pointer text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
-          <p className="text-[13px] text-slate-500 mt-2 mb-0">Select organisations this staff member can access.</p>
+          <p className="text-[13px] text-slate-500 mt-2 mb-0">Select organisations and allowed pages this staff member can access.</p>
         </div>
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {loading ? (
             <div className="flex justify-center p-5"><Loader2 className="spin" size={24} /></div>
           ) : organizations.length === 0 ? (
             <p className="text-center text-slate-500 text-[14px]">No organisations exist yet.</p>
           ) : (
-            <div className="flex flex-col gap-3">
-              {organizations.map(org => (
-                <label key={org.id} className="flex items-center gap-3 p-3 px-4 border border-slate-200 rounded-lg cursor-pointer transition-colors duration-200 hover:border-emerald-500">
-                  <input type="checkbox" checked={!!accessMap[org.id]} onChange={() => handleToggle(org.id)} className="w-4.5 h-4.5 accent-emerald-500" />
-                  <div className="flex-1">
-                    <div className="font-semibold text-[14px] text-slate-900">{org.name}</div>
-                    <div className="text-[12px] text-slate-500">{org.industry}</div>
+            <div className="flex flex-col gap-4">
+              {organizations.map(org => {
+                const orgAccess = accessMap[org.id];
+                const hasAccess = !!orgAccess?.hasAccess;
+                const allowedPages = orgAccess?.allowedPages;
+                const allPagesChecked = hasAccess && (allowedPages === null || allowedPages.length === navItems.length);
+
+                return (
+                  <div key={org.id} className={`border rounded-xl transition-colors duration-200 ${hasAccess ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'}`}>
+                    <label className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 rounded-t-xl">
+                      <input 
+                        type="checkbox" 
+                        checked={hasAccess} 
+                        onChange={() => handleToggleOrg(org.id)} 
+                        className="w-4.5 h-4.5 accent-emerald-500 rounded" 
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold text-[14px] text-slate-900">{org.name}</div>
+                        <div className="text-[12px] text-slate-500">{org.industry}</div>
+                      </div>
+                    </label>
+                    
+                    {hasAccess && (
+                      <div className="px-4 pb-4 pt-1 border-t border-slate-100/60">
+                        <div className="flex justify-between items-center mb-3 mt-2">
+                          <span className="text-[12px] font-semibold text-slate-600 uppercase tracking-wider">Allowed Pages</span>
+                          <button 
+                            onClick={() => handleToggleAllPages(org.id)}
+                            className="text-[12px] text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer bg-transparent border-none"
+                          >
+                            {allPagesChecked ? 'Deselect All' : 'Select All'}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                          {navItems.map(item => {
+                            const isChecked = allowedPages === null || allowedPages.includes(item.path);
+                            return (
+                              <label key={item.path} className="flex items-center gap-2.5 cursor-pointer group">
+                                <input 
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleTogglePage(org.id, item.path)}
+                                  className="w-4 h-4 accent-emerald-500 rounded border-slate-300"
+                                />
+                                <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{item.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </label>
-              ))}
+                );
+              })}
             </div>
           )}
+        </div>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-xl">
+          <button 
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={saving || Object.values(accessMap).every(org => !org.hasChanged)}
+            className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {saving ? <><Loader2 size={16} className="spin" /> Saving...</> : <><CheckCircle size={16} /> Save Changes</>}
+          </button>
         </div>
       </div>
     </div>

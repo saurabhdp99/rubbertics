@@ -9,7 +9,7 @@ import {
 
 import { useAuthStore } from '../store/authStore';
 
-const navItems = [
+export const navItems = [
   { label: 'Purchase Orders', path: '/orders', icon: ShoppingBag },
   { label: 'Item Master', path: '/item-master', icon: Package },
   { label: 'Inventory', path: '/inventory', icon: Boxes },
@@ -29,7 +29,7 @@ const navItems = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { currentUser, currentOrg, organizations, selectOrganization, logout } = useAuthStore();
+  const { currentUser, currentOrg, organizations, selectOrganization, logout, staffOrgAccessMap } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -53,6 +53,8 @@ export default function Sidebar() {
     selectOrganization(null); // Clear current org → redirects to OrgSelectPage
     setDropdownOpen(false);
   };
+
+  const allowedPages = (!isAdmin && currentOrg && staffOrgAccessMap) ? staffOrgAccessMap[currentOrg.id] : null;
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-[230px] z-30 flex flex-col bg-white border-r border-slate-200">
@@ -156,7 +158,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-3 overflow-y-auto custom-scrollbar overflow-x-hidden">
         <div className="flex flex-col gap-1.5">
-          {navItems.map((item) => {
+          {navItems.filter(item => isAdmin || !allowedPages || allowedPages.includes(item.path)).map((item) => {
             const Icon = item.icon;
             return (
               <NavLink

@@ -17,6 +17,7 @@ export const useAuthStore = create((set, get) => ({
   organizations: [],
   currentOrg: null,    // { id, name, industry, size }
   orgsLoading: false,
+  staffOrgAccessMap: {}, // { [orgId]: ['/orders', ...] }
 
   // ─── Initialize (call once on app mount) ────────────────────────────
   initialize: async () => {
@@ -175,10 +176,13 @@ export const useAuthStore = create((set, get) => ({
       // Fetch orgs staff has access to
       const { data: accessData } = await supabase
         .from('staff_org_access')
-        .select('org_id')
+        .select('org_id, allowed_pages')
         .eq('staff_id', currentUser.id);
       
       const allowedOrgIds = accessData ? accessData.map(a => a.org_id) : [];
+      const accessMap = {};
+      accessData?.forEach(a => { accessMap[a.org_id] = a.allowed_pages; });
+      set({ staffOrgAccessMap: accessMap });
       
       if (allowedOrgIds.length === 0) {
         set({ organizations: [], orgsLoading: false });
@@ -308,21 +312,29 @@ export const useAuthStore = create((set, get) => ({
   getStaffOrgAccess: async (staffId) => {
     const { data, error } = await supabase
       .from('staff_org_access')
-      .select('org_id')
+      .select('org_id, allowed_pages')
       .eq('staff_id', staffId);
     if (error) return [];
-    return data.map(d => d.org_id);
+    return data;
   },
 
-  toggleStaffOrgAccess: async (staffId, orgId, grantAccess) => {
+  updateStaffOrgAccess: async (staffId, orgId, hasAccess, allowedPages = null) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const adminId = sessionData?.session?.user?.id;
 
-    if (grantAccess) {
-      const { error } = await supabase
-        .from('staff_org_access')
-        .insert({ staff_id: staffId, org_id: orgId, granted_by: adminId });
-      return !error;
+    if (hasAccess) {
+      const { data } = await supabase.from('staff_org_access')
+        .select('id').match({ staff_id: staffId, org_id: orgId }).single();
+      if (data) {
+        const { error } = await supabase.from('staff_org_access')
+          .update({ allowed_pages: allowedPages })
+          .eq('id', data.id);
+        return !error;
+      } else {
+        const { error } = await supabase.from('staff_org_access')
+          .insert({ staff_id: staffId, org_id: orgId, granted_by: adminId, allowed_pages: allowedPages });
+        return !error;
+      }
     } else {
       const { error } = await supabase
         .from('staff_org_access')
