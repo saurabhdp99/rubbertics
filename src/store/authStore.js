@@ -309,6 +309,23 @@ export const useAuthStore = create((set, get) => ({
     return !error;
   },
 
+  removeStaff: async (staffUserId) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return { success: false, error: 'Not authenticated' };
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-staff`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ staff_user_id: staffUserId }),
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) return { success: false, error: result.error || 'Failed to remove staff' };
+    return { success: true };
+  },
+
   getStaffOrgAccess: async (staffId) => {
     const { data, error } = await supabase
       .from('staff_org_access')

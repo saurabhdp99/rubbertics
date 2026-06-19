@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound, ArrowLeft } from 'lucide-react';
+import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound, ArrowLeft, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { navItems } from '../components/Sidebar';
 
@@ -197,7 +197,7 @@ function ManageStaffOrgsModal({ staff, organizations, onClose }) {
 }
 
 export default function SettingsPage() {
-  const { currentUser, createStaff, listStaff, toggleStaffStatus, organizations, isLoading, updateEmail, updatePassword, updateStaffOrgAccess } = useAuthStore();
+  const { currentUser, createStaff, listStaff, toggleStaffStatus, removeStaff, organizations, isLoading, updateEmail, updatePassword, updateStaffOrgAccess } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
   const navigate = useNavigate();
 
@@ -219,6 +219,9 @@ export default function SettingsPage() {
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [activeTab, setActiveTab] = useState('staff');
   const [manageOrgsStaff, setManageOrgsStaff] = useState(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
 
   // Account – change email
   const [emailForm, setEmailForm] = useState({ newEmail: '' });
@@ -297,6 +300,19 @@ export default function SettingsPage() {
       setFormError(result.error || 'Failed to create staff. Please try again.');
     }
     setIsCreating(false);
+  };
+
+  const handleRemoveStaff = async (staffMember) => {
+    setRemoving(true);
+    setRemoveError('');
+    const result = await removeStaff(staffMember.id);
+    setRemoving(false);
+    if (result.success) {
+      setStaffList(prev => prev.filter(s => s.id !== staffMember.id));
+      setConfirmRemoveId(null);
+    } else {
+      setRemoveError(result.error || 'Failed to remove staff member.');
+    }
   };
 
   const handleToggleStatus = async (staffMember) => {
@@ -617,7 +633,44 @@ export default function SettingsPage() {
                         {staff.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                         {staff.is_active ? 'Deactivate' : 'Activate'}
                       </button>
+                      {confirmRemoveId === staff.id ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="text-[12px] text-red-600 font-semibold whitespace-nowrap">Sure?</span>
+                          <button
+                            onClick={() => handleRemoveStaff(staff)}
+                            disabled={removing}
+                            className="staff-toggle-btn bg-red-600 text-white border-red-600 hover:bg-red-700"
+                            id={`confirm-remove-staff-${staff.id}`}
+                          >
+                            {removing ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                            {removing ? 'Removing…' : 'Confirm'}
+                          </button>
+                          <button
+                            onClick={() => { setConfirmRemoveId(null); setRemoveError(''); }}
+                            disabled={removing}
+                            className="staff-toggle-btn text-slate-600 bg-slate-100 border-slate-200"
+                          >
+                            <X size={14} /> Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => { setConfirmRemoveId(staff.id); setRemoveError(''); }}
+                          className="staff-toggle-btn text-red-600 bg-red-50 border-red-200 hover:bg-red-100"
+                          title="Remove staff member permanently"
+                          id={`remove-staff-${staff.id}`}
+                        >
+                          <Trash2 size={15} /> Remove
+                        </button>
+                      )}
                     </div>
+                    {removeError && confirmRemoveId === staff.id && (
+                      <div className="settings-alert error mt-2" style={{marginTop: '8px'}}>
+                        <AlertCircle size={14} />
+                        <span className="text-[12px]">{removeError}</span>
+                        <button onClick={() => setRemoveError('')}><X size={12} /></button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
