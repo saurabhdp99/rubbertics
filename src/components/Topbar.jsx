@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 const PAGE_TITLES = {
   '/orders':                      'Purchase Orders',
   '/item-master':                 'Item Master',
+  '/party-master':             'Party Master',
   '/inventory':                   'Inventory',
   '/mixing-molding-plan':         'Mixing / Molding Plan',
   '/weekly-moulding-plan':        'Weekly Moulding Plan',

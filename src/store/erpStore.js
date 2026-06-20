@@ -579,16 +579,123 @@ const initialItemMasterItems = [
   },
 ];
 
+const todayIsoDate = () => new Date().toISOString().split('T')[0];
+
+const formatPartyCode = (number) => `CU-${String(number).padStart(2, '0')}`;
+
+const getNextPartyCodeFromItems = (items) => {
+  const maxCodeNumber = items.reduce((max, party) => {
+    const match = String(party.partyCode || '').match(/^CU-(\d+)$/i);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return formatPartyCode(maxCodeNumber + 1);
+};
+
+const initialPartyMasterItems = [
+  {
+    id: 1,
+    partyName: 'Tata Motors Ltd',
+    partyCode: 'CU-01',
+    aliasName: 'TML',
+    natureOfBusiness: 'Automotive OEM',
+    address: 'Pimpri Industrial Area, Pune, Maharashtra',
+    partyType: 'OEM',
+    procurementPersonName: 'Amit Shah',
+    procurementContactNo: '9876543210',
+    procurementEmail: 'amit.procurement@tatamotors.example',
+    plannerPersonName: 'Neha Patil',
+    plannerContactNo: '9876543211',
+    plannerEmail: 'neha.planning@tatamotors.example',
+    accountsPersonName: 'Ravi Menon',
+    accountsContactNo: '9876543212',
+    accountsEmail: 'accounts@tatamotors.example',
+    gstNo: '27AAACT2727Q1ZW',
+    gstRegistrationDate: '2017-07-01',
+    gstStateCode: '27',
+    panDetails: 'AAACT2727Q',
+    msmeCertificateNo: '',
+    msmeEnterpriseType: 'Not Applicable',
+    msmeCertificateValidity: '',
+    paymentTerms: '45 Days',
+    deliveryTerms: 'FOR Plant',
+    transport: 'Party Approved Transport',
+    detailsSharedVia: 'Email',
+    partyEnrollmentDate: '2024-01-10',
+  },
+  {
+    id: 2,
+    partyName: 'Mahindra & Mahindra',
+    partyCode: 'CU-02',
+    aliasName: 'M&M',
+    natureOfBusiness: 'Automotive Manufacturer',
+    address: 'Chakan MIDC, Pune, Maharashtra',
+    partyType: 'OEM',
+    procurementPersonName: 'Kiran Desai',
+    procurementContactNo: '9876543220',
+    procurementEmail: 'kiran.purchase@mahindra.example',
+    plannerPersonName: 'Sneha Rao',
+    plannerContactNo: '9876543221',
+    plannerEmail: 'sneha.plan@mahindra.example',
+    accountsPersonName: 'Mehul Jain',
+    accountsContactNo: '9876543222',
+    accountsEmail: 'accounts@mahindra.example',
+    gstNo: '27AAACM3025E1ZZ',
+    gstRegistrationDate: '2017-07-01',
+    gstStateCode: '27',
+    panDetails: 'AAACM3025E',
+    msmeCertificateNo: '',
+    msmeEnterpriseType: 'Not Applicable',
+    msmeCertificateValidity: '',
+    paymentTerms: '30 Days',
+    deliveryTerms: 'Ex Works',
+    transport: 'Rubbertics Dispatch',
+    detailsSharedVia: 'WhatsApp / Email',
+    partyEnrollmentDate: '2024-02-05',
+  },
+  {
+    id: 3,
+    partyName: 'Sahil All Equipment',
+    partyCode: 'CU-03',
+    aliasName: 'Sahil Equipment',
+    natureOfBusiness: 'Industrial Equipment Supplier',
+    address: 'GIDC Estate, Vadodara, Gujarat',
+    partyType: 'Dealer',
+    procurementPersonName: 'Jignesh Patel',
+    procurementContactNo: '9876543230',
+    procurementEmail: 'purchase@sahil.example',
+    plannerPersonName: 'Hiral Shah',
+    plannerContactNo: '9876543231',
+    plannerEmail: 'planner@sahil.example',
+    accountsPersonName: 'Nilesh Parmar',
+    accountsContactNo: '9876543232',
+    accountsEmail: 'accounts@sahil.example',
+    gstNo: '24ABCDE1234F1Z5',
+    gstRegistrationDate: '2018-04-01',
+    gstStateCode: '24',
+    panDetails: 'ABCDE1234F',
+    msmeCertificateNo: 'UDYAM-GJ-24-0012345',
+    msmeEnterpriseType: 'Small',
+    msmeCertificateValidity: '2027-03-31',
+    paymentTerms: 'Against Delivery',
+    deliveryTerms: 'Door Delivery',
+    transport: 'Local Transport',
+    detailsSharedVia: 'WhatsApp',
+    partyEnrollmentDate: '2024-03-15',
+  },
+];
+
 let nextId = initialOrders.length + 1;
 let nextWeeklyPlanId = initialWeeklyPlans.length + 1;
 let nextItemMasterId = initialItemMasterItems.length + 1;
+let nextPartyMasterId = initialPartyMasterItems.length + 1;
 
 export const useERPStore = create((set, get) => ({
   // Data
   orders: initialOrders,
   weeklyPlans: initialWeeklyPlans,
   itemMasterItems: initialItemMasterItems,
-  
+  partyMasterItems: initialPartyMasterItems,
+
   // UI State
   searchQuery: '',
   filterStatus: 'All',
@@ -604,21 +711,26 @@ export const useERPStore = create((set, get) => ({
   itemMasterStatusFilter: 'All',
   itemMasterCurrentPage: 1,
   itemMasterItemsPerPage: 10,
-  
+  partyMasterSearchQuery: '',
+  partyMasterTypeFilter: 'All',
+  partyMasterMsmeFilter: 'All',
+  partyMasterCurrentPage: 1,
+  partyMasterItemsPerPage: 10,
+
   // Modal State
   isModalOpen: false,
   modalMode: 'view', // 'view' | 'edit' | 'add'
   selectedOrder: null,
   isDeleteConfirmOpen: false,
   orderToDelete: null,
-  
+
   // Weekly Plan Modal State
   isWeeklyModalOpen: false,
   weeklyModalMode: 'view',
   selectedWeeklyPlan: null,
   isWeeklyDeleteConfirmOpen: false,
   weeklyPlanToDelete: null,
-  
+
   // Notifications
   notifications: [],
 
@@ -655,10 +767,10 @@ export const useERPStore = create((set, get) => ({
       orders: state.orders.map(o =>
         o.id === id
           ? {
-              ...o,
-              ...orderData,
-              balanceQty: Number(orderData.orderQty) - Number(orderData.dispatchQty),
-            }
+            ...o,
+            ...orderData,
+            balanceQty: Number(orderData.orderQty) - Number(orderData.dispatchQty),
+          }
           : o
       ),
     }));
@@ -732,6 +844,48 @@ export const useERPStore = create((set, get) => ({
     get().addNotification('Item master deleted successfully!', 'error');
   },
 
+  getNextPartyCode: () => getNextPartyCodeFromItems(get().partyMasterItems),
+
+  addPartyMaster: (partyData) => {
+    const partyCode = getNextPartyCodeFromItems(get().partyMasterItems);
+    const newParty = {
+      ...partyData,
+      id: nextPartyMasterId++,
+      partyCode,
+      partyType: partyData.partyType || 'Domestic',
+      msmeEnterpriseType: partyData.msmeEnterpriseType || 'Not Applicable',
+      detailsSharedVia: partyData.detailsSharedVia || 'WhatsApp / Email',
+      partyEnrollmentDate: partyData.partyEnrollmentDate || todayIsoDate(),
+    };
+    set(state => ({
+      partyMasterItems: [newParty, ...state.partyMasterItems],
+      partyMasterCurrentPage: 1,
+    }));
+    get().addNotification(`Party ${partyCode} created successfully!`, 'success');
+  },
+
+  updatePartyMaster: (id, partyData) => {
+    set(state => ({
+      partyMasterItems: state.partyMasterItems.map(party =>
+        party.id === id
+          ? {
+            ...party,
+            ...partyData,
+            partyCode: party.partyCode,
+          }
+          : party
+      ),
+    }));
+    get().addNotification('Party master updated successfully!', 'success');
+  },
+
+  deletePartyMaster: (id) => {
+    set(state => ({
+      partyMasterItems: state.partyMasterItems.filter(party => party.id !== id),
+    }));
+    get().addNotification('Party master deleted successfully!', 'error');
+  },
+
   // Weekly Modal controls
   openWeeklyModal: (mode, plan = null) => {
     set({ isWeeklyModalOpen: true, weeklyModalMode: mode, selectedWeeklyPlan: plan });
@@ -798,6 +952,11 @@ export const useERPStore = create((set, get) => ({
   setItemMasterStatusFilter: (status) => set({ itemMasterStatusFilter: status, itemMasterCurrentPage: 1 }),
   setItemMasterCurrentPage: (page) => set({ itemMasterCurrentPage: page }),
   setItemMasterItemsPerPage: (count) => set({ itemMasterItemsPerPage: count, itemMasterCurrentPage: 1 }),
+  setPartyMasterSearchQuery: (query) => set({ partyMasterSearchQuery: query, partyMasterCurrentPage: 1 }),
+  setPartyMasterTypeFilter: (type) => set({ partyMasterTypeFilter: type, partyMasterCurrentPage: 1 }),
+  setPartyMasterMsmeFilter: (type) => set({ partyMasterMsmeFilter: type, partyMasterCurrentPage: 1 }),
+  setPartyMasterCurrentPage: (page) => set({ partyMasterCurrentPage: page }),
+  setPartyMasterItemsPerPage: (count) => set({ partyMasterItemsPerPage: count, partyMasterCurrentPage: 1 }),
   setSortField: (field) => {
     set(state => ({
       sortField: field,
@@ -884,6 +1043,48 @@ export const useERPStore = create((set, get) => ({
       products,
       categories: categories.size,
       avgPrice,
+    };
+  },
+
+  getFilteredPartyMasterItems: () => {
+    const {
+      partyMasterItems,
+      partyMasterSearchQuery,
+      partyMasterTypeFilter,
+      partyMasterMsmeFilter,
+    } = get();
+
+    const query = partyMasterSearchQuery.toLowerCase().trim();
+
+    return partyMasterItems.filter(party => {
+      const matchesSearch =
+        !query ||
+        Object.values(party)
+          .some(value => String(value || '').toLowerCase().includes(query));
+      const matchesType = partyMasterTypeFilter === 'All' || party.partyType === partyMasterTypeFilter;
+      const matchesMsme = partyMasterMsmeFilter === 'All' || party.msmeEnterpriseType === partyMasterMsmeFilter;
+      return matchesSearch && matchesType && matchesMsme;
+    });
+  },
+
+  getPartyMasterStats: () => {
+    const { partyMasterItems } = get();
+    const types = new Set(partyMasterItems.map(party => party.partyType).filter(Boolean));
+    const msme = partyMasterItems.filter(party =>
+      party.msmeEnterpriseType && party.msmeEnterpriseType !== 'Not Applicable'
+    ).length;
+    const enrolledThisMonth = partyMasterItems.filter(party => {
+      if (!party.partyEnrollmentDate) return false;
+      const date = new Date(party.partyEnrollmentDate);
+      const today = new Date();
+      return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+    }).length;
+
+    return {
+      total: partyMasterItems.length,
+      types: types.size,
+      msme,
+      enrolledThisMonth,
     };
   },
 }));
