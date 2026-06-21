@@ -35,7 +35,9 @@ const EMPTY_PARTY = PARTY_MASTER_FIELDS.reduce((party, field) => {
   return party;
 }, {});
 
-const TABLE_COLUMNS = PARTY_MASTER_FIELDS.map(field => ({
+const TABLE_COLUMNS = PARTY_MASTER_FIELDS
+  .filter(field => ['partyName', 'partyCode', 'aliasName'].includes(field.key))
+  .map(field => ({
   ...field,
   width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' ? '160px' : '190px',
   align: ['partyCode', 'gstStateCode'].includes(field.key) ? 'center' : 'left',
@@ -346,12 +348,15 @@ export default function PartyMasterPage() {
 
   return (
     <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatsCard label="Total Parties" value={stats.total.toLocaleString()} icon={Building2} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
-        <StatsCard label="Party Types" value={stats.types.toLocaleString()} icon={BriefcaseBusiness} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
-        <StatsCard label="MSME Partys" value={stats.msme.toLocaleString()} icon={BadgeCheck} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
-        <StatsCard label="This Month" value={stats.enrolledThisMonth.toLocaleString()} icon={CalendarDays} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
-      </div>
+      {viewState.type !== 'form' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatsCard label="Total Parties" value={stats.total.toLocaleString()} icon={Building2} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
+          <StatsCard label="Party Types" value={stats.types.toLocaleString()} icon={BriefcaseBusiness} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
+          <StatsCard label="MSME Partys" value={stats.msme.toLocaleString()} icon={BadgeCheck} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
+          <StatsCard label="This Month" value={stats.enrolledThisMonth.toLocaleString()} icon={CalendarDays} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
+        </div>
+      )}
+
 
       {viewState.type === 'form' ? (
         <PartyMasterForm mode={viewState.mode} party={viewState.party} onBack={backToTable} />
