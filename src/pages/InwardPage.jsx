@@ -29,55 +29,81 @@ export default function InwardPage() {
   const totalQuantity = DUMMY_GRN_DATA.reduce((sum, row) => sum + row.quantity, 0);
 
   const columns = [
-    { header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[110px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value}</span>
-    )},
-    { header: 'GRN NO', accessor: 'grnNo', icon: Hash, width: 'w-[110px]', render: (value) => (
-      <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span>
-    )},
-    { header: 'Party Name', accessor: 'partyName', icon: Building2, width: 'w-[200px]', render: (value) => (
-      <span className="font-bold text-slate-800">{value}</span>
-    )},
-    { header: 'Description of Goods', accessor: 'description', icon: PackageSearch, width: 'w-[220px]', render: (value) => (
-      <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
-    )},
-    { header: 'Quantity', accessor: 'quantity', width: 'w-[120px]', align: 'right', render: (value) => (
-      <span className="font-extrabold text-indigo-600">{value}</span>
-    )},
-    { header: 'UOM', accessor: 'uom', width: 'w-[80px]', align: 'center', render: (value) => (
-      <span className="text-slate-500 font-bold text-[11px]">{value}</span>
-    )},
-    { header: 'Inv Date', accessor: 'invoiceDate', icon: Calendar, width: 'w-[120px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value}</span>
-    )},
-    { header: 'Invoice No', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
-      <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span>
-    )},
-    { header: 'Transporter/LR', accessor: 'transporter', icon: Truck, width: 'w-[180px]', render: (value) => (
-      <span className="font-medium text-slate-600">{value}</span>
-    )},
-    { header: 'T.C Recv', accessor: 'tcReceived', width: 'w-[100px]', align: 'center', render: (value) => (
-      value === 'YES' ? (
-        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-          <CheckCircle2 size={14} />
-        </span>
-      ) : (
-        <span className="text-slate-400 font-bold text-xs">NO</span>
+    {
+      header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[110px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value}</span>
       )
-    )},
-    { header: 'Qty Verified', accessor: 'qtyVerifiedBy', icon: UserCheck, width: 'w-[140px]', render: (value) => (
-      <span className="font-medium text-slate-700">{value}</span>
-    )},
-    { header: 'PO.NO', accessor: 'poNo', width: 'w-[160px]', render: (value) => (
-      <span className="px-2.5 py-1 rounded-md bg-slate-50 text-slate-600 text-[11px] font-bold border border-slate-200">{value}</span>
-    )},
-    { header: 'Received By', accessor: 'receivedBy', icon: User, width: 'w-[140px]', render: (value) => (
-      <span className="font-bold text-slate-700">{value}</span>
-    )},
+    },
+    {
+      header: 'GRN NO', accessor: 'grnNo', icon: Hash, width: 'w-[110px]', render: (value) => (
+        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span>
+      )
+    },
+    {
+      header: 'Party Name', accessor: 'partyName', icon: Building2, width: 'w-[200px]', render: (value) => (
+        <span className="font-bold text-slate-800">{value}</span>
+      )
+    },
+    {
+      header: 'Description of Goods', accessor: 'description', icon: PackageSearch, width: 'w-[220px]', render: (value) => (
+        <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
+      )
+    },
+    {
+      header: 'Quantity', accessor: 'quantity', width: 'w-[120px]', align: 'right', render: (value) => (
+        <span className="font-extrabold text-indigo-600">{value}</span>
+      )
+    },
+    {
+      header: 'UOM', accessor: 'uom', width: 'w-[80px]', align: 'center', render: (value) => (
+        <span className="text-slate-500 font-bold text-[11px]">{value}</span>
+      )
+    },
+    {
+      header: 'Inv Date', accessor: 'invoiceDate', icon: Calendar, width: 'w-[120px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value}</span>
+      )
+    },
+    {
+      header: 'Invoice No', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
+        <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span>
+      )
+    },
+    {
+      header: 'Transporter/LR', accessor: 'transporter', icon: Truck, width: 'w-[180px]', render: (value) => (
+        <span className="font-medium text-slate-600">{value}</span>
+      )
+    },
+    {
+      header: 'T.C Recv', accessor: 'tcReceived', width: 'w-[100px]', align: 'center', render: (value) => (
+        value === 'YES' ? (
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <CheckCircle2 size={14} />
+          </span>
+        ) : (
+          <span className="text-slate-400 font-bold text-xs">NO</span>
+        )
+      )
+    },
+    {
+      header: 'Qty Verified', accessor: 'qtyVerifiedBy', icon: UserCheck, width: 'w-[140px]', render: (value) => (
+        <span className="font-medium text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'PO.NO', accessor: 'poNo', width: 'w-[160px]', render: (value) => (
+        <span className="px-2.5 py-1 rounded-md bg-slate-50 text-slate-600 text-[11px] font-bold border border-slate-200">{value}</span>
+      )
+    },
+    {
+      header: 'Received By', accessor: 'receivedBy', icon: User, width: 'w-[140px]', render: (value) => (
+        <span className="font-bold text-slate-700">{value}</span>
+      )
+    },
   ];
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-3">
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard

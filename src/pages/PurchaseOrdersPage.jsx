@@ -6,7 +6,7 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function PurchaseOrdersPage() {
   return (
-    <div className="p-6 max-w-[1920px] mx-auto animate-slide-up">
+    <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
 
       {/* Stats */}
       <StatsBar />

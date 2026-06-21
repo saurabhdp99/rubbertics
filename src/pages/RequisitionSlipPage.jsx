@@ -55,7 +55,7 @@ export default function RequisitionSlipPage() {
   const labelClass = 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1';
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-3 max-w-6xl mx-auto">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="bg-emerald-600 px-6 py-4 text-center">

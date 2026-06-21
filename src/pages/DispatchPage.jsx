@@ -47,43 +47,65 @@ export default function DispatchPage() {
   }, [searchTerm]);
 
   const columns = [
-    { header: 'SR.NO', accessor: 'srNo', icon: Hash, width: 'w-[70px]', align: 'center', render: (value) => (
-      <span className="font-bold text-slate-700">{value}</span>
-    )},
-    { header: 'INV DATE', accessor: 'invDate', icon: Calendar, width: 'w-[100px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value}</span>
-    )},
-    { header: 'INVOICE NO', accessor: 'invoiceNo', icon: FileText, width: 'w-[140px]', render: (value) => (
-      <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100 whitespace-nowrap">{value}</span>
-    )},
-    { header: 'PURCHASE ORDER NO', accessor: 'purchaseOrderNo', icon: ClipboardList, width: 'w-[170px]', render: (value) => (
-      <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 whitespace-nowrap">{value}</span>
-    )},
-    { header: 'PARTY NAME', accessor: 'partyName', icon: Building2, width: 'w-[220px]', render: (value) => (
-      <span className="font-bold text-slate-800 uppercase tracking-tight">{value}</span>
-    )},
-    { header: 'PART NO', accessor: 'partNo', icon: Hash, width: 'w-[140px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-600 font-semibold whitespace-nowrap">{value}</span>
-    )},
-    { header: 'MATERIAL DESCRIPTION', accessor: 'materialDescription', icon: PackageSearch, width: 'w-[280px]', render: (value) => (
-      <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
-    )},
-    { header: 'QUANTITY', accessor: 'quantity', icon: Scale, width: 'w-[100px]', align: 'right', render: (value) => (
-      <span className="font-extrabold text-emerald-600">{Number(value).toLocaleString()}</span>
-    )},
-    { header: 'TRANSPORT', accessor: 'transport', icon: Truck, width: 'w-[160px]', render: (value) => (
-      <span className="font-medium text-slate-600">{value}</span>
-    )},
-    { header: 'LR.NO', accessor: 'lrNo', icon: MapPin, width: 'w-[100px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value || '—'}</span>
-    )},
-    { header: 'No. Of BAGS', accessor: 'noOfBags', icon: Boxes, width: 'w-[110px]', align: 'center', render: (value) => (
-      <span className="font-bold text-slate-700">{value || '—'}</span>
-    )},
+    {
+      header: 'SR.NO', accessor: 'srNo', icon: Hash, width: 'w-[70px]', align: 'center', render: (value) => (
+        <span className="font-bold text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'INV DATE', accessor: 'invDate', icon: Calendar, width: 'w-[100px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value}</span>
+      )
+    },
+    {
+      header: 'INVOICE NO', accessor: 'invoiceNo', icon: FileText, width: 'w-[140px]', render: (value) => (
+        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100 whitespace-nowrap">{value}</span>
+      )
+    },
+    {
+      header: 'PURCHASE ORDER NO', accessor: 'purchaseOrderNo', icon: ClipboardList, width: 'w-[170px]', render: (value) => (
+        <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 whitespace-nowrap">{value}</span>
+      )
+    },
+    {
+      header: 'PARTY NAME', accessor: 'partyName', icon: Building2, width: 'w-[220px]', render: (value) => (
+        <span className="font-bold text-slate-800 uppercase tracking-tight">{value}</span>
+      )
+    },
+    {
+      header: 'PART NO', accessor: 'partNo', icon: Hash, width: 'w-[140px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-600 font-semibold whitespace-nowrap">{value}</span>
+      )
+    },
+    {
+      header: 'MATERIAL DESCRIPTION', accessor: 'materialDescription', icon: PackageSearch, width: 'w-[280px]', render: (value) => (
+        <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
+      )
+    },
+    {
+      header: 'QUANTITY', accessor: 'quantity', icon: Scale, width: 'w-[100px]', align: 'right', render: (value) => (
+        <span className="font-extrabold text-emerald-600">{Number(value).toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'TRANSPORT', accessor: 'transport', icon: Truck, width: 'w-[160px]', render: (value) => (
+        <span className="font-medium text-slate-600">{value}</span>
+      )
+    },
+    {
+      header: 'LR.NO', accessor: 'lrNo', icon: MapPin, width: 'w-[100px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value || '—'}</span>
+      )
+    },
+    {
+      header: 'No. Of BAGS', accessor: 'noOfBags', icon: Boxes, width: 'w-[110px]', align: 'center', render: (value) => (
+        <span className="font-bold text-slate-700">{value || '—'}</span>
+      )
+    },
   ];
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up py-8 px-3">
 
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

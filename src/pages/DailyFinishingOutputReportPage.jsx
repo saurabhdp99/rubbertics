@@ -87,58 +87,90 @@ export default function DailyFinishingOutputReportPage() {
 
   const columns = [
     { header: 'Sr No.', accessor: 'srNo', icon: Hash, width: 'w-[60px]', align: 'center' },
-    { header: 'ITEM NAME', accessor: 'itemName', icon: Package, width: 'w-[200px]', render: (value) => (
-      <span className="font-semibold text-slate-700">{value}</span>
-    )},
-    { header: 'FINISHER NAME', accessor: 'finisherName', icon: User, width: 'w-[140px]', render: (value) => (
-      <span className="font-medium text-slate-700">{value}</span>
-    )},
-    { header: 'ROUTE CARD No.', accessor: 'routeCardNo', icon: Hash, width: 'w-[140px]', render: (value) => (
-      <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span>
-    )},
-    { header: 'FINISHING OR ROUTE CARD DATE', accessor: 'routeCardDate', icon: Calendar, width: 'w-[220px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value}</span>
-    )},
-    { header: 'OPERATOR NAME', accessor: 'operatorName', icon: User, width: 'w-[140px]', render: (value) => (
-      <span className="font-medium text-slate-700">{value}</span>
-    )},
-    { header: 'PRODUCTION QTY', accessor: 'productionQty', icon: CheckCircle2, width: 'w-[150px]', align: 'right', render: (value) => (
-      <span className="font-bold text-emerald-600">{value.toLocaleString()}</span>
-    )},
-    { header: 'TARGET QTY IN 1 HRS.', accessor: 'targetQtyIn1Hr', width: 'w-[160px]', align: 'right', render: (value) => (
-      <span className="font-bold text-slate-700">{value.toLocaleString()}</span>
-    )},
-    { header: 'ACCEPTED QTY', accessor: 'acceptedQty', icon: CheckCircle2, width: 'w-[130px]', align: 'right', render: (value) => (
-      <span className="font-bold text-emerald-600">{value.toLocaleString()}</span>
-    )},
-    { header: 'REJECTION QTY', accessor: 'rejectionQty', icon: AlertCircle, width: 'w-[130px]', align: 'right', render: (value) => (
-      <span className="font-bold text-red-500">{value.toLocaleString()}</span>
-    )},
-    { header: 'SHORT QTY', accessor: 'shortQty', width: 'w-[100px]', align: 'right', render: (value) => (
-      <span className="font-bold text-amber-500">{value.toLocaleString()}</span>
-    )},
-    { header: 'STARTED TIMING', accessor: 'startedTiming', icon: Clock, width: 'w-[130px]', align: 'center', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-600">{value}</span>
-    )},
-    { header: 'COMPLETION TIMING', accessor: 'completionTiming', icon: CheckCircle2, width: 'w-[160px]', align: 'center', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-600">{value}</span>
-    )},
-    { header: 'QC CHECKED BY', accessor: 'qcCheckedBy', icon: User, width: 'w-[140px]', render: (value) => (
-      <span className="font-medium text-slate-700">{value}</span>
-    )},
-    { header: 'PACKED BY', accessor: 'packedBy', icon: Package, width: 'w-[140px]', render: (value) => (
-      <span className="font-medium text-slate-700">{value}</span>
-    )},
-    { header: 'REMARKS', accessor: 'remarks', width: 'w-[150px]', render: (value) => (
-      <span className="text-slate-600 text-xs">{value}</span>
-    )},
-    { header: 'DATE', accessor: 'date', icon: Calendar, width: 'w-[110px]', render: (value) => (
-      <span className="font-mono text-[12px] text-slate-500">{value}</span>
-    )},
+    {
+      header: 'ITEM NAME', accessor: 'itemName', icon: Package, width: 'w-[200px]', render: (value) => (
+        <span className="font-semibold text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'FINISHER NAME', accessor: 'finisherName', icon: User, width: 'w-[140px]', render: (value) => (
+        <span className="font-medium text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'ROUTE CARD No.', accessor: 'routeCardNo', icon: Hash, width: 'w-[140px]', render: (value) => (
+        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span>
+      )
+    },
+    {
+      header: 'FINISHING OR ROUTE CARD DATE', accessor: 'routeCardDate', icon: Calendar, width: 'w-[220px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value}</span>
+      )
+    },
+    {
+      header: 'OPERATOR NAME', accessor: 'operatorName', icon: User, width: 'w-[140px]', render: (value) => (
+        <span className="font-medium text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'PRODUCTION QTY', accessor: 'productionQty', icon: CheckCircle2, width: 'w-[150px]', align: 'right', render: (value) => (
+        <span className="font-bold text-emerald-600">{value.toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'TARGET QTY IN 1 HRS.', accessor: 'targetQtyIn1Hr', width: 'w-[160px]', align: 'right', render: (value) => (
+        <span className="font-bold text-slate-700">{value.toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'ACCEPTED QTY', accessor: 'acceptedQty', icon: CheckCircle2, width: 'w-[130px]', align: 'right', render: (value) => (
+        <span className="font-bold text-emerald-600">{value.toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'REJECTION QTY', accessor: 'rejectionQty', icon: AlertCircle, width: 'w-[130px]', align: 'right', render: (value) => (
+        <span className="font-bold text-red-500">{value.toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'SHORT QTY', accessor: 'shortQty', width: 'w-[100px]', align: 'right', render: (value) => (
+        <span className="font-bold text-amber-500">{value.toLocaleString()}</span>
+      )
+    },
+    {
+      header: 'STARTED TIMING', accessor: 'startedTiming', icon: Clock, width: 'w-[130px]', align: 'center', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-600">{value}</span>
+      )
+    },
+    {
+      header: 'COMPLETION TIMING', accessor: 'completionTiming', icon: CheckCircle2, width: 'w-[160px]', align: 'center', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-600">{value}</span>
+      )
+    },
+    {
+      header: 'QC CHECKED BY', accessor: 'qcCheckedBy', icon: User, width: 'w-[140px]', render: (value) => (
+        <span className="font-medium text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'PACKED BY', accessor: 'packedBy', icon: Package, width: 'w-[140px]', render: (value) => (
+        <span className="font-medium text-slate-700">{value}</span>
+      )
+    },
+    {
+      header: 'REMARKS', accessor: 'remarks', width: 'w-[150px]', render: (value) => (
+        <span className="text-slate-600 text-xs">{value}</span>
+      )
+    },
+    {
+      header: 'DATE', accessor: 'date', icon: Calendar, width: 'w-[110px]', render: (value) => (
+        <span className="font-mono text-[12px] text-slate-500">{value}</span>
+      )
+    },
   ];
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up p-3">
 
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

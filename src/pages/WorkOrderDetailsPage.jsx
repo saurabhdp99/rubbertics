@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { 
-  FileText, 
-  Search, 
-  Printer, 
-  Download, 
-  Filter, 
+import {
+  FileText,
+  Search,
+  Printer,
+  Download,
+  Filter,
   ChevronRight,
   ArrowUpDown,
   MoreVertical,
@@ -191,7 +191,7 @@ export default function WorkOrderDetailsPage() {
     }
   };
 
-  const filteredOrders = orders.filter(o => 
+  const filteredOrders = orders.filter(o =>
     o.woNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.partName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -200,17 +200,17 @@ export default function WorkOrderDetailsPage() {
   const InputField = ({ label, name, type = 'text', section }) => (
     <div className="space-y-1.5">
       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
-      <input 
-        type={type} 
-        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all outline-none" 
-        value={formData[name] || ''} 
-        onChange={e => setFormData({...formData, [name]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value})} 
+      <input
+        type={type}
+        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all outline-none"
+        value={formData[name] || ''}
+        onChange={e => setFormData({ ...formData, [name]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })}
       />
     </div>
   );
 
   const TabButton = ({ id, label, icon: Icon }) => (
-    <button 
+    <button
       onClick={() => setActiveTab(id)}
       className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-black transition-all ${activeTab === id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}
     >
@@ -244,7 +244,7 @@ export default function WorkOrderDetailsPage() {
             />
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           </div>
-          <button 
+          <button
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all shadow-md"
           >
@@ -255,7 +255,7 @@ export default function WorkOrderDetailsPage() {
       </div>
 
       {/* Main Table Area */}
-      <div className="flex-1 overflow-hidden p-6">
+      <div className="flex-1 overflow-hidden p-3">
         <div className="h-full glass-card rounded-2xl overflow-hidden shadow-2xl pb-4 flex flex-col">
           <div className="flex-1 min-h-0">
             <Table>
@@ -333,7 +333,7 @@ export default function WorkOrderDetailsPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[32px] w-full max-w-6xl max-h-[95vh] overflow-hidden shadow-2xl flex flex-col animate-scale-up border border-white">
-            
+
             {/* Modal Header */}
             <div className="px-8 py-6 bg-slate-900 text-white flex flex-col shrink-0">
               <div className="flex items-center justify-between mb-6">
@@ -426,7 +426,7 @@ export default function WorkOrderDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</label>
-                    <select className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                    <select className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                       <option value="Open">Open</option>
                       <option value="In Process">In Process</option>
                       <option value="Completed">Completed</option>
@@ -434,7 +434,7 @@ export default function WorkOrderDetailsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Approval Stage</label>
-                    <select className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700" value={formData.stage} onChange={e => setFormData({...formData, stage: e.target.value})}>
+                    <select className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700" value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })}>
                       <option value="Prepared">Prepared</option>
                       <option value="Checked">Checked</option>
                       <option value="Approved">Approved</option>
@@ -445,7 +445,7 @@ export default function WorkOrderDetailsPage() {
                   <InputField label="Approved By" name="approvedBy" />
                   <div className="col-span-1 md:col-span-3 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Remarks</label>
-                    <textarea rows="3" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all outline-none" value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+                    <textarea rows="3" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all outline-none" value={formData.remarks || ''} onChange={e => setFormData({ ...formData, remarks: e.target.value })} />
                   </div>
                 </div>
               )}

@@ -173,8 +173,8 @@ export default function MixingMoldingPlanPage() {
 
   const currentData =
     activeTab === 'mixing_plan' ? MIXING_PLAN_DATA :
-    activeTab === 'daily_mixing_plan' ? DAILY_MIXING_PLAN_DATA :
-    MOULDING_PLAN_DATA;
+      activeTab === 'daily_mixing_plan' ? DAILY_MIXING_PLAN_DATA :
+        MOULDING_PLAN_DATA;
 
   // Stats calculation based on active tab
   let totalBatches, completedBatches, inProgressBatches, pendingBatches;
@@ -286,9 +286,11 @@ export default function MixingMoldingPlanPage() {
             <span className="font-mono text-[12px] text-slate-500">{value}</span>
           )
         },
-        { header: 'SR NO', accessor: 'srNo', icon: Hash, width: 'w-[70px]', align: 'center', render: (value) => (
-          <span className="font-bold text-slate-700">{value}</span>
-        )},
+        {
+          header: 'SR NO', accessor: 'srNo', icon: Hash, width: 'w-[70px]', align: 'center', render: (value) => (
+            <span className="font-bold text-slate-700">{value}</span>
+          )
+        },
         {
           header: 'COMPOUND CODE', accessor: 'compoundCode', icon: Hash, width: 'w-[140px]', render: (value) => (
             <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span>
@@ -375,7 +377,7 @@ export default function MixingMoldingPlanPage() {
   };
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up p-3">
 
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

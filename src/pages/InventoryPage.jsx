@@ -77,114 +77,155 @@ export default function InventoryPage() {
       return [
         { header: 'Sr.No', accessor: 'id', width: 'w-[80px]' },
         { header: 'RM Name', accessor: 'rmName' },
-        { header: 'RM CODE', accessor: 'rmCode', icon: Tag, width: 'w-[120px]', render: (value) => (
-          <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span>
-        )},
-        { header: 'Location', accessor: 'location', icon: MapPin, width: 'w-[100px]', align: 'center', render: (value) => (
-          value !== '-' ? value : <span className="text-slate-300">-</span>
-        )},
+        {
+          header: 'RM CODE', accessor: 'rmCode', icon: Tag, width: 'w-[120px]', render: (value) => (
+            <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span>
+          )
+        },
+        {
+          header: 'Location', accessor: 'location', icon: MapPin, width: 'w-[100px]', align: 'center', render: (value) => (
+            value !== '-' ? value : <span className="text-slate-300">-</span>
+          )
+        },
         { header: 'UOM', accessor: 'uom', width: 'w-[80px]', align: 'center' },
         { header: 'Opening Stock', accessor: 'openingStock', width: 'w-[120px]', align: 'right', render: (value) => value.toFixed(3) },
         { header: 'Total', accessor: 'total', width: 'w-[120px]', align: 'right', render: (value) => value.toFixed(3) },
-        { header: 'Total Issue', accessor: 'totalIssue', icon: ArrowDownRight, width: 'w-[120px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-rose-600">{value.toFixed(3)}</span> : <span className="text-slate-300">0.000</span>
-        )},
-        { header: 'Total Received', accessor: 'totalReceived', icon: ArrowUpRight, width: 'w-[140px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-emerald-600">{value.toFixed(3)}</span> : <span className="text-slate-300">0.000</span>
-        )},
-        { header: 'Actual Balance', accessor: 'actualBalance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
-          <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${
-            value > 500 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-            value > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-            'bg-slate-100 text-slate-500 border border-slate-200'
-          }`}>{value.toFixed(3)}</span>
-        )},
-        { header: 'Invoice No.', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
-          value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Req. Slip No.', accessor: 'reqSlipNo', icon: ClipboardList, width: 'w-[160px]', render: (value) => (
-          value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
-        )},
+        {
+          header: 'Total Issue', accessor: 'totalIssue', icon: ArrowDownRight, width: 'w-[120px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-rose-600">{value.toFixed(3)}</span> : <span className="text-slate-300">0.000</span>
+          )
+        },
+        {
+          header: 'Total Received', accessor: 'totalReceived', icon: ArrowUpRight, width: 'w-[140px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-emerald-600">{value.toFixed(3)}</span> : <span className="text-slate-300">0.000</span>
+          )
+        },
+        {
+          header: 'Actual Balance', accessor: 'actualBalance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
+            <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${value > 500 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                value > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                  'bg-slate-100 text-slate-500 border border-slate-200'
+              }`}>{value.toFixed(3)}</span>
+          )
+        },
+        {
+          header: 'Invoice No.', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
+            value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Req. Slip No.', accessor: 'reqSlipNo', icon: ClipboardList, width: 'w-[160px]', render: (value) => (
+            value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
       ];
     } else if (tab === 'rubber_stock') {
       return [
-        { header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[100px]', render: (value) => (
-          <span className="font-mono text-[12px] text-slate-500">{value}</span>
-        )},
-        { header: 'Compound Name', accessor: 'compoundName', render: (value) => (
-          <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
-        )},
-        { header: 'Operator', accessor: 'operator', icon: User, render: (value, row) => (
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              value === 'OPENING STOCK' ? 'bg-slate-100 text-slate-500' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
-            }`}>{value.charAt(0)}</div>
-            <span className={value === 'OPENING STOCK' ? 'font-bold text-slate-400 text-xs' : 'font-bold text-slate-800'}>{value}</span>
-          </div>
-        )},
+        {
+          header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[100px]', render: (value) => (
+            <span className="font-mono text-[12px] text-slate-500">{value}</span>
+          )
+        },
+        {
+          header: 'Compound Name', accessor: 'compoundName', render: (value) => (
+            <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
+          )
+        },
+        {
+          header: 'Operator', accessor: 'operator', icon: User, render: (value, row) => (
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${value === 'OPENING STOCK' ? 'bg-slate-100 text-slate-500' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                }`}>{value.charAt(0)}</div>
+              <span className={value === 'OPENING STOCK' ? 'font-bold text-slate-400 text-xs' : 'font-bold text-slate-800'}>{value}</span>
+            </div>
+          )
+        },
         { header: 'Lot No', accessor: 'lotNo', icon: Hash, width: 'w-[100px]' },
-        { header: 'Batch No', accessor: 'batchNo', icon: Hash, width: 'w-[100px]', render: (value) => (
-          value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">#{value}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Addition', accessor: 'addition', icon: ArrowUpRight, width: 'w-[140px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-emerald-600">+{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Route Card', accessor: 'routeCard', icon: ClipboardList, width: 'w-[120px]', render: (value) => (
-          value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Deduction', accessor: 'deduction', icon: ArrowDownRight, width: 'w-[140px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-rose-600">-{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Balance', accessor: 'balance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
-          <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${
-            value > 50 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-            value > 20 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-            'bg-amber-50 text-amber-700 border border-amber-200'
-          }`}>{value.toFixed(2)}</span>
-        )},
+        {
+          header: 'Batch No', accessor: 'batchNo', icon: Hash, width: 'w-[100px]', render: (value) => (
+            value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">#{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Addition', accessor: 'addition', icon: ArrowUpRight, width: 'w-[140px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-emerald-600">+{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Route Card', accessor: 'routeCard', icon: ClipboardList, width: 'w-[120px]', render: (value) => (
+            value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Deduction', accessor: 'deduction', icon: ArrowDownRight, width: 'w-[140px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-rose-600">-{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Balance', accessor: 'balance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
+            <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${value > 50 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                value > 20 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                  'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>{value.toFixed(2)}</span>
+          )
+        },
       ];
     } else {
       return [
-        { header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[100px]', render: (value) => (
-          <span className="font-mono text-[12px] text-slate-500">{value}</span>
-        )},
-        { header: 'Part Name', accessor: 'partName', render: (value) => (
-          <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
-        )},
-        { header: 'Packing Person', accessor: 'packingPerson', icon: User, render: (value, row) => (
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              value === 'OPENING STOCK' ? 'bg-slate-100 text-slate-500' : 'bg-purple-50 text-purple-600 border border-purple-100'
-            }`}>{value.charAt(0)}</div>
-            <span className={value === 'OPENING STOCK' ? 'font-bold text-slate-400 text-xs' : 'font-bold text-slate-800'}>{value}</span>
-          </div>
-        )},
+        {
+          header: 'Date', accessor: 'date', icon: Calendar, width: 'w-[100px]', render: (value) => (
+            <span className="font-mono text-[12px] text-slate-500">{value}</span>
+          )
+        },
+        {
+          header: 'Part Name', accessor: 'partName', render: (value) => (
+            <span className="font-semibold text-slate-700 uppercase tracking-tight">{value}</span>
+          )
+        },
+        {
+          header: 'Packing Person', accessor: 'packingPerson', icon: User, render: (value, row) => (
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${value === 'OPENING STOCK' ? 'bg-slate-100 text-slate-500' : 'bg-purple-50 text-purple-600 border border-purple-100'
+                }`}>{value.charAt(0)}</div>
+              <span className={value === 'OPENING STOCK' ? 'font-bold text-slate-400 text-xs' : 'font-bold text-slate-800'}>{value}</span>
+            </div>
+          )
+        },
         { header: 'Lot No', accessor: 'lotNo', icon: Hash, width: 'w-[100px]' },
-        { header: 'Route Card No', accessor: 'routeCard', icon: ClipboardList, width: 'w-[140px]', render: (value) => (
-          value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Addition (In)', accessor: 'addition', icon: ArrowUpRight, width: 'w-[150px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-emerald-600">+{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Invoice No', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
-          value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">INV-{value}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Deduction (Dispatch)', accessor: 'deduction', icon: ArrowDownRight, width: 'w-[160px]', align: 'right', render: (value) => (
-          value > 0 ? <span className="text-rose-600">-{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
-        )},
-        { header: 'Available Stock', accessor: 'balance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
-          <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${
-            value > 40 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-            value > 10 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-            'bg-amber-50 text-amber-700 border border-amber-200'
-          }`}>{value.toFixed(2)}</span>
-        )},
+        {
+          header: 'Route Card No', accessor: 'routeCard', icon: ClipboardList, width: 'w-[140px]', render: (value) => (
+            value !== '-' ? <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100">{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Addition (In)', accessor: 'addition', icon: ArrowUpRight, width: 'w-[150px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-emerald-600">+{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Invoice No', accessor: 'invoiceNo', icon: FileText, width: 'w-[120px]', render: (value) => (
+            value !== '-' ? <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">INV-{value}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Deduction (Dispatch)', accessor: 'deduction', icon: ArrowDownRight, width: 'w-[160px]', align: 'right', render: (value) => (
+            value > 0 ? <span className="text-rose-600">-{value.toFixed(2)}</span> : <span className="text-slate-300">-</span>
+          )
+        },
+        {
+          header: 'Available Stock', accessor: 'balance', icon: Activity, width: 'w-[140px]', align: 'right', render: (value) => (
+            <span className={`inline-flex items-center justify-end gap-1 px-2.5 py-1 rounded-md font-bold text-[12px] shadow-sm ${value > 40 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                value > 10 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                  'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>{value.toFixed(2)}</span>
+          )
+        },
       ];
     }
   };
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up p-3">
       {/* Stats Quick View */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard

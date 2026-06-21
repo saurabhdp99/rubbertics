@@ -5,13 +5,13 @@ const initialForm = {
   partName: '',
   partNo: '',
   aliasName: '',
-  
+
   // Drawing Details
   customerDrawingNo: '',
   drawingRevisionNo: '',
   npplDrawingNo: '',
   drawingDate: '',
-  
+
   // Mould / Drawing Details
   mdPartName: '',
   mdPartNo: '',
@@ -23,13 +23,13 @@ const initialForm = {
   mdMouldType: '',
   mdNoOfCavity: '',
   mdNoOfPlateMould: '',
-  
+
   // Compound Details
   compoundDetails: '',
   sheetSize: '',
   hardness: '',
   colour: '',
-  
+
   // Machine Parameter
   machineTonnage: '',
   machinePlattenSize: '',
@@ -45,7 +45,7 @@ const initialForm = {
   intermediateBumping: '',
   degasOpenTime: '',
   degasHoldTime: '',
-  
+
   // Problems Come In Product (Checkboxes)
   problems: {
     airTrapment: false,
@@ -62,13 +62,13 @@ const initialForm = {
     blackMark: false,
     overCure: false
   },
-  
+
   // Footer / Signatures
   preparedBy: '',
   approvedBy: '',
   formatNo: 'NP/P/76',
   revNo: '00/00',
-  
+
   // Filing Method & Feeding Details
   filingMethod: '',
   grossWeight: '',
@@ -77,10 +77,10 @@ const initialForm = {
   dimOfFeedStrip: '',
   weightOfStrip: '',
   noOfStrip: '',
-  
+
   // Rejection Identification
   rejectionIdentification: '',
-  
+
   // Observation & Action
   pointToBeObserved: '',
   actionTaken: ''
@@ -133,22 +133,22 @@ export default function ProcessControlStandardPage() {
   const sectionTitleClass = 'text-[11px] font-black text-emerald-700 uppercase tracking-[0.2em]';
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto animate-slide-up">
+    <div className="p-3 max-w-6xl mx-auto animate-slide-up">
       <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
         {/* Header Section */}
         <div className="bg-emerald-600 px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-           {/* Decorative elements */}
-           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
-           <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-700/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl"></div>
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-700/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl"></div>
 
           <div className="flex items-center gap-5 relative z-10">
-             <div className="bg-white p-2 rounded-xl shadow-lg">
-                <div className="w-14 h-8 bg-emerald-50 flex items-center justify-center text-[10px] font-black text-emerald-600 italic tracking-tighter">NISARG</div>
-             </div>
-             <div>
-                <h1 className="text-white text-2xl font-black tracking-tight uppercase leading-none">Nisarg Polymers Pvt Ltd.</h1>
-                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-[0.3em] mt-1.5 opacity-80">Precision Rubber Solutions</p>
-             </div>
+            <div className="bg-white p-2 rounded-xl shadow-lg">
+              <div className="w-14 h-8 bg-emerald-50 flex items-center justify-center text-[10px] font-black text-emerald-600 italic tracking-tighter">NISARG</div>
+            </div>
+            <div>
+              <h1 className="text-white text-2xl font-black tracking-tight uppercase leading-none">Nisarg Polymers Pvt Ltd.</h1>
+              <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-[0.3em] mt-1.5 opacity-80">Precision Rubber Solutions</p>
+            </div>
           </div>
           <div className="bg-white/10 backdrop-blur-md px-6 py-2 rounded-full border border-white/20 relative z-10">
             <h2 className="text-white text-sm font-black tracking-[0.15em] uppercase">Process Control Standard</h2>
@@ -389,13 +389,13 @@ export default function ProcessControlStandardPage() {
                 Reference Sketch / Photo
               </div>
               <div className="border-2 border-dashed border-slate-200 rounded-2xl h-full min-h-[350px] flex flex-col items-center justify-center bg-slate-50/50 hover:bg-emerald-50/30 hover:border-emerald-200 transition-all cursor-pointer group">
-                 <div className="w-16 h-16 bg-white shadow-xl rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                 </div>
-                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">Upload Component Image</span>
-                 <p className="text-[9px] text-slate-300 mt-2 font-medium">PNG, JPG up to 10MB</p>
+                <div className="w-16 h-16 bg-white shadow-xl rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">Upload Component Image</span>
+                <p className="text-[9px] text-slate-300 mt-2 font-medium">PNG, JPG up to 10MB</p>
               </div>
             </div>
           </div>

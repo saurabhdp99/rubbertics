@@ -34,14 +34,14 @@ export default function WeeklyMouldingPlanPage() {
     return 'text-red-600 bg-red-50 border-red-100';
   };
 
-  const filteredPlans = weeklyPlans.filter(p => 
+  const filteredPlans = weeklyPlans.filter(p =>
     p.partName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.partNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.workOrderNo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="max-w-[1920px] mx-auto animate-slide-up p-6">
+    <div className="max-w-[1920px] mx-auto animate-slide-up p-3">
       {/* Header Info Banner */}
       <div className="glass-card rounded-2xl p-6 mb-8 border border-white/40 shadow-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 backdrop-blur-md">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -138,13 +138,13 @@ export default function WeeklyMouldingPlanPage() {
                 <th rowSpan={3} className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest border border-slate-200 text-center w-32">Work Order No</th>
                 <th rowSpan={3} className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest border border-slate-200 text-center w-20">Cavity</th>
                 <th rowSpan={3} className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest border border-slate-200 text-center w-24">Metrics</th>
-                
+
                 {DAYS.map(day => (
                   <th key={day} colSpan={2} className="p-3 text-[11px] font-bold text-emerald-700 uppercase tracking-widest border border-slate-200 text-center bg-emerald-50/50">
                     {day}
                   </th>
                 ))}
-                
+
                 <th rowSpan={3} className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest border border-slate-200 text-center w-32 bg-slate-50">Total Qty</th>
               </tr>
               <tr className="bg-white">
@@ -183,7 +183,7 @@ export default function WeeklyMouldingPlanPage() {
                                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{part.partNo}</p>
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
+                                <button
                                   onClick={() => openWeeklyModal('view', part)}
                                   className="p-2 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
                                 >
@@ -204,17 +204,17 @@ export default function WeeklyMouldingPlanPage() {
                           </td>
                         </>
                       )}
-                      
+
                       <td className={`p-2 text-[10px] font-black text-center border border-slate-200 ${metric.color}`}>
                         {metric.label}
                       </td>
 
                       {DAYS.map(day => {
                         const dayData = part.schedule[day];
-                        const dayValue = metric.key === 'percent' 
+                        const dayValue = metric.key === 'percent'
                           ? calculateAchievement(dayData.day.plan, dayData.day.actual) + '%'
                           : dayData.day[metric.key];
-                        
+
                         const nightValue = metric.key === 'percent'
                           ? calculateAchievement(dayData.night.plan, dayData.night.actual) + '%'
                           : dayData.night[metric.key];
@@ -271,7 +271,7 @@ export default function WeeklyMouldingPlanPage() {
             </tbody>
           </table>
         </div>
-        
+
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
             <div className="flex items-center gap-2">

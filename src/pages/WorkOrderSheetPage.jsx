@@ -177,7 +177,7 @@ export default function WorkOrderSheetPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = WORK_ORDERS.filter(wo => 
+  const filtered = WORK_ORDERS.filter(wo =>
     wo.woNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
     wo.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
     wo.partName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -234,8 +234,8 @@ export default function WorkOrderSheetPage() {
               </Table.Header>
               <Table.Body items={filtered}>
                 {(wo) => (
-                  <Table.Row 
-                    key={wo.id} 
+                  <Table.Row
+                    key={wo.id}
                     className="hover:bg-emerald-50/30 transition-all cursor-pointer group"
                   >
                     <Table.Cell className="px-6 py-6 text-center font-bold text-slate-400 text-sm">{filtered.indexOf(wo) + 1}</Table.Cell>
@@ -259,7 +259,7 @@ export default function WorkOrderSheetPage() {
                     </Table.Cell>
                     <Table.Cell className="px-6 py-6 text-center">
                       <div className="flex justify-center">
-                        <button 
+                        <button
                           onClick={() => navigate('/work-order-details')}
                           className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm hover:shadow-md cursor-pointer"
                         >
@@ -283,7 +283,7 @@ export default function WorkOrderSheetPage() {
       {/* Page Header with Back Button */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setSelectedOrder(null)}
             className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm group"
           >
@@ -401,7 +401,7 @@ export default function WorkOrderSheetPage() {
   );
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 pb-20">
+    <div className="max-w-[1600px] mx-auto p-3 pb-20">
       {selectedOrder ? renderSheet() : renderRegister()}
     </div>
   );

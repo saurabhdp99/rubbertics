@@ -37,9 +37,8 @@ const TABLE_COLUMNS = ITEM_MASTER_FIELDS.map(field => ({
 const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References'];
 
 function FormField({ field, value, onChange, disabled, error }) {
-  const inputClass = `w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${
-    error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
-  } input-glow`;
+  const inputClass = `w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
+    } input-glow`;
 
   return (
     <label className="flex flex-col gap-2">
@@ -281,11 +280,10 @@ export default function ItemMasterPage() {
 
     if (column.type === 'select') {
       return (
-        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-          value === 'Yes'
+        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${value === 'Yes'
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
             : 'bg-slate-100 text-slate-500 border-slate-200'
-        }`}>
+          }`}>
           {value || 'No'}
         </span>
       );
@@ -300,7 +298,7 @@ export default function ItemMasterPage() {
   };
 
   return (
-    <div className="p-6 max-w-[1920px] mx-auto animate-slide-up">
+    <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatsCard label="Total Items" value={stats.total.toLocaleString()} icon={Boxes} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
         <StatsCard label="Active Items" value={stats.active.toLocaleString()} icon={Activity} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
@@ -478,11 +476,10 @@ export default function ItemMasterPage() {
                       <button
                         key={page}
                         onClick={() => setItemMasterCurrentPage(page)}
-                        className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${
-                          itemMasterCurrentPage === page
+                        className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${itemMasterCurrentPage === page
                             ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
                             : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>
