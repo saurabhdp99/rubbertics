@@ -204,7 +204,7 @@ export default function SettingsPage() {
 
   // Staff form state
   const [form, setForm] = useState({ name: '', email: '', password: '', staffId: '' });
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(true);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [isCreating, setIsCreating] = useState(false);
