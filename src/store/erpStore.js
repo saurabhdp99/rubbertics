@@ -581,14 +581,27 @@ const initialItemMasterItems = [
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
-const formatPartyCode = (number) => `CU-${String(number).padStart(2, '0')}`;
+const getCategoryPrefix = (category) => {
+  if (!category) return 'CU-';
+  if (category === 'Customer') return 'CU-';
+  if (category === 'Vendor') return 'VE-';
+  if (category === 'Job Work') return 'JW-';
+  if (category === 'Service') return 'SE-';
+  return category.substring(0, 2).toUpperCase() + '-';
+};
 
-const getNextPartyCodeFromItems = (items) => {
+const formatPartyCode = (prefix, number) => `${prefix}${String(number).padStart(2, '0')}`;
+
+const getNextPartyCodeFromItems = (items, category) => {
+  const prefix = getCategoryPrefix(category);
+  const escapedPrefix = prefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp(`^${escapedPrefix}(\\d+)$`, 'i');
+  
   const maxCodeNumber = items.reduce((max, party) => {
-    const match = String(party.partyCode || '').match(/^CU-(\d+)$/i);
+    const match = String(party.partyCode || '').match(regex);
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
-  return formatPartyCode(maxCodeNumber + 1);
+  return formatPartyCode(prefix, maxCodeNumber + 1);
 };
 
 const initialPartyMasterItems = [
@@ -596,6 +609,7 @@ const initialPartyMasterItems = [
     id: 1,
     partyName: 'Tata Motors Ltd',
     partyCode: 'CU-01',
+    partyCategory: 'Customer',
     aliasName: 'TML',
     natureOfBusiness: 'Automotive OEM',
     address: 'Pimpri Industrial Area, Pune, Maharashtra',
@@ -626,6 +640,7 @@ const initialPartyMasterItems = [
     id: 2,
     partyName: 'Mahindra & Mahindra',
     partyCode: 'CU-02',
+    partyCategory: 'Customer',
     aliasName: 'M&M',
     natureOfBusiness: 'Automotive Manufacturer',
     address: 'Chakan MIDC, Pune, Maharashtra',
@@ -656,6 +671,7 @@ const initialPartyMasterItems = [
     id: 3,
     partyName: 'Sahil All Equipment',
     partyCode: 'CU-03',
+    partyCategory: 'Customer',
     aliasName: 'Sahil Equipment',
     natureOfBusiness: 'Industrial Equipment Supplier',
     address: 'GIDC Estate, Vadodara, Gujarat',
@@ -695,6 +711,7 @@ export const useERPStore = create((set, get) => ({
   weeklyPlans: initialWeeklyPlans,
   itemMasterItems: initialItemMasterItems,
   partyMasterItems: initialPartyMasterItems,
+  partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
   // UI State
   searchQuery: '',
@@ -844,10 +861,17 @@ export const useERPStore = create((set, get) => ({
     get().addNotification('Item master deleted successfully!', 'error');
   },
 
-  getNextPartyCode: () => getNextPartyCodeFromItems(get().partyMasterItems),
+  getNextPartyCode: (category) => getNextPartyCodeFromItems(get().partyMasterItems, category),
+
+  addPartyCategory: (category) => {
+    set(state => {
+      if (state.partyCategories.includes(category)) return state;
+      return { partyCategories: [...state.partyCategories, category] };
+    });
+  },
 
   addPartyMaster: (partyData) => {
-    const partyCode = getNextPartyCodeFromItems(get().partyMasterItems);
+    const partyCode = partyData.partyCode || getNextPartyCodeFromItems(get().partyMasterItems, partyData.partyCategory);
     const newParty = {
       ...partyData,
       id: nextPartyMasterId++,
@@ -871,7 +895,7 @@ export const useERPStore = create((set, get) => ({
           ? {
             ...party,
             ...partyData,
-            partyCode: party.partyCode,
+            partyCode: partyData.partyCode || party.partyCode,
           }
           : party
       ),
