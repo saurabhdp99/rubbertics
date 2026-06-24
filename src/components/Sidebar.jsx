@@ -13,6 +13,7 @@ export const navItems = [
   { label: 'Purchase Orders', path: '/orders', icon: ShoppingBag },
   { label: 'Item Master', path: '/item-master', icon: Package },
   { label: 'Party Master', path: '/party-master', icon: ContactRound },
+  { label: 'Transport Master', path: '/transport-master', icon: Truck },
   { label: 'Inventory', path: '/inventory', icon: Boxes },
   { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan', icon: CalendarDays },
   { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan', icon: CalendarRange },

@@ -6,6 +6,7 @@ import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import ItemMasterPage from './pages/ItemMasterPage';
 import PartyMasterPage from './pages/PartyMasterPage';
+import TransportMasterPage from './pages/TransportMasterPage';
 import InwardPage from './pages/InwardPage';
 import MixingMoldingPlanPage from './pages/MixingMoldingPlanPage';
 import DailyFinishingOutputReportPage from './pages/DailyFinishingOutputReportPage';
@@ -48,6 +49,7 @@ function ERPApp() {
             {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
             {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
             {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
+            {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
             {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
             {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
             {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}

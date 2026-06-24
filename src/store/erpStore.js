@@ -594,7 +594,7 @@ const formatPartyCode = (prefix, number) => `${prefix}${String(number).padStart(
 
 const getNextPartyCodeFromItems = (items, category) => {
   const prefix = getCategoryPrefix(category);
-  const escapedPrefix = prefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`^${escapedPrefix}(\\d+)$`, 'i');
   
   const maxCodeNumber = items.reduce((max, party) => {
@@ -602,6 +602,14 @@ const getNextPartyCodeFromItems = (items, category) => {
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
   return formatPartyCode(prefix, maxCodeNumber + 1);
+};
+
+const getNextTransporterCodeFromItems = (items) => {
+  const maxCodeNumber = items.reduce((max, transporter) => {
+    const match = String(transporter.transporterCode || '').match(/^TRN(\d+)$/i);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `TRN${String(maxCodeNumber + 1).padStart(4, '0')}`;
 };
 
 const initialPartyMasterItems = [
@@ -700,10 +708,56 @@ const initialPartyMasterItems = [
   },
 ];
 
+const initialTransporterMasterItems = [
+  {
+    id: 1,
+    transporterCode: 'TRN0001',
+    transporterName: 'ABC Roadlines',
+    trasnporterAdd: '',
+    gstNo: '27ABCDE1234F1Z5',
+    panNo: 'ABCDE1234F',
+    transporterType: 'Road Transport',
+    transporterId: '',
+    contactPerson: 'Mr. Sharma',
+    mobileNo: '9876543210',
+    alternateMobileNo: '',
+    email: 'abc@example.com',
+    website: '',
+    defaultPaymentTerms: '30 Days',
+    defaultFreightType: 'Per Kg',
+    status: 'Active',
+    remarks: 'Preferred for local and Gujarat dispatch',
+    createdBy: 'admin',
+    createdDate: '2026-06-24',
+  },
+  {
+    id: 2,
+    transporterCode: 'TRN0002',
+    transporterName: 'Fast Tempo Service',
+    trasnporterAdd: '',
+    gstNo: '',
+    panNo: 'ABCDE1235G',
+    transporterType: 'Tempo',
+    transporterId: '',
+    contactPerson: 'Mr. Patel',
+    mobileNo: '9876543211',
+    alternateMobileNo: '',
+    email: 'fast@example.com',
+    website: '',
+    defaultPaymentTerms: 'Immediate',
+    defaultFreightType: 'Fixed',
+    status: 'Active',
+    remarks: 'Local pickup and delivery',
+    createdBy: 'admin',
+    createdDate: '2026-06-24',
+  },
+];
+
 let nextId = initialOrders.length + 1;
 let nextWeeklyPlanId = initialWeeklyPlans.length + 1;
 let nextItemMasterId = initialItemMasterItems.length + 1;
 let nextPartyMasterId = initialPartyMasterItems.length + 1;
+let nextTransporterMasterId = initialTransporterMasterItems.length + 1;
 
 export const useERPStore = create((set, get) => ({
   // Data
@@ -711,6 +765,7 @@ export const useERPStore = create((set, get) => ({
   weeklyPlans: initialWeeklyPlans,
   itemMasterItems: initialItemMasterItems,
   partyMasterItems: initialPartyMasterItems,
+  transporterMasterItems: initialTransporterMasterItems,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
   // UI State
@@ -733,6 +788,11 @@ export const useERPStore = create((set, get) => ({
   partyMasterMsmeFilter: 'All',
   partyMasterCurrentPage: 1,
   partyMasterItemsPerPage: 10,
+  transporterMasterSearchQuery: '',
+  transporterMasterTypeFilter: 'All',
+  transporterMasterStatusFilter: 'All',
+  transporterMasterCurrentPage: 1,
+  transporterMasterItemsPerPage: 10,
 
   // Modal State
   isModalOpen: false,
@@ -910,6 +970,46 @@ export const useERPStore = create((set, get) => ({
     get().addNotification('Party master deleted successfully!', 'error');
   },
 
+  getNextTransporterCode: () => getNextTransporterCodeFromItems(get().transporterMasterItems),
+
+  addTransporterMaster: (transporterData) => {
+    const transporterCode = transporterData.transporterCode || getNextTransporterCodeFromItems(get().transporterMasterItems);
+    const newTransporter = {
+      ...transporterData,
+      id: nextTransporterMasterId++,
+      transporterCode,
+      status: transporterData.status || 'Active',
+      createdDate: transporterData.createdDate || todayIsoDate(),
+    };
+    set(state => ({
+      transporterMasterItems: [newTransporter, ...state.transporterMasterItems],
+      transporterMasterCurrentPage: 1,
+    }));
+    get().addNotification(`Transporter ${transporterCode} created successfully!`, 'success');
+  },
+
+  updateTransporterMaster: (id, transporterData) => {
+    set(state => ({
+      transporterMasterItems: state.transporterMasterItems.map(transporter =>
+        transporter.id === id
+          ? {
+            ...transporter,
+            ...transporterData,
+            transporterCode: transporterData.transporterCode || transporter.transporterCode,
+          }
+          : transporter
+      ),
+    }));
+    get().addNotification('Transport master updated successfully!', 'success');
+  },
+
+  deleteTransporterMaster: (id) => {
+    set(state => ({
+      transporterMasterItems: state.transporterMasterItems.filter(transporter => transporter.id !== id),
+    }));
+    get().addNotification('Transport master deleted successfully!', 'error');
+  },
+
   // Weekly Modal controls
   openWeeklyModal: (mode, plan = null) => {
     set({ isWeeklyModalOpen: true, weeklyModalMode: mode, selectedWeeklyPlan: plan });
@@ -981,6 +1081,11 @@ export const useERPStore = create((set, get) => ({
   setPartyMasterMsmeFilter: (type) => set({ partyMasterMsmeFilter: type, partyMasterCurrentPage: 1 }),
   setPartyMasterCurrentPage: (page) => set({ partyMasterCurrentPage: page }),
   setPartyMasterItemsPerPage: (count) => set({ partyMasterItemsPerPage: count, partyMasterCurrentPage: 1 }),
+  setTransporterMasterSearchQuery: (query) => set({ transporterMasterSearchQuery: query, transporterMasterCurrentPage: 1 }),
+  setTransporterMasterTypeFilter: (type) => set({ transporterMasterTypeFilter: type, transporterMasterCurrentPage: 1 }),
+  setTransporterMasterStatusFilter: (status) => set({ transporterMasterStatusFilter: status, transporterMasterCurrentPage: 1 }),
+  setTransporterMasterCurrentPage: (page) => set({ transporterMasterCurrentPage: page }),
+  setTransporterMasterItemsPerPage: (count) => set({ transporterMasterItemsPerPage: count, transporterMasterCurrentPage: 1 }),
   setSortField: (field) => {
     set(state => ({
       sortField: field,
@@ -1109,6 +1214,43 @@ export const useERPStore = create((set, get) => ({
       types: types.size,
       msme,
       enrolledThisMonth,
+    };
+  },
+
+  getFilteredTransporterMasterItems: () => {
+    const {
+      transporterMasterItems,
+      transporterMasterSearchQuery,
+      transporterMasterTypeFilter,
+      transporterMasterStatusFilter,
+    } = get();
+
+    const query = transporterMasterSearchQuery.toLowerCase().trim();
+
+    return transporterMasterItems.filter(transporter => {
+      const matchesSearch =
+        !query ||
+        Object.values(transporter)
+          .some(value => String(value || '').toLowerCase().includes(query));
+      const matchesType = transporterMasterTypeFilter === 'All' || transporter.transporterType === transporterMasterTypeFilter;
+      const matchesStatus = transporterMasterStatusFilter === 'All' || transporter.status === transporterMasterStatusFilter;
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  },
+
+  getTransporterMasterStats: () => {
+    const { transporterMasterItems } = get();
+    const active = transporterMasterItems.filter(transporter => transporter.status === 'Active').length;
+    const inactiveOrHold = transporterMasterItems.filter(transporter =>
+      transporter.status === 'Inactive' || transporter.status === 'On Hold'
+    ).length;
+    const blacklisted = transporterMasterItems.filter(transporter => transporter.status === 'Blacklisted').length;
+
+    return {
+      total: transporterMasterItems.length,
+      active,
+      inactiveOrHold,
+      blacklisted,
     };
   },
 }));
