@@ -4,7 +4,7 @@ import {
   Building2, ChevronDown, Check, Plus,
   ShoppingBag, Package, Boxes, CalendarDays, CalendarRange,
   FileText, Layers, TrendingUp, Truck, ArrowDownLeft,
-  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound
+  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -12,8 +12,10 @@ import { useAuthStore } from '../store/authStore';
 export const navItems = [
   { label: 'Purchase Orders', path: '/orders', icon: ShoppingBag },
   { label: 'Item Master', path: '/item-master', icon: Package },
+  { label: 'Machine Master', path: '/machine-master', icon: Settings },
   { label: 'Party Master', path: '/party-master', icon: ContactRound },
   { label: 'Transport Master', path: '/transport-master', icon: Truck },
+  { label: 'Employee Master', path: '/employee-master', icon: Users },
   { label: 'Inventory', path: '/inventory', icon: Boxes },
   { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan', icon: CalendarDays },
   { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan', icon: CalendarRange },

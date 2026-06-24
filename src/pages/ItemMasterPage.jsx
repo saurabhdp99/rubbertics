@@ -21,7 +21,8 @@ import {
 import StatsCard from '../components/common/StatsCard';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useERPStore } from '../store/erpStore';
-import { Table } from '@heroui/react';
+import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = field.type === 'select' ? 'Yes' : '';
@@ -37,38 +38,113 @@ const TABLE_COLUMNS = ITEM_MASTER_FIELDS.map(field => ({
 const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References'];
 
 function FormField({ field, value, onChange, disabled, error }) {
-  const inputClass = `w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
-    } input-glow`;
+  const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
+    } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
+  const inputClass = `${baseInputClass} px-4 py-3`;
+
+  if (field.type === 'select') {
+    return (
+      <div className="flex flex-col gap-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {field.label}
+          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <Select
+          isDisabled={disabled}
+          value={value || 'Yes'}
+          onChange={(val) => onChange(field.key, val)}
+          placeholder="Select option"
+        >
+          <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id="Yes" textValue="Yes">
+                Yes
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+              <ListBox.Item id="No" textValue="No">
+                No
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
+        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+      </div>
+    );
+  }
 
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+    <div className="flex flex-col gap-2">
+      <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
         {field.label}
         {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-      </span>
-      {field.type === 'select' ? (
-        <select
-          value={value || 'Yes'}
+      </Label>
+      {field.type === 'textarea' ? (
+        <textarea
+          value={value ?? ''}
           disabled={disabled}
           onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
+          className={`${inputClass} min-h-28 resize-y`}
+          placeholder={field.label}
+        />
+      ) : field.type === 'date' ? (
+        <DatePicker
+          value={value ? parseDate(value) : null}
+          isDisabled={disabled}
+          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
+          className="w-full"
         >
-          <option value="Yes">Yes</option>
-          <option value="No">No</option>
-        </select>
+          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+              {(segment) => <DateField.Segment segment={segment} />}
+            </DateField.Input>
+            <DateField.Suffix className="pr-4">
+              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                <DatePicker.TriggerIndicator />
+              </DatePicker.Trigger>
+            </DateField.Suffix>
+          </DateField.Group>
+          <DatePicker.Popover>
+            <Calendar aria-label={field.label}>
+              <Calendar.Header>
+                <Calendar.YearPickerTrigger>
+                  <Calendar.YearPickerTriggerHeading />
+                  <Calendar.YearPickerTriggerIndicator />
+                </Calendar.YearPickerTrigger>
+                <Calendar.NavButton slot="previous" />
+                <Calendar.NavButton slot="next" />
+              </Calendar.Header>
+              <Calendar.Grid>
+                <Calendar.GridHeader>
+                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                </Calendar.GridHeader>
+                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+              </Calendar.Grid>
+              <Calendar.YearPickerGrid>
+                <Calendar.YearPickerGridBody>
+                  {({ year }) => <Calendar.YearPickerCell year={year} />}
+                </Calendar.YearPickerGridBody>
+              </Calendar.YearPickerGrid>
+            </Calendar>
+          </DatePicker.Popover>
+        </DatePicker>
       ) : (
-        <input
+        <Input
           type={field.type === 'number' ? 'number' : 'text'}
           step={field.type === 'number' ? '0.01' : undefined}
           value={value ?? ''}
-          disabled={disabled}
+          isDisabled={disabled}
           onChange={(event) => onChange(field.key, event.target.value)}
           className={inputClass}
           placeholder={field.label}
         />
       )}
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-    </label>
+    </div>
   );
 }
 
@@ -281,8 +357,8 @@ export default function ItemMasterPage() {
     if (column.type === 'select') {
       return (
         <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${value === 'Yes'
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-slate-100 text-slate-500 border-slate-200'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          : 'bg-slate-100 text-slate-500 border-slate-200'
           }`}>
           {value || 'No'}
         </span>
@@ -313,31 +389,62 @@ export default function ItemMasterPage() {
           <div className="glass-card rounded-2xl p-5 shadow-xl mb-6">
             <div className="flex flex-col xl:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full min-w-0 group">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
-                <input
+
+                <Input
                   type="text"
                   placeholder="Search by item code, item name, part no, customer..."
                   value={itemMasterSearchQuery}
                   onChange={event => setItemMasterSearchQuery(event.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-sm input-glow rounded-xl focus:border-emerald-500/50"
+                  className="w-full"
+                  classNames={{
+                    inputWrapper: "pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
+                  }}
                 />
               </div>
 
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-                <select
+                <Select
                   value={itemMasterCategoryFilter}
-                  onChange={event => setItemMasterCategoryFilter(event.target.value)}
-                  className="px-4 py-3 text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 focus:border-emerald-500/50 transition-all outline-none cursor-pointer"
+                  onChange={(val) => setItemMasterCategoryFilter(val)}
+                  className="w-[180px]"
+                  aria-label="Category Filter"
                 >
-                  {categories.map(category => <option key={category} value={category}>{category === 'All' ? 'All Categories' : category}</option>)}
-                </select>
-                <select
+                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {categories.map(category => (
+                        <ListBox.Item key={category} id={category} textValue={category === 'All' ? 'All Categories' : category}>
+                          {category === 'All' ? 'All Categories' : category}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+                <Select
                   value={itemMasterStatusFilter}
-                  onChange={event => setItemMasterStatusFilter(event.target.value)}
-                  className="px-4 py-3 text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 focus:border-emerald-500/50 transition-all outline-none cursor-pointer"
+                  onChange={(val) => setItemMasterStatusFilter(val)}
+                  className="w-[140px]"
+                  aria-label="Status Filter"
                 >
-                  {['All', 'Yes', 'No'].map(status => <option key={status} value={status}>{status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}</option>)}
-                </select>
+                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {['All', 'Yes', 'No'].map(status => (
+                        <ListBox.Item key={status} id={status} textValue={status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}>
+                          {status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
               </div>
 
               <div className="flex gap-3 w-full xl:w-auto shrink-0">
@@ -446,13 +553,27 @@ export default function ItemMasterPage() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
                 <span>Rows per page:</span>
-                <select
-                  value={itemMasterItemsPerPage}
-                  onChange={event => setItemMasterItemsPerPage(Number(event.target.value))}
-                  className="px-3 py-1.5 rounded-lg text-slate-700 bg-white border border-slate-200 outline-none focus:border-emerald-500/50 hover:bg-slate-50 transition-colors cursor-pointer"
+                <Select
+                  value={itemMasterItemsPerPage.toString()}
+                  onChange={(val) => setItemMasterItemsPerPage(Number(val))}
+                  className="w-[80px]"
+                  aria-label="Rows per page"
                 >
-                  {[10, 20, 50, 100].map(count => <option key={count} value={count}>{count}</option>)}
-                </select>
+                  <Select.Trigger className="px-3 py-1.5 h-auto min-h-[34px] rounded-lg text-slate-700 bg-white border border-slate-200 outline-none hover:bg-slate-50 transition-colors">
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {[10, 20, 50, 100].map(count => (
+                        <ListBox.Item key={count.toString()} id={count.toString()} textValue={count.toString()}>
+                          {count}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
               </div>
 
               <div className="flex items-center gap-2">
@@ -477,8 +598,8 @@ export default function ItemMasterPage() {
                         key={page}
                         onClick={() => setItemMasterCurrentPage(page)}
                         className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${itemMasterCurrentPage === page
-                            ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
-                            : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
+                          ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
+                          : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
                           }`}
                       >
                         {page}

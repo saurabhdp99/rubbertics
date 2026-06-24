@@ -7,14 +7,14 @@ const initialOrders = [
     date: '2024-01-15',
     poNo: 'PO2024-0015',
     poType: 'Purchase',
+    processLocation: 'Vendor',
     partyName: 'Reliance Industries',
     partNo: 'RIL-PART-001',
     productName: 'SS-230 FILTERS FLANGE/SOCKET 120/14F-NISARG',
-    domains: 'No flag',
+    typeOfProcess: 'Machining',
     orderQty: 50,
     dispatchQty: 30,
     balanceQty: 20,
-    manualStatus: 'Pending',
     deliveryDate: '2024-02-15',
     daysLeft: 12,
     priority: 'High',
@@ -26,14 +26,14 @@ const initialOrders = [
     date: '2024-01-18',
     poNo: 'PO2024-0022',
     poType: 'Production',
+    processLocation: 'Production',
     partyName: 'SAHIL ALLEQUIPMENT',
     partNo: 'SA-PART-0022',
     productName: 'TRO-N NISARG 40/12 SPECIAL GRADE',
-    domains: 'No flag',
+    typeOfProcess: 'Moulding',
     orderQty: 100,
     dispatchQty: 100,
     balanceQty: 0,
-    manualStatus: 'Completed',
     deliveryDate: '2024-01-28',
     daysLeft: 0,
     priority: 'Normal',
@@ -45,14 +45,14 @@ const initialOrders = [
     date: '2024-01-20',
     poNo: 'PO2024-0031',
     poType: 'Purchase',
+    processLocation: 'Vendor',
     partyName: 'TATA MOTORS LTD',
     partNo: 'TM-VALVE-031',
     productName: 'SS-250 VALVE ASSEMBLY FLANGE TYPE 200MM',
-    domains: 'No flag',
+    typeOfProcess: 'Assembly',
     orderQty: 200,
     dispatchQty: 0,
     balanceQty: 200,
-    manualStatus: 'Pending',
     deliveryDate: '2024-03-01',
     daysLeft: 25,
     priority: 'Medium',
@@ -64,14 +64,14 @@ const initialOrders = [
     date: '2024-01-22',
     poNo: 'PO2024-0038',
     poType: 'Production',
+    processLocation: 'Production',
     partyName: 'Ambuja Cement Ltd',
     partNo: 'ACL-PUMP-038',
     productName: 'PUMP HOUSING SS-316 NISARG SPECIAL 80MM',
-    domains: 'No flag',
+    typeOfProcess: 'Finishing',
     orderQty: 15,
     dispatchQty: 10,
     balanceQty: 5,
-    manualStatus: 'In Progress',
     deliveryDate: '2024-02-10',
     daysLeft: 5,
     priority: 'High',
@@ -83,14 +83,14 @@ const initialOrders = [
     date: '2024-01-25',
     poNo: 'PO2024-0045',
     poType: 'Purchase',
+    processLocation: 'Vendor',
     partyName: 'GAIL India Limited',
     partNo: 'GAIL-FLANGE-045',
     productName: 'FLANGE ORIFICE PLATE SS-304 NISARG 150MM',
-    domains: 'No flag',
+    typeOfProcess: 'Machining',
     orderQty: 75,
     dispatchQty: 75,
     balanceQty: 0,
-    manualStatus: 'Completed',
     deliveryDate: '2024-02-05',
     daysLeft: 0,
     priority: 'Normal',
@@ -102,14 +102,14 @@ const initialOrders = [
     date: '2024-01-28',
     poNo: 'PO2024-0052',
     poType: 'Production',
+    processLocation: 'Production',
     partyName: 'BHEL Haridwar',
     partNo: 'BHEL-BOILER-052',
     productName: 'BOILER TUBE FITTING SS-321 NISARG 25MM',
-    domains: 'No flag',
+    typeOfProcess: 'Extrusion',
     orderQty: 500,
     dispatchQty: 200,
     balanceQty: 300,
-    manualStatus: 'In Progress',
     deliveryDate: '2024-03-15',
     daysLeft: 30,
     priority: 'Low',
@@ -121,14 +121,14 @@ const initialOrders = [
     date: '2024-02-01',
     poNo: 'PO2024-0060',
     poType: 'Purchase',
+    processLocation: 'Vendor',
     partyName: 'ONGC Petroleum',
     partNo: 'ONGC-VALVE-060',
     productName: 'GATE VALVE SS-316L NISARG API 600 4 INCH',
-    domains: 'No flag',
+    typeOfProcess: 'Assembly',
     orderQty: 30,
     dispatchQty: 0,
     balanceQty: 30,
-    manualStatus: 'Pending',
     deliveryDate: '2024-02-20',
     daysLeft: 3,
     priority: 'Urgent',
@@ -708,6 +708,11 @@ const initialPartyMasterItems = [
   },
 ];
 
+const initialPartyMasterLookups = {
+  partyCategory: ['Customer', 'Vendor', 'Job Work', 'Service'],
+  msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
+};
+
 const initialTransporterMasterItems = [
   {
     id: 1,
@@ -753,11 +758,234 @@ const initialTransporterMasterItems = [
   },
 ];
 
+const initialTransportMasterLookups = {
+  transporterType: ['Road Transport', 'Courier', 'Tempo', 'Truck', 'Container', 'Local Transport'],
+  defaultPaymentTerms: ['Immediate', '7 Days', '15 Days', '30 Days', '45 Days', '60 Days'],
+  defaultFreightType: ['Fixed', 'Per Kg', 'Per Ton', 'Per Km', 'Per Box', 'Per Bag'],
+  status: ['Active', 'Inactive', 'Blacklisted', 'On Hold'],
+};
+
+const initialMachineMasterLookups = {
+  rubberProcess: [
+    'Compression Moulding',
+    'Injection Moulding',
+    'Extrusion',
+    'Trimming',
+    'Deflashing',
+    'Finishing',
+    'Packing',
+    'Incoming Inspection',
+    'Final Inspection',
+    'Preventive Maintenance',
+    'Breakdown Maintenance',
+    'Tool Maintenance',
+    'Calibration',
+    'Dispatch',
+  ],
+  criticality: ['Critical', 'High', 'Medium', 'Low', 'Standby'],
+};
+
 let nextId = initialOrders.length + 1;
 let nextWeeklyPlanId = initialWeeklyPlans.length + 1;
 let nextItemMasterId = initialItemMasterItems.length + 1;
 let nextPartyMasterId = initialPartyMasterItems.length + 1;
 let nextTransporterMasterId = initialTransporterMasterItems.length + 1;
+
+const initialMachineMasterItems = [
+  {
+    id: 1,
+    machineCode: 'MAC0001',
+    machineName: 'Hydraulic Press 100T',
+    machineType: 'Hydraulic Press',
+    machineMake: 'JRD',
+    machineModel: 'HP-100',
+    serialNo: 'SN-HP100-01',
+    machineSize: '48 x 48 inch',
+    capacity: 100,
+    capacityUnit: 'Ton',
+    departmentOfUse: 'Moulding',
+    locationArea: 'Shop Floor A',
+    rubberProcess: 'Moulding',
+    powerHpKw: 15,
+    installationDate: '2021-04-10',
+    pmFrequency: 'Monthly',
+    lastPmDate: '2026-06-01',
+    nextPmDueDate: '2026-07-01',
+    pmStatus: 'Due Soon',
+    criticality: 'High',
+    machineCondition: 'Good',
+    responsiblePerson: 'Maintenance Head',
+    status: 'Active',
+    remarks: 'Used for compression moulding',
+  },
+  {
+    id: 2,
+    machineCode: 'MAC0002',
+    machineName: 'Mixing Mill 18 x 48',
+    machineType: 'Mixing Mill',
+    machineMake: 'Bharaj',
+    machineModel: 'MM-18X48',
+    serialNo: 'SN-MM-02',
+    machineSize: '18 x 48 inch',
+    capacity: 75,
+    capacityUnit: 'Kg Batch',
+    departmentOfUse: 'Mixing',
+    locationArea: 'Mixing Area',
+    rubberProcess: 'Compounding',
+    powerHpKw: 20,
+    installationDate: '2020-08-15',
+    pmFrequency: 'Quarterly',
+    lastPmDate: '2026-05-15',
+    nextPmDueDate: '2026-08-15',
+    pmStatus: 'OK',
+    criticality: 'High',
+    machineCondition: 'Good',
+    responsiblePerson: 'Production Supervisor',
+    status: 'Active',
+    remarks: 'Rubber compound mixing',
+  },
+  {
+    id: 3,
+    machineCode: 'MAC0003',
+    machineName: 'Rubber Extruder 65mm',
+    machineType: 'Extruder',
+    machineMake: 'Santosh',
+    machineModel: 'EXT-65',
+    serialNo: 'SN-EXT-65',
+    machineSize: '65 mm',
+    capacity: 120,
+    capacityUnit: 'Kg/Hr',
+    departmentOfUse: 'Extrusion',
+    locationArea: 'Extrusion Line',
+    rubberProcess: 'Extrusion',
+    powerHpKw: 12,
+    installationDate: '2022-01-20',
+    pmFrequency: 'Monthly',
+    lastPmDate: '2026-06-10',
+    nextPmDueDate: '2026-07-10',
+    pmStatus: 'OK',
+    criticality: 'Medium',
+    machineCondition: 'Average',
+    responsiblePerson: 'Engineer',
+    status: 'Active',
+    remarks: 'Profile extrusion',
+  },
+  {
+    id: 4,
+    machineCode: 'MAC0004',
+    machineName: 'Air Compressor',
+    machineType: 'Compressor',
+    machineMake: 'ELGI',
+    machineModel: 'EN-15',
+    serialNo: 'SN-COMP-15',
+    machineSize: '15 HP',
+    capacity: 15,
+    capacityUnit: 'HP',
+    departmentOfUse: 'Utility',
+    locationArea: 'Compressor Room',
+    rubberProcess: 'General',
+    powerHpKw: 15,
+    installationDate: '2019-11-05',
+    pmFrequency: 'Half Yearly',
+    lastPmDate: '2026-02-01',
+    nextPmDueDate: '2026-08-01',
+    pmStatus: 'OK',
+    criticality: 'Medium',
+    machineCondition: 'Good',
+    responsiblePerson: 'Utility Operator',
+    status: 'Active',
+    remarks: 'Air line utility',
+  }
+];
+
+let nextMachineMasterId = initialMachineMasterItems.length + 1;
+
+const initialEmployeeMasterLookups = {
+  employeeType: ['Permanent', 'Contract', 'Temporary', 'Trainee'],
+  gender: ['Male', 'Female', 'Other'],
+  bloodGroup: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
+  maritalStatus: ['Single', 'Married', 'Divorced', 'Widowed'],
+  department: ['Production', 'Mixing', 'Quality Control', 'Maintenance', 'Dispatch', 'Admin'],
+  designation: ['Operator', 'Helper', 'QC Inspector', 'Supervisor', 'Manager'],
+  addressType: ['Current', 'Permanent'],
+  salaryType: ['Monthly', 'Daily Wages'],
+  paymentMode: ['Bank Transfer', 'Cash', 'Cheque'],
+  skillCategory: ['Machine Operator', 'Helper', 'Supervisor', 'Technician'],
+  skillLevel: ['Skilled', 'Semi Skilled', 'Unskilled', 'Highly Skilled'],
+  machineTypeKnown: ['Hydraulic Press', 'Mixing Mill', 'Extruder', 'Kneader', 'None'],
+};
+
+const initialEmployeeMasterItems = [
+  {
+    id: 1,
+    employeeCode: 'EMP0001',
+    employeeName: 'Rahul Kumar',
+    employeeType: 'Permanent',
+    gender: 'Male',
+    dob: '1990-05-15',
+    mobileNo: '9876543210',
+    alternateMobile: '',
+    email: 'rahul.k@example.com',
+    bloodGroup: 'O+',
+    maritalStatus: 'Married',
+    department: 'Production',
+    designation: 'Operator',
+    addressType: 'Current',
+    addressLine1: 'Plot 45, MIDC',
+    addressLine2: 'Phase 1',
+    city: 'Vasai',
+    district: 'Palghar',
+    state: 'Maharashtra',
+    pincode: '401208',
+    country: 'India',
+    isCurrentAddress: true,
+    addressRemarks: '',
+    panNo: 'ABCDE1234F',
+    aadhaarNo: '123456789012',
+    uanNo: '100000000000',
+    pfNo: 'MH/12345/000',
+    esiNo: '31000000000000000',
+    professionalTaxNo: 'PT12345',
+    pfApplicable: true,
+    esiApplicable: true,
+    statutoryRemarks: '',
+    
+    // Salary
+    salaryType: 'Monthly',
+    basicSalary: 18000,
+    hra: 5000,
+    conveyance: 1600,
+    otherAllowance: 1000,
+    grossSalary: 25600,
+    pfDeduction: 1800,
+    esiDeduction: 192,
+    otherDeduction: 0,
+    netSalary: 23608,
+    effectiveFrom: '2026-01-01',
+    salaryRemarks: '',
+
+    // Bank
+    bankName: 'HDFC Bank',
+    accountNo: '123456789012',
+    ifscCode: 'HDFC0001234',
+    accountHolderName: 'Rahul Kumar',
+    paymentMode: 'Bank Transfer',
+    upiId: '',
+    bankRemarks: '',
+
+    // Skill
+    skillCategory: 'Machine Operator',
+    skillLevel: 'Skilled',
+    machineTypeKnown: 'Hydraulic Press',
+    canWorkOnCriticalMachine: true,
+    trainingRequired: false,
+    lastTrainingDate: '2025-09-01',
+    nextTrainingDue: '2026-09-01',
+    skillRemarks: '',
+  }
+];
+
+let nextEmployeeMasterId = initialEmployeeMasterItems.length + 1;
 
 export const useERPStore = create((set, get) => ({
   // Data
@@ -766,6 +994,12 @@ export const useERPStore = create((set, get) => ({
   itemMasterItems: initialItemMasterItems,
   partyMasterItems: initialPartyMasterItems,
   transporterMasterItems: initialTransporterMasterItems,
+  machineMasterItems: initialMachineMasterItems,
+  partyMasterLookups: initialPartyMasterLookups,
+  transportMasterLookups: initialTransportMasterLookups,
+  machineMasterLookups: initialMachineMasterLookups,
+  employeeMasterItems: initialEmployeeMasterItems,
+  employeeMasterLookups: initialEmployeeMasterLookups,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
   // UI State
@@ -793,6 +1027,15 @@ export const useERPStore = create((set, get) => ({
   transporterMasterStatusFilter: 'All',
   transporterMasterCurrentPage: 1,
   transporterMasterItemsPerPage: 10,
+  machineMasterSearchQuery: '',
+  machineMasterDepartmentFilter: 'All',
+  machineMasterStatusFilter: 'All',
+  machineMasterCurrentPage: 1,
+  machineMasterItemsPerPage: 10,
+  employeeMasterSearchQuery: '',
+  employeeMasterDepartmentFilter: 'All',
+  employeeMasterCurrentPage: 1,
+  employeeMasterItemsPerPage: 10,
 
   // Modal State
   isModalOpen: false,
@@ -921,13 +1164,179 @@ export const useERPStore = create((set, get) => ({
     get().addNotification('Item master deleted successfully!', 'error');
   },
 
+  addMachineMaster: (machineData) => {
+    const newMachine = {
+      ...machineData,
+      id: nextMachineMasterId++,
+      status: machineData.status || 'Active',
+    };
+    set(state => ({
+      machineMasterItems: [newMachine, ...state.machineMasterItems],
+      machineMasterCurrentPage: 1,
+    }));
+    get().addNotification('Machine master created successfully!', 'success');
+  },
+
+  updateMachineMaster: (id, machineData) => {
+    set(state => ({
+      machineMasterItems: state.machineMasterItems.map(machine =>
+        machine.id === id ? { ...machine, ...machineData } : machine
+      ),
+    }));
+    get().addNotification('Machine master updated successfully!', 'success');
+  },
+
+  deleteMachineMaster: (id) => {
+    set(state => ({
+      machineMasterItems: state.machineMasterItems.filter(machine => machine.id !== id),
+    }));
+    get().addNotification('Machine master deleted successfully!', 'error');
+  },
+
   getNextPartyCode: (category) => getNextPartyCodeFromItems(get().partyMasterItems, category),
 
   addPartyCategory: (category) => {
+    get().addPartyMasterLookupOption('partyCategory', category);
+  },
+
+  addPartyMasterLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+
+    let wasAdded = false;
     set(state => {
-      if (state.partyCategories.includes(category)) return state;
-      return { partyCategories: [...state.partyCategories, category] };
+      const currentOptions = state.partyMasterLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+
+      return {
+        partyMasterLookups: {
+          ...state.partyMasterLookups,
+          [fieldKey]: [...currentOptions, cleaned],
+        },
+        ...(fieldKey === 'partyCategory' ? { partyCategories: [...state.partyCategories, cleaned] } : {}),
+      };
     });
+    if (wasAdded) get().addNotification(`${cleaned} added to dropdown`, 'success');
+    return wasAdded;
+  },
+
+  renamePartyMasterLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.partyMasterLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(option =>
+        option.toLowerCase() === cleaned.toLowerCase() && option !== oldValue
+      );
+      if (duplicate) return state;
+
+      const renamedParties = state.partyMasterItems.map(party => {
+        if (party[fieldKey] !== oldValue) return party;
+        const nextParty = { ...party, [fieldKey]: cleaned };
+        if (fieldKey === 'partyCategory') {
+          nextParty.partyCode = getNextPartyCodeFromItems(
+            state.partyMasterItems.filter(item => item.id !== party.id),
+            cleaned
+          );
+        }
+        return nextParty;
+      });
+
+      renamed = true;
+      return {
+        partyMasterLookups: {
+          ...state.partyMasterLookups,
+          [fieldKey]: currentOptions.map(option => option === oldValue ? cleaned : option),
+        },
+        ...(fieldKey === 'partyCategory'
+          ? { partyCategories: state.partyCategories.map(option => option === oldValue ? cleaned : option) }
+          : {}),
+        partyMasterItems: renamedParties,
+      };
+    });
+    if (renamed) get().addNotification(`${oldValue} renamed to ${cleaned}`, 'success');
+    return renamed;
+  },
+
+  deletePartyMasterLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().partyMasterItems.filter(party => party[fieldKey] === value).length;
+
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete ${value}; it is used in ${usedCount} part${usedCount > 1 ? 'ies' : 'y'}.`, 'error');
+      return false;
+    }
+
+    set(state => ({
+      partyMasterLookups: {
+        ...state.partyMasterLookups,
+        [fieldKey]: (state.partyMasterLookups[fieldKey] || []).filter(option => option !== value),
+      },
+      ...(fieldKey === 'partyCategory'
+        ? { partyCategories: state.partyCategories.filter(option => option !== value) }
+        : {}),
+    }));
+    get().addNotification(`${value} deleted from dropdown`, 'error');
+    return true;
+  },
+
+  addMachineMasterLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+    let wasAdded = false;
+    set(state => {
+      const currentOptions = state.machineMasterLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+      return { machineMasterLookups: { ...state.machineMasterLookups, [fieldKey]: [...currentOptions, cleaned] } };
+    });
+    if (wasAdded) get().addNotification(`"${cleaned}" added to ${fieldKey}`, 'success');
+    return wasAdded;
+  },
+
+  renameMachineMasterLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.machineMasterLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(o => o.toLowerCase() === cleaned.toLowerCase() && o !== oldValue);
+      if (duplicate) return state;
+      renamed = true;
+      return {
+        machineMasterLookups: {
+          ...state.machineMasterLookups,
+          [fieldKey]: currentOptions.map(o => o === oldValue ? cleaned : o),
+        },
+        machineMasterItems: state.machineMasterItems.map(m =>
+          m[fieldKey] === oldValue ? { ...m, [fieldKey]: cleaned } : m
+        ),
+      };
+    });
+    if (renamed) get().addNotification(`"${oldValue}" renamed to "${cleaned}"`, 'success');
+    return renamed;
+  },
+
+  deleteMachineMasterLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().machineMasterItems.filter(m => m[fieldKey] === value).length;
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete "${value}"; used in ${usedCount} machine(s).`, 'error');
+      return false;
+    }
+    set(state => ({
+      machineMasterLookups: {
+        ...state.machineMasterLookups,
+        [fieldKey]: (state.machineMasterLookups[fieldKey] || []).filter(o => o !== value),
+      },
+    }));
+    get().addNotification(`"${value}" deleted from ${fieldKey}`, 'error');
+    return true;
   },
 
   addPartyMaster: (partyData) => {
@@ -1008,6 +1417,73 @@ export const useERPStore = create((set, get) => ({
       transporterMasterItems: state.transporterMasterItems.filter(transporter => transporter.id !== id),
     }));
     get().addNotification('Transport master deleted successfully!', 'error');
+  },
+
+  addTransportMasterLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+
+    let wasAdded = false;
+    set(state => {
+      const currentOptions = state.transportMasterLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+      return {
+        transportMasterLookups: {
+          ...state.transportMasterLookups,
+          [fieldKey]: [...currentOptions, cleaned],
+        },
+      };
+    });
+    if (wasAdded) get().addNotification(`${cleaned} added to dropdown`, 'success');
+    return wasAdded;
+  },
+
+  renameTransportMasterLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.transportMasterLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(option =>
+        option.toLowerCase() === cleaned.toLowerCase() && option !== oldValue
+      );
+      if (duplicate) return state;
+
+      renamed = true;
+      return {
+        transportMasterLookups: {
+          ...state.transportMasterLookups,
+          [fieldKey]: currentOptions.map(option => option === oldValue ? cleaned : option),
+        },
+        transporterMasterItems: state.transporterMasterItems.map(transporter =>
+          transporter[fieldKey] === oldValue ? { ...transporter, [fieldKey]: cleaned } : transporter
+        ),
+      };
+    });
+    if (renamed) get().addNotification(`${oldValue} renamed to ${cleaned}`, 'success');
+    return renamed;
+  },
+
+  deleteTransportMasterLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().transporterMasterItems.filter(transporter => transporter[fieldKey] === value).length;
+
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete ${value}; it is used in ${usedCount} transporter${usedCount > 1 ? 's' : ''}.`, 'error');
+      return false;
+    }
+
+    set(state => ({
+      transportMasterLookups: {
+        ...state.transportMasterLookups,
+        [fieldKey]: (state.transportMasterLookups[fieldKey] || []).filter(option => option !== value),
+      },
+    }));
+    get().addNotification(`${value} deleted from dropdown`, 'error');
+    return true;
   },
 
   // Weekly Modal controls
@@ -1252,5 +1728,155 @@ export const useERPStore = create((set, get) => ({
       inactiveOrHold,
       blacklisted,
     };
+  },
+
+  getFilteredMachineMasterItems: () => {
+    const {
+      machineMasterItems,
+      machineMasterSearchQuery,
+      machineMasterDepartmentFilter,
+      machineMasterStatusFilter,
+    } = get();
+
+    const query = machineMasterSearchQuery.toLowerCase().trim();
+
+    return machineMasterItems.filter(machine => {
+      const matchesSearch =
+        !query ||
+        Object.values(machine)
+          .some(value => String(value || '').toLowerCase().includes(query));
+      const matchesDept = machineMasterDepartmentFilter === 'All' || machine.departmentOfUse === machineMasterDepartmentFilter;
+      const matchesStatus = machineMasterStatusFilter === 'All' || machine.status === machineMasterStatusFilter;
+      return matchesSearch && matchesDept && matchesStatus;
+    });
+  },
+
+  getMachineMasterStats: () => {
+    const { machineMasterItems } = get();
+    const active = machineMasterItems.filter(m => m.status === 'Active').length;
+    const inactive = machineMasterItems.filter(m => m.status === 'Inactive').length;
+    
+    return {
+      total: machineMasterItems.length,
+      active,
+      inactive,
+    };
+  },
+
+  getFilteredEmployeeMasterItems: () => {
+    const {
+      employeeMasterItems,
+      employeeMasterSearchQuery,
+      employeeMasterDepartmentFilter,
+    } = get();
+
+    const query = employeeMasterSearchQuery.toLowerCase().trim();
+
+    return employeeMasterItems.filter(emp => {
+      const matchesSearch =
+        !query ||
+        Object.values(emp)
+          .some(value => String(value || '').toLowerCase().includes(query));
+      const matchesDept = employeeMasterDepartmentFilter === 'All' || emp.department === employeeMasterDepartmentFilter;
+      return matchesSearch && matchesDept;
+    });
+  },
+
+  getEmployeeMasterStats: () => {
+    const { employeeMasterItems } = get();
+    const departments = new Set(employeeMasterItems.map(emp => emp.department).filter(Boolean));
+    const permanent = employeeMasterItems.filter(emp => emp.employeeType === 'Permanent').length;
+    const contract = employeeMasterItems.filter(emp => emp.employeeType === 'Contract').length;
+
+    return {
+      total: employeeMasterItems.length,
+      departments: departments.size,
+      permanent,
+      contract,
+    };
+  },
+
+  // Employee Master Actions
+  addEmployeeMaster: (employeeData) => {
+    const newEmployee = {
+      ...employeeData,
+      id: nextEmployeeMasterId++,
+    };
+    set(state => ({
+      employeeMasterItems: [newEmployee, ...state.employeeMasterItems],
+      employeeMasterCurrentPage: 1,
+    }));
+    get().addNotification('Employee created successfully!', 'success');
+  },
+
+  updateEmployeeMaster: (id, employeeData) => {
+    set(state => ({
+      employeeMasterItems: state.employeeMasterItems.map(emp =>
+        emp.id === id ? { ...emp, ...employeeData } : emp
+      ),
+    }));
+    get().addNotification('Employee updated successfully!', 'success');
+  },
+
+  deleteEmployeeMaster: (id) => {
+    set(state => ({
+      employeeMasterItems: state.employeeMasterItems.filter(emp => emp.id !== id),
+    }));
+    get().addNotification('Employee deleted successfully!', 'error');
+  },
+
+  addEmployeeMasterLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+    let wasAdded = false;
+    set(state => {
+      const currentOptions = state.employeeMasterLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+      return { employeeMasterLookups: { ...state.employeeMasterLookups, [fieldKey]: [...currentOptions, cleaned] } };
+    });
+    if (wasAdded) get().addNotification(`"${cleaned}" added to dropdown`, 'success');
+    return wasAdded;
+  },
+
+  renameEmployeeMasterLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.employeeMasterLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(o => o.toLowerCase() === cleaned.toLowerCase() && o !== oldValue);
+      if (duplicate) return state;
+      renamed = true;
+      return {
+        employeeMasterLookups: {
+          ...state.employeeMasterLookups,
+          [fieldKey]: currentOptions.map(o => o === oldValue ? cleaned : o),
+        },
+        employeeMasterItems: state.employeeMasterItems.map(emp =>
+          emp[fieldKey] === oldValue ? { ...emp, [fieldKey]: cleaned } : emp
+        ),
+      };
+    });
+    if (renamed) get().addNotification(`"${oldValue}" renamed to "${cleaned}"`, 'success');
+    return renamed;
+  },
+
+  deleteEmployeeMasterLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().employeeMasterItems.filter(emp => emp[fieldKey] === value).length;
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete "${value}"; used in ${usedCount} employee(s).`, 'error');
+      return false;
+    }
+    set(state => ({
+      employeeMasterLookups: {
+        ...state.employeeMasterLookups,
+        [fieldKey]: (state.employeeMasterLookups[fieldKey] || []).filter(o => o !== value),
+      },
+    }));
+    get().addNotification(`"${value}" deleted from dropdown`, 'error');
+    return true;
   },
 }));

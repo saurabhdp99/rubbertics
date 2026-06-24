@@ -5,8 +5,10 @@ import Topbar from './components/Topbar';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import ItemMasterPage from './pages/ItemMasterPage';
+import MachineMasterPage from './pages/MachineMasterPage';
 import PartyMasterPage from './pages/PartyMasterPage';
 import TransportMasterPage from './pages/TransportMasterPage';
+import EmployeeMasterPage from './pages/EmployeeMasterPage';
 import InwardPage from './pages/InwardPage';
 import MixingMoldingPlanPage from './pages/MixingMoldingPlanPage';
 import DailyFinishingOutputReportPage from './pages/DailyFinishingOutputReportPage';
@@ -48,8 +50,10 @@ function ERPApp() {
             {canAccess('/orders') && <Route path="/orders" element={<PurchaseOrdersPage />} />}
             {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
             {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
+            {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}
             {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
             {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
+            {canAccess('/employee-master') && <Route path="/employee-master" element={<EmployeeMasterPage />} />}
             {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
             {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
             {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}
