@@ -5,6 +5,7 @@ import Topbar from './components/Topbar';
 import SaleOrdersPage from './pages/SaleOrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import ItemMasterPage from './pages/ItemMasterPage';
+import HsnSacMasterPage from './pages/HsnSacMasterPage';
 import MachineMasterPage from './pages/MachineMasterPage';
 import PartyMasterPage from './pages/PartyMasterPage';
 import TransportMasterPage from './pages/TransportMasterPage';
@@ -50,6 +51,7 @@ function ERPApp() {
             {canAccess('/orders') && <Route path="/orders" element={<SaleOrdersPage />} />}
             {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
             {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
+            {canAccess('/hsn-sac-master') && <Route path="/hsn-sac-master" element={<HsnSacMasterPage />} />}
             {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}
             {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
             {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}

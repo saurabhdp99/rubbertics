@@ -17,13 +17,20 @@ const EMPTY_ORDER = {
   date: todayIsoDate(),
   soNo: '',
   partyName: '',
+  partyAddress: '',
+  shippingAddress: '',
   items: [{
     partNo: '',
     productName: '',
+    hsnCode: '',
     orderQty: '',
+    uom: '',
+    price: '',
     scheduleQty: '',
     deliveryDate: ''
   }],
+  paymentTerms: '',
+  deliveryTerms: '',
   remark: '',
 };
 
@@ -57,7 +64,7 @@ const COLUMNS = [
   { key: 'items_productName', label: 'Product Name', width: '240px' },
   { key: 'items_orderQty', label: 'Total Order Qty', width: '120px', align: 'right' },
   { key: 'items_scheduleQty', label: 'Total Sched Qty', width: '120px', align: 'right' },
-  { key: 'items_deliveryDate', label: 'Delivery Date(s)', width: '140px' },
+  { key: 'items_deliveryDate', label: 'Schedule Date(s)', width: '140px' },
   { key: 'remark', label: 'Remarks', width: '140px' },
 ];
 
@@ -78,7 +85,8 @@ function Field({ label, children, required, error, wide }) {
 function SaleOrderForm({ mode, order, onBack }) {
   const {
     addOrder, updateOrder, saleOrderLookups,
-    addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption
+    addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
+    partyMasterItems
   } = useERPStore();
   const [form, setForm] = useState(() => {
     if (order) {
@@ -89,12 +97,20 @@ function SaleOrderForm({ mode, order, onBack }) {
         items = legacyPartNos.map((p, i) => ({
           partNo: p,
           productName: i === 0 ? (order.productName || '') : '',
+          hsnCode: '',
           orderQty: i === 0 ? (order.orderQty || '') : '',
+          uom: '',
+          price: '',
           scheduleQty: '',
           deliveryDate: i === 0 ? (order.deliveryDate || '') : ''
         }));
       }
-      return { ...EMPTY_ORDER, ...order, items };
+      let partyAddress = order.partyAddress || '';
+      if (!partyAddress && order.partyName) {
+        const party = partyMasterItems?.find(p => p.partyName === order.partyName);
+        if (party) partyAddress = party.address || '';
+      }
+      return { ...EMPTY_ORDER, ...order, items, partyAddress };
     }
     return { ...EMPTY_ORDER };
   });
@@ -103,18 +119,20 @@ function SaleOrderForm({ mode, order, onBack }) {
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
+  const customerParties = (partyMasterItems || []).filter(p => p.partyCategory === 'Customer');
+
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const validate = () => {
     const e = {};
     if (!form.soNo?.trim()) e.soNo = 'PO Number is required';
     if (!form.partyName?.trim()) e.partyName = 'Party name is required';
-    
+
     (form.items || []).forEach((item, idx) => {
       if (!item.orderQty || isNaN(item.orderQty)) e[`item_${idx}_orderQty`] = 'Valid quantity required';
-      if (!item.deliveryDate) e[`item_${idx}_deliveryDate`] = 'Delivery date required';
+      if (!item.deliveryDate) e[`item_${idx}_deliveryDate`] = 'Schedule date required';
     });
-    
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -123,9 +141,9 @@ function SaleOrderForm({ mode, order, onBack }) {
     e.preventDefault();
     if (!validate()) return;
     const finalForm = { ...form };
-    
-    finalForm.items = (finalForm.items || []).filter(item => 
-      item.partNo || item.productName || item.orderQty || item.deliveryDate || item.scheduleQty
+
+    finalForm.items = (finalForm.items || []).filter(item =>
+      item.partNo || item.productName || item.hsnCode || item.uom || item.price || item.orderQty || item.deliveryDate || item.scheduleQty
     );
     if (finalForm.items.length === 0) {
       finalForm.items = [{ ...EMPTY_ORDER.items[0] }];
@@ -207,6 +225,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                     isDisabled={true}
                     onChange={(dateVal) => set('createdDate', dateVal ? dateVal.toString() : '')}
                     className="w-full"
+                    aria-label="Created Date"
                   >
                     <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
                       <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent opacity-70">
@@ -219,7 +238,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                       </DateField.Suffix>
                     </DateField.Group>
                     <DatePicker.Popover>
-                      <HeroCalendar>
+                      <HeroCalendar aria-label="Created Date Calendar">
                         <HeroCalendar.Header>
                           <HeroCalendar.NavButton slot="previous" />
                           <HeroCalendar.NavButton slot="next" />
@@ -241,6 +260,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                     isDisabled={!isAdd}
                     onChange={(dateVal) => set('date', dateVal ? dateVal.toString() : '')}
                     className="w-full"
+                    aria-label="Purchase Date"
                   >
                     <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
                       <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
@@ -253,7 +273,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                       </DateField.Suffix>
                     </DateField.Group>
                     <DatePicker.Popover>
-                      <HeroCalendar>
+                      <HeroCalendar aria-label="Purchase Date Calendar">
                         <HeroCalendar.Header>
                           <HeroCalendar.NavButton slot="previous" />
                           <HeroCalendar.NavButton slot="next" />
@@ -270,154 +290,255 @@ function SaleOrderForm({ mode, order, onBack }) {
                 </Field>
 
                 <Field label="PO Number" required error={errors.soNo}>
-                  <Input type="text" value={form.soNo} isDisabled={isView} onChange={e => set('soNo', e.target.value)} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} />
+                  <Input type="text" value={form.soNo} disabled={isView} onChange={e => set('soNo', e.target.value)} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
                 </Field>
 
 
 
                 <Field label="Party Name" required error={errors.partyName}>
-                  <Input type="text" value={form.partyName} isDisabled={isView} onChange={e => set('partyName', e.target.value)} placeholder="Company / Party name" className={`${inputCls} px-4 py-3`} />
+                  <Select
+                    selectedKeys={form.partyName ? [form.partyName] : []}
+                    onSelectionChange={v => {
+                      const partyName = Array.from(v)[0];
+                      const party = customerParties.find(p => p.partyName === partyName);
+                      setForm(f => ({ ...f, partyName, partyAddress: party?.address || '' }));
+                    }}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Party Name"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder="Select Customer Party" />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {customerParties.map(p => (
+                          <ListBox.Item key={p.partyName} id={p.partyName} textValue={p.partyName}>
+                            <div className="flex flex-col gap-0.5 py-0.5">
+                              <span className="font-bold text-slate-800">{p.partyName}</span>
+                            </div>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </Field>
+
+                {form.partyAddress && (
+                  <Field label="Party Address" wide>
+                    <textarea
+                      value={form.partyAddress}
+                      disabled={true}
+                      className={`${inputCls} min-h-[60px] resize-y px-4 py-3 bg-slate-50 text-slate-600`}
+                      readOnly
+                    />
+                  </Field>
+                )}
+
+                <Field label="Shipping Address" wide>
+                  <textarea
+                    value={form.shippingAddress || ''}
+                    disabled={isView}
+                    onChange={e => set('shippingAddress', e.target.value)}
+                    className={`${inputCls} min-h-[60px] resize-y px-4 py-3`}
+                    placeholder="Enter shipping address..."
+                  />
+                </Field>
+
+                <Field label="Payment Terms">
+                  <EditableCreatableSelect
+                    value={form.paymentTerms}
+                    options={saleOrderLookups.paymentTerms || []}
+                    disabled={isView}
+                    placeholder="Select or enter payment terms"
+                    onChange={v => set('paymentTerms', v)}
+                    onAdd={(newOption) => addSaleOrderLookupOption('paymentTerms', newOption)}
+                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('paymentTerms', oldOption, newOption)}
+                    onDelete={(option) => deleteSaleOrderLookupOption('paymentTerms', option)}
+                  />
+                </Field>
+
+                <Field label="Delivery Terms">
+                  <EditableCreatableSelect
+                    value={form.deliveryTerms}
+                    options={saleOrderLookups.deliveryTerms || []}
+                    disabled={isView}
+                    placeholder="Select or enter delivery terms"
+                    onChange={v => set('deliveryTerms', v)}
+                    onAdd={(newOption) => addSaleOrderLookupOption('deliveryTerms', newOption)}
+                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('deliveryTerms', oldOption, newOption)}
+                    onDelete={(option) => deleteSaleOrderLookupOption('deliveryTerms', option)}
+                  />
                 </Field>
 
                 <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col gap-4 mt-2">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Package size={16} className="text-emerald-500" />
-                    Line Items
+                    Item Details
                   </h3>
-                  
-                  {(form.items || []).map((item, index) => (
-                    <div key={index} className="relative bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm group">
-                      <div className="absolute top-4 right-4">
-                        {!isView && (form.items.length > 1) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newItems = [...form.items];
-                              newItems.splice(index, 1);
-                              set('items', newItems);
-                            }}
-                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Remove Item"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+
+                  {(() => {
+                    const item = form.items?.[0] || {};
+                    const index = 0;
+                    return (
+                      <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                          <Field label="Part Number">
+                            <Input
+                              type="text"
+                              value={item.partNo || ''}
+                              disabled={isView}
+                              placeholder="Part Number"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), partNo: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="Part Number"
+                            />
+                          </Field>
+
+                          <Field label="Product Name" wide>
+                            <Input
+                              type="text"
+                              value={item.productName || ''}
+                              disabled={isView}
+                              placeholder="Product Name"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), productName: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="Product Name"
+                            />
+                          </Field>
+
+                          <Field label="HSN Code">
+                            <Input
+                              type="text"
+                              value={item.hsnCode || ''}
+                              disabled={isView}
+                              placeholder="HSN Code"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), hsnCode: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="HSN Code"
+                            />
+                          </Field>
+                          
+                          <Field label="Order Qty" required error={errors[`item_${index}_orderQty`]}>
+                            <Input
+                              type="number"
+                              value={item.orderQty || ''}
+                              disabled={isView}
+                              placeholder="0"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), orderQty: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="Order Qty"
+                            />
+                          </Field>
+
+                          <Field label="UOM">
+                            <EditableCreatableSelect
+                              value={item.uom || ''}
+                              options={saleOrderLookups.uom || []}
+                              disabled={isView}
+                              placeholder="Select UOM"
+                              onChange={v => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), uom: v };
+                                set('items', newItems);
+                              }}
+                              onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
+                              onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
+                              onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
+                            />
+                          </Field>
+
+                          <Field label="Price">
+                            <Input
+                              type="number"
+                              value={item.price || ''}
+                              disabled={isView}
+                              placeholder="0.00"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), price: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="Price"
+                            />
+                          </Field>
+
+                          <Field label="Schedule Qty">
+                            <Input
+                              type="number"
+                              value={item.scheduleQty || ''}
+                              disabled={isView}
+                              placeholder="0"
+                              onChange={e => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), scheduleQty: e.target.value };
+                                set('items', newItems);
+                              }}
+                              className={`${inputCls} px-4 py-3`}
+                              aria-label="Schedule Qty"
+                            />
+                          </Field>
+
+                          <Field label="Schedule Date" required error={errors[`item_${index}_deliveryDate`]}>
+                            <DatePicker
+                              value={item.deliveryDate ? parseDate(item.deliveryDate) : null}
+                              isDisabled={isView}
+                              onChange={(dateVal) => {
+                                const newItems = [...(form.items || [])];
+                                newItems[0] = { ...(newItems[0] || {}), deliveryDate: dateVal ? dateVal.toString() : '' };
+                                set('items', newItems);
+                              }}
+                              className="w-full"
+                              aria-label="Schedule Date"
+                            >
+                              <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                                <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
+                                  {(segment) => <DateField.Segment segment={segment} />}
+                                </DateField.Input>
+                                <DateField.Suffix className="pr-2">
+                                  <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                                    <DatePicker.TriggerIndicator />
+                                  </DatePicker.Trigger>
+                                </DateField.Suffix>
+                              </DateField.Group>
+                              <DatePicker.Popover>
+                                <HeroCalendar aria-label="Schedule Date Calendar">
+                                  <HeroCalendar.Header>
+                                    <HeroCalendar.NavButton slot="previous" />
+                                    <HeroCalendar.NavButton slot="next" />
+                                  </HeroCalendar.Header>
+                                  <HeroCalendar.Grid>
+                                    <HeroCalendar.GridHeader>
+                                      {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                                    </HeroCalendar.GridHeader>
+                                    <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                                  </HeroCalendar.Grid>
+                                </HeroCalendar>
+                              </DatePicker.Popover>
+                            </DatePicker>
+                          </Field>
+                        </div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 pr-8">
-                        <Field label={`Part Number ${index + 1}`}>
-                          <Input
-                            type="text"
-                            value={item.partNo || ''}
-                            isDisabled={isView}
-                            placeholder="Part Number"
-                            onChange={e => {
-                              const newItems = [...form.items];
-                              newItems[index] = { ...newItems[index], partNo: e.target.value };
-                              set('items', newItems);
-                            }}
-                            className={`${inputCls} px-4 py-3`}
-                          />
-                        </Field>
-
-                        <Field label="Product Name" wide>
-                          <Input
-                            type="text"
-                            value={item.productName || ''}
-                            isDisabled={isView}
-                            placeholder="Product Name"
-                            onChange={e => {
-                              const newItems = [...form.items];
-                              newItems[index] = { ...newItems[index], productName: e.target.value };
-                              set('items', newItems);
-                            }}
-                            className={`${inputCls} px-4 py-3`}
-                          />
-                        </Field>
-                        
-                        <Field label="Order Qty" required error={errors[`item_${index}_orderQty`]}>
-                          <Input
-                            type="number"
-                            value={item.orderQty || ''}
-                            isDisabled={isView}
-                            placeholder="0"
-                            onChange={e => {
-                              const newItems = [...form.items];
-                              newItems[index] = { ...newItems[index], orderQty: e.target.value };
-                              set('items', newItems);
-                            }}
-                            className={`${inputCls} px-4 py-3`}
-                          />
-                        </Field>
-
-                        <Field label="Schedule Qty">
-                          <Input
-                            type="number"
-                            value={item.scheduleQty || ''}
-                            isDisabled={isView}
-                            placeholder="0"
-                            onChange={e => {
-                              const newItems = [...form.items];
-                              newItems[index] = { ...newItems[index], scheduleQty: e.target.value };
-                              set('items', newItems);
-                            }}
-                            className={`${inputCls} px-4 py-3`}
-                          />
-                        </Field>
-
-                        <Field label="Delivery Date" required error={errors[`item_${index}_deliveryDate`]}>
-                          <DatePicker
-                            value={item.deliveryDate ? parseDate(item.deliveryDate) : null}
-                            isDisabled={isView}
-                            onChange={(dateVal) => {
-                              const newItems = [...form.items];
-                              newItems[index] = { ...newItems[index], deliveryDate: dateVal ? dateVal.toString() : '' };
-                              set('items', newItems);
-                            }}
-                            className="w-full"
-                          >
-                            <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                              <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
-                                {(segment) => <DateField.Segment segment={segment} />}
-                              </DateField.Input>
-                              <DateField.Suffix className="pr-2">
-                                <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                                  <DatePicker.TriggerIndicator />
-                                </DatePicker.Trigger>
-                              </DateField.Suffix>
-                            </DateField.Group>
-                            <DatePicker.Popover>
-                              <HeroCalendar>
-                                <HeroCalendar.Header>
-                                  <HeroCalendar.NavButton slot="previous" />
-                                  <HeroCalendar.NavButton slot="next" />
-                                </HeroCalendar.Header>
-                                <HeroCalendar.Grid>
-                                  <HeroCalendar.GridHeader>
-                                    {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                                  </HeroCalendar.GridHeader>
-                                  <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
-                                </HeroCalendar.Grid>
-                              </HeroCalendar>
-                            </DatePicker.Popover>
-                          </DatePicker>
-                        </Field>
-                      </div>
-                    </div>
-                  ))}
-
-                  {!isView && (
-                    <button
-                      type="button"
-                      onClick={() => set('items', [...(form.items || []), { ...EMPTY_ORDER.items[0] }])}
-                      className="flex items-center gap-2 self-start px-4 py-2 mt-1 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                    >
-                      <Plus size={16} />
-                      Add Another Item
-                    </button>
-                  )}
+                    );
+                  })()}
                 </div>
-
 
 
                 <Field label="Remarks" wide>
@@ -624,11 +745,8 @@ export default function SaleOrdersPage() {
                   placeholder="Search by SO No, Party, Product, Part No..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full"
-                  classNames={{
-                    inputWrapper: "pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
-                  }}
-                  startContent={<Search size={18} className="text-slate-500 group-focus-within:text-emerald-500 transition-colors absolute left-4" />}
+                  aria-label="Search orders"
+                  className="w-full pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
                 />
               </div>
 

@@ -1007,6 +1007,17 @@ export const useERPStore = create((set, get) => ({
   machineMasterLookups: initialMachineMasterLookups,
   saleOrderLookups: initialSaleOrderLookups,
   employeeMasterItems: initialEmployeeMasterItems,
+  hsnSacMasterItems: [
+    {
+      id: 'hsn-1',
+      hsnCode: '40169390',
+      description: 'Other articles of vulcanised rubber other than hard rubber',
+      gstPercentage: '18',
+      effectiveFrom: '2023-01-01',
+      effectiveTo: '2099-12-31',
+      createdAt: new Date().toISOString()
+    }
+  ],
   employeeMasterLookups: initialEmployeeMasterLookups,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
@@ -1036,6 +1047,9 @@ export const useERPStore = create((set, get) => ({
   transporterMasterCurrentPage: 1,
   transporterMasterItemsPerPage: 10,
   machineMasterSearchQuery: '',
+  hsnSacMasterSearchQuery: '',
+  hsnSacMasterCurrentPage: 1,
+  hsnSacMasterItemsPerPage: 10,
   machineMasterDepartmentFilter: 'All',
   machineMasterStatusFilter: 'All',
   machineMasterCurrentPage: 1,
@@ -1458,6 +1472,35 @@ export const useERPStore = create((set, get) => ({
     get().addNotification('Party master deleted successfully!', 'error');
   },
 
+  addHsnSacMaster: (data) => {
+    const newItem = {
+      ...data,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    set(state => ({
+      hsnSacMasterItems: [newItem, ...state.hsnSacMasterItems],
+      hsnSacMasterCurrentPage: 1,
+    }));
+    get().addNotification('HSN/SAC master created successfully!', 'success');
+  },
+
+  updateHsnSacMaster: (id, data) => {
+    set(state => ({
+      hsnSacMasterItems: state.hsnSacMasterItems.map(item =>
+        item.id === id ? { ...item, ...data } : item
+      ),
+    }));
+    get().addNotification('HSN/SAC master updated successfully!', 'success');
+  },
+
+  deleteHsnSacMaster: (id) => {
+    set(state => ({
+      hsnSacMasterItems: state.hsnSacMasterItems.filter(item => item.id !== id),
+    }));
+    get().addNotification('HSN/SAC master deleted successfully!', 'error');
+  },
+
   getNextTransporterCode: () => getNextTransporterCodeFromItems(get().transporterMasterItems),
 
   addTransporterMaster: (transporterData) => {
@@ -1636,6 +1679,9 @@ export const useERPStore = create((set, get) => ({
   setPartyMasterMsmeFilter: (type) => set({ partyMasterMsmeFilter: type, partyMasterCurrentPage: 1 }),
   setPartyMasterCurrentPage: (page) => set({ partyMasterCurrentPage: page }),
   setPartyMasterItemsPerPage: (count) => set({ partyMasterItemsPerPage: count, partyMasterCurrentPage: 1 }),
+  setHsnSacMasterSearchQuery: (query) => set({ hsnSacMasterSearchQuery: query, hsnSacMasterCurrentPage: 1 }),
+  setHsnSacMasterCurrentPage: (page) => set({ hsnSacMasterCurrentPage: page }),
+  setHsnSacMasterItemsPerPage: (count) => set({ hsnSacMasterItemsPerPage: count, hsnSacMasterCurrentPage: 1 }),
   setTransporterMasterSearchQuery: (query) => set({ transporterMasterSearchQuery: query, transporterMasterCurrentPage: 1 }),
   setTransporterMasterTypeFilter: (type) => set({ transporterMasterTypeFilter: type, transporterMasterCurrentPage: 1 }),
   setTransporterMasterStatusFilter: (status) => set({ transporterMasterStatusFilter: status, transporterMasterCurrentPage: 1 }),
@@ -1769,6 +1815,22 @@ export const useERPStore = create((set, get) => ({
       types: types.size,
       msme,
       enrolledThisMonth,
+    };
+  },
+
+  getFilteredHsnSacMasterItems: () => {
+    const { hsnSacMasterItems, hsnSacMasterSearchQuery } = get();
+    const query = hsnSacMasterSearchQuery.toLowerCase().trim();
+    return hsnSacMasterItems.filter(item => {
+      if (!query) return true;
+      return Object.values(item).some(val => String(val || '').toLowerCase().includes(query));
+    });
+  },
+
+  getHsnSacMasterStats: () => {
+    const { hsnSacMasterItems } = get();
+    return {
+      total: hsnSacMasterItems.length,
     };
   },
 

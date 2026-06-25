@@ -1,9 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Activity,
   ArrowLeft,
-  BadgeIndianRupee,
-  Boxes,
   Edit,
   Eye,
   FileDown,
@@ -14,75 +11,35 @@ import {
   Save,
   Search,
   SlidersHorizontal,
-  Tag,
   Trash2,
   X,
 } from 'lucide-react';
-import StatsCard from '../components/common/StatsCard';
-import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
+import { HSN_SAC_MASTER_FIELDS } from '../data/hsnSacTemplate';
 import { useERPStore } from '../store/erpStore';
-import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
+import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 
-const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
-  item[field.key] = field.type === 'select' ? 'Yes' : '';
+const EMPTY_ITEM = HSN_SAC_MASTER_FIELDS.reduce((item, field) => {
+  item[field.key] = '';
   return item;
 }, {});
 
-const TABLE_COLUMNS = ITEM_MASTER_FIELDS.map(field => ({
+const TABLE_COLUMNS = HSN_SAC_MASTER_FIELDS.map(field => ({
   ...field,
-  width: field.type === 'number' ? '120px' : field.type === 'select' ? '130px' : '180px',
-  align: field.type === 'number' ? 'right' : field.type === 'select' ? 'center' : 'left',
+  width: field.wide ? '300px' : field.type === 'number' ? '120px' : field.type === 'date' ? '150px' : '180px',
+  align: field.type === 'number' ? 'right' : 'left',
 }));
-
-const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References'];
 
 function FormField({ field, value, onChange, disabled, error }) {
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;
 
-  if (field.type === 'select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <Select
-          isDisabled={disabled}
-          value={value || 'Yes'}
-          onChange={(val) => onChange(field.key, val)}
-          placeholder="Select option"
-          aria-label={field.label}
-        >
-          <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              <ListBox.Item id="Yes" textValue="Yes">
-                Yes
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-              <ListBox.Item id="No" textValue="No">
-                No
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
+    <div className={`flex flex-col gap-2 ${field.wide ? 'md:col-span-2 xl:col-span-3' : ''}`}>
       <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
         {field.label}
-        {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+        {field.required && <span className="text-red-500 ml-1">*</span>}
       </Label>
       {field.type === 'textarea' ? (
         <textarea
@@ -151,8 +108,8 @@ function FormField({ field, value, onChange, disabled, error }) {
   );
 }
 
-function ItemMasterForm({ mode, item, onBack }) {
-  const { addItemMaster, updateItemMaster } = useERPStore();
+function HsnSacMasterForm({ mode, item, onBack }) {
+  const { addHsnSacMaster, updateHsnSacMaster } = useERPStore();
   const [form, setForm] = useState(EMPTY_ITEM);
   const [errors, setErrors] = useState({});
 
@@ -163,17 +120,12 @@ function ItemMasterForm({ mode, item, onBack }) {
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
-  const groupedFields = SECTION_ORDER.map(section => ({
-    section,
-    fields: ITEM_MASTER_FIELDS.filter(field => field.section === section),
-  }));
 
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const validate = () => {
     const nextErrors = {};
-    if (!String(form.itemCode || '').trim()) nextErrors.itemCode = 'Item code is required';
-    if (!String(form.itemName || '').trim()) nextErrors.itemName = 'Item name is required';
+    if (!String(form.hsnCode || '').trim()) nextErrors.hsnCode = 'HSN/SAC Code is required';
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -181,8 +133,8 @@ function ItemMasterForm({ mode, item, onBack }) {
   const submit = (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addItemMaster(form);
-    else updateItemMaster(item.id, form);
+    if (isAdd) addHsnSacMaster(form);
+    else updateHsnSacMaster(item.id, form);
     onBack();
   };
 
@@ -203,11 +155,8 @@ function ItemMasterForm({ mode, item, onBack }) {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800 tracking-tight">
-                {isView ? 'View Item Master' : isAdd ? 'Add Item Master' : 'Edit Item Master'}
+                {isView ? 'View HSN/SAC Master' : isAdd ? 'Add HSN/SAC Master' : 'Edit HSN/SAC Master'}
               </h2>
-              <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.itemCode || 'Manual entry from Sales Item Master template'}
-              </p>
             </div>
           </div>
 
@@ -223,39 +172,27 @@ function ItemMasterForm({ mode, item, onBack }) {
             {!isView && (
               <button
                 type="submit"
-                form="item-master-page-form"
+                form="hsn-sac-master-form"
                 className="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
                 <Save size={16} />
-                {isAdd ? 'Create Item' : 'Save Changes'}
+                {isAdd ? 'Create Entry' : 'Save Changes'}
               </button>
             )}
           </div>
         </div>
 
-        <form id="item-master-page-form" onSubmit={submit} className="p-6">
-          <div className="flex flex-col gap-7">
-            {groupedFields.map(group => (
-              <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                    <Tag size={15} className="text-emerald-600" />
-                  </div>
-                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {group.fields.map(field => (
-                    <FormField
-                      key={field.key}
-                      field={field}
-                      value={form[field.key]}
-                      onChange={set}
-                      disabled={isView}
-                      error={errors[field.key]}
-                    />
-                  ))}
-                </div>
-              </section>
+        <form id="hsn-sac-master-form" onSubmit={submit} className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {HSN_SAC_MASTER_FIELDS.map(field => (
+              <FormField
+                key={field.key}
+                field={field}
+                value={form[field.key]}
+                onChange={set}
+                disabled={isView}
+                error={errors[field.key]}
+              />
             ))}
           </div>
 
@@ -274,7 +211,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
                 <Save size={16} />
-                {isAdd ? 'Create Item' : 'Save Changes'}
+                {isAdd ? 'Create Entry' : 'Save Changes'}
               </button>
             </div>
           )}
@@ -284,37 +221,28 @@ function ItemMasterForm({ mode, item, onBack }) {
   );
 }
 
-export default function ItemMasterPage() {
+export default function HsnSacMasterPage() {
   const {
-    itemMasterItems,
-    itemMasterSearchQuery,
-    itemMasterCategoryFilter,
-    itemMasterStatusFilter,
-    itemMasterCurrentPage,
-    itemMasterItemsPerPage,
-    setItemMasterSearchQuery,
-    setItemMasterCategoryFilter,
-    setItemMasterStatusFilter,
-    setItemMasterCurrentPage,
-    setItemMasterItemsPerPage,
-    deleteItemMaster,
-    getFilteredItemMasterItems,
-    getItemMasterStats,
+    hsnSacMasterItems,
+    hsnSacMasterSearchQuery,
+    hsnSacMasterCurrentPage,
+    hsnSacMasterItemsPerPage,
+    setHsnSacMasterSearchQuery,
+    setHsnSacMasterCurrentPage,
+    setHsnSacMasterItemsPerPage,
+    deleteHsnSacMaster,
+    getFilteredHsnSacMasterItems,
+    getHsnSacMasterStats,
   } = useERPStore();
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 
-  const filtered = getFilteredItemMasterItems();
-  const stats = getItemMasterStats();
-  const totalPages = Math.ceil(filtered.length / itemMasterItemsPerPage);
+  const filtered = getFilteredHsnSacMasterItems();
+  const totalPages = Math.ceil(filtered.length / hsnSacMasterItemsPerPage);
   const pagedItems = filtered.slice(
-    (itemMasterCurrentPage - 1) * itemMasterItemsPerPage,
-    itemMasterCurrentPage * itemMasterItemsPerPage
+    (hsnSacMasterCurrentPage - 1) * hsnSacMasterItemsPerPage,
+    hsnSacMasterCurrentPage * hsnSacMasterItemsPerPage
   );
-
-  const categories = useMemo(() => {
-    return ['All', ...Array.from(new Set(itemMasterItems.map(item => item.itemCategory).filter(Boolean))).sort()];
-  }, [itemMasterItems]);
 
   const openForm = (mode, item = null) => {
     setDeleteCandidateId(null);
@@ -324,20 +252,18 @@ export default function ItemMasterPage() {
   const backToTable = () => setViewState({ type: 'table', mode: null, item: null });
 
   const clearFilters = () => {
-    setItemMasterSearchQuery('');
-    setItemMasterCategoryFilter('All');
-    setItemMasterStatusFilter('All');
+    setHsnSacMasterSearchQuery('');
   };
 
   const exportCsv = () => {
-    const headers = ITEM_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => ITEM_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
+    const headers = HSN_SAC_MASTER_FIELDS.map(field => field.label);
+    const rows = filtered.map(item => HSN_SAC_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'item-master.csv';
+    link.download = 'hsn-sac-master.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -345,25 +271,10 @@ export default function ItemMasterPage() {
   const renderCellValue = (item, column) => {
     const value = item[column.key];
 
-    if (column.key === 'itemCode') {
+    if (column.key === 'hsnCode') {
       return (
         <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 whitespace-nowrap">
           <Hash size={12} /> {value || '-'}
-        </span>
-      );
-    }
-
-    if (column.key === 'itemName') {
-      return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
-    }
-
-    if (column.type === 'select') {
-      return (
-        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${value === 'Yes'
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-          : 'bg-slate-100 text-slate-500 border-slate-200'
-          }`}>
-          {value || 'No'}
         </span>
       );
     }
@@ -373,79 +284,26 @@ export default function ItemMasterPage() {
       return <span className="font-semibold text-slate-800">{numericValue === null || Number.isNaN(numericValue) ? '-' : numericValue.toFixed(2)}</span>;
     }
 
-    return <span className="block max-w-[220px] truncate" title={value}>{value || '-'}</span>;
+    return <span className="block max-w-[300px] truncate" title={value}>{value || '-'}</span>;
   };
 
   return (
     <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatsCard label="Total Items" value={stats.total.toLocaleString()} icon={Boxes} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
-        <StatsCard label="Active Items" value={stats.active.toLocaleString()} icon={Activity} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
-        <StatsCard label="Categories" value={stats.categories.toLocaleString()} icon={Tag} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
-        <StatsCard label="Avg. Price" value={`Rs. ${stats.avgPrice.toFixed(2)}`} icon={BadgeIndianRupee} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
-      </div>
-
       {viewState.type === 'form' ? (
-        <ItemMasterForm mode={viewState.mode} item={viewState.item} onBack={backToTable} />
+        <HsnSacMasterForm mode={viewState.mode} item={viewState.item} onBack={backToTable} />
       ) : (
         <>
           <div className="glass-card rounded-2xl p-5 shadow-xl mb-6">
             <div className="flex flex-col xl:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full min-w-0 group">
-
                 <Input
                   type="text"
-                  placeholder="Search by item code, item name, part no, customer..."
-                  value={itemMasterSearchQuery}
-                  onChange={event => setItemMasterSearchQuery(event.target.value)}
-                  aria-label="Search items"
+                  placeholder="Search by HSN code, description..."
+                  value={hsnSacMasterSearchQuery}
+                  onChange={event => setHsnSacMasterSearchQuery(event.target.value)}
+                  aria-label="Search HSN/SAC codes"
                   className="w-full pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
                 />
-              </div>
-
-              <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-                <Select
-                  value={itemMasterCategoryFilter}
-                  onChange={(val) => setItemMasterCategoryFilter(val)}
-                  className="w-[180px]"
-                  aria-label="Category Filter"
-                >
-                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {categories.map(category => (
-                        <ListBox.Item key={category} id={category} textValue={category === 'All' ? 'All Categories' : category}>
-                          {category === 'All' ? 'All Categories' : category}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-                <Select
-                  value={itemMasterStatusFilter}
-                  onChange={(val) => setItemMasterStatusFilter(val)}
-                  className="w-[140px]"
-                  aria-label="Status Filter"
-                >
-                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {['All', 'Yes', 'No'].map(status => (
-                        <ListBox.Item key={status} id={status} textValue={status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}>
-                          {status === 'All' ? 'All Status' : status === 'Yes' ? 'Active' : 'Inactive'}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
               </div>
 
               <div className="flex gap-3 w-full xl:w-auto shrink-0">
@@ -455,16 +313,16 @@ export default function ItemMasterPage() {
                 </button>
                 <button onClick={() => openForm('add')} className="btn-primary flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30 flex-1 xl:flex-none">
                   <Plus size={18} strokeWidth={2.5} />
-                  Add Item
+                  Add HSN/SAC
                 </button>
               </div>
             </div>
 
             <div className="flex items-center justify-between mt-4 px-1">
               <p className="text-xs font-medium text-slate-500">
-                Showing <span className="text-slate-800 font-bold px-1">{filtered.length}</span> of <span className="text-slate-800 font-bold px-1">{itemMasterItems.length}</span> items
+                Showing <span className="text-slate-800 font-bold px-1">{filtered.length}</span> of <span className="text-slate-800 font-bold px-1">{hsnSacMasterItems.length}</span> records
               </p>
-              {(itemMasterSearchQuery || itemMasterCategoryFilter !== 'All' || itemMasterStatusFilter !== 'All') && (
+              {hsnSacMasterSearchQuery && (
                 <button onClick={clearFilters} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                   <RefreshCw size={12} /> Clear Filters
                 </button>
@@ -476,7 +334,7 @@ export default function ItemMasterPage() {
             <Table>
               <Table.ScrollContainer>
                 <Table.Content
-                  aria-label="Item master table"
+                  aria-label="HSN/SAC master table"
                   className="text-left"
                   style={{ minWidth: `${TABLE_COLUMNS.length * 170 + 150}px` }}
                 >
@@ -500,7 +358,7 @@ export default function ItemMasterPage() {
                         <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
                           <SlidersHorizontal size={32} className="text-slate-400" />
                         </div>
-                        <p className="text-sm font-medium">No items found. Try adjusting your filters.</p>
+                        <p className="text-sm font-medium">No records found. Try adjusting your filters.</p>
                       </div>
                     </div>
                   )}>
@@ -511,7 +369,7 @@ export default function ItemMasterPage() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => {
-                                  deleteItemMaster(item.id);
+                                  deleteHsnSacMaster(item.id);
                                   setDeleteCandidateId(null);
                                 }}
                                 className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
@@ -555,8 +413,8 @@ export default function ItemMasterPage() {
               <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
                 <span>Rows per page:</span>
                 <Select
-                  value={itemMasterItemsPerPage.toString()}
-                  onChange={(val) => setItemMasterItemsPerPage(Number(val))}
+                  value={hsnSacMasterItemsPerPage.toString()}
+                  onChange={(val) => setHsnSacMasterItemsPerPage(Number(val))}
                   className="w-[80px]"
                   aria-label="Rows per page"
                 >
@@ -579,8 +437,8 @@ export default function ItemMasterPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setItemMasterCurrentPage(Math.max(1, itemMasterCurrentPage - 1))}
-                  disabled={itemMasterCurrentPage === 1}
+                  onClick={() => setHsnSacMasterCurrentPage(Math.max(1, hsnSacMasterCurrentPage - 1))}
+                  disabled={hsnSacMasterCurrentPage === 1}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 >
                   Previous
@@ -590,18 +448,18 @@ export default function ItemMasterPage() {
                   {Array.from({ length: Math.min(5, totalPages || 1) }, (_, index) => {
                     let page;
                     if (totalPages <= 5) page = index + 1;
-                    else if (itemMasterCurrentPage <= 3) page = index + 1;
-                    else if (itemMasterCurrentPage >= totalPages - 2) page = totalPages - 4 + index;
-                    else page = itemMasterCurrentPage - 2 + index;
+                    else if (hsnSacMasterCurrentPage <= 3) page = index + 1;
+                    else if (hsnSacMasterCurrentPage >= totalPages - 2) page = totalPages - 4 + index;
+                    else page = hsnSacMasterCurrentPage - 2 + index;
 
                     return (
                       <button
                         key={page}
-                        onClick={() => setItemMasterCurrentPage(page)}
-                        className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${itemMasterCurrentPage === page
-                          ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
-                          : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
-                          }`}
+                        onClick={() => setHsnSacMasterCurrentPage(page)}
+                        className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${hsnSacMasterCurrentPage === page
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 border-transparent'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          } border`}
                       >
                         {page}
                       </button>
@@ -610,18 +468,13 @@ export default function ItemMasterPage() {
                 </div>
 
                 <button
-                  onClick={() => setItemMasterCurrentPage(Math.min(totalPages, itemMasterCurrentPage + 1))}
-                  disabled={itemMasterCurrentPage === totalPages || totalPages === 0}
+                  onClick={() => setHsnSacMasterCurrentPage(Math.min(totalPages, hsnSacMasterCurrentPage + 1))}
+                  disabled={hsnSacMasterCurrentPage === totalPages || totalPages === 0}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 >
                   Next
                 </button>
               </div>
-
-              <p className="text-sm font-medium text-slate-500">
-                Page <span className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{itemMasterCurrentPage}</span> of{' '}
-                <span className="text-slate-800">{totalPages || 1}</span>
-              </p>
             </div>
           </div>
         </>

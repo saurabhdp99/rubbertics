@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore';
 export const navItems = [
   { label: 'Sale Orders', path: '/orders', icon: ShoppingBag },
   { label: 'Item Master', path: '/item-master', icon: Package },
+  { label: 'HSN/SAC Master', path: '/hsn-sac-master', icon: Barcode },
   { label: 'Machine Master', path: '/machine-master', icon: Settings },
   { label: 'Party Master', path: '/party-master', icon: ContactRound },
   { label: 'Transport Master', path: '/transport-master', icon: Truck },

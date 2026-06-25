@@ -58,6 +58,7 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
           value={value || 'Active'}
           onChange={(val) => onChange(field.key, val)}
           placeholder="Select status"
+          aria-label={field.label}
         >
           <Select.Trigger className={customClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
             <Select.Value />
@@ -173,13 +174,11 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
             min={1}
             step={1}
             value={numVal}
-            isDisabled={disabled}
+            disabled={disabled}
             onChange={handleNum}
             placeholder="e.g. 3"
-            classNames={{
-              inputWrapper: `h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`
-            }}
-            className="flex-1 min-w-0"
+            aria-label="Frequency Value"
+            className={`flex-1 min-w-0 h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}
           />
           <Select
             isDisabled={disabled}
@@ -229,6 +228,7 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
           isDisabled={disabled}
           onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
           className="w-full"
+          aria-label={field.label}
         >
           <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
             <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
@@ -269,10 +269,11 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
           type={field.type === 'number' ? 'number' : 'text'}
           step={field.type === 'number' ? '0.01' : undefined}
           value={value ?? ''}
-          isDisabled={disabled}
+          disabled={disabled}
           onChange={(event) => onChange(field.key, event.target.value)}
           className={customClass}
           placeholder={field.label}
+          aria-label={field.label}
         />
       )}
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
@@ -561,10 +562,8 @@ export default function MachineMasterPage() {
                   placeholder="Search by code, name, type, serial no..."
                   value={machineMasterSearchQuery}
                   onChange={event => setStoreState({ machineMasterSearchQuery: event.target.value })}
-                  className="w-full"
-                  classNames={{
-                    inputWrapper: "pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
-                  }}
+                  aria-label="Search machines"
+                  className="w-full pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
                 />
               </div>
 
