@@ -16,12 +16,14 @@ const EMPTY_ORDER = {
   createdDate: todayIsoDate(),
   date: todayIsoDate(),
   soNo: '',
-  soType: 'Sale',
   partyName: '',
-  partNos: [''],
-  productName: '',
-  orderQty: '',
-  deliveryDate: '',
+  items: [{
+    partNo: '',
+    productName: '',
+    orderQty: '',
+    scheduleQty: '',
+    deliveryDate: ''
+  }],
   remark: '',
 };
 
@@ -50,12 +52,12 @@ function SortIcon({ sortDirection }) {
 const COLUMNS = [
   { key: 'date', label: 'Date', width: '100px' },
   { key: 'soNo', label: 'PO No', width: '140px' },
-  { key: 'soType', label: 'PO Type', width: '110px' },
   { key: 'partyName', label: 'Party Name', width: '180px' },
-  { key: 'partNos', label: 'Part No', width: '150px' },
-  { key: 'productName', label: 'Product Name', width: '240px' },
-  { key: 'orderQty', label: 'Order Qty', width: '100px', align: 'right' },
-  { key: 'deliveryDate', label: 'Delivery Date', width: '120px' },
+  { key: 'items_partNo', label: 'Part No', width: '150px' },
+  { key: 'items_productName', label: 'Product Name', width: '240px' },
+  { key: 'items_orderQty', label: 'Total Order Qty', width: '120px', align: 'right' },
+  { key: 'items_scheduleQty', label: 'Total Sched Qty', width: '120px', align: 'right' },
+  { key: 'items_deliveryDate', label: 'Delivery Date(s)', width: '140px' },
   { key: 'remark', label: 'Remarks', width: '140px' },
 ];
 
@@ -80,10 +82,19 @@ function SaleOrderForm({ mode, order, onBack }) {
   } = useERPStore();
   const [form, setForm] = useState(() => {
     if (order) {
-      let parsedPartNos = [''];
-      if (Array.isArray(order.partNos) && order.partNos.length > 0) parsedPartNos = [...order.partNos];
-      else if (order.partNo) parsedPartNos = [order.partNo];
-      return { ...EMPTY_ORDER, ...order, partNos: parsedPartNos };
+      let items = order.items || [];
+      if (items.length === 0) {
+        // Migrate legacy flat structure
+        const legacyPartNos = Array.isArray(order.partNos) ? order.partNos : (order.partNo ? [order.partNo] : ['']);
+        items = legacyPartNos.map((p, i) => ({
+          partNo: p,
+          productName: i === 0 ? (order.productName || '') : '',
+          orderQty: i === 0 ? (order.orderQty || '') : '',
+          scheduleQty: '',
+          deliveryDate: i === 0 ? (order.deliveryDate || '') : ''
+        }));
+      }
+      return { ...EMPTY_ORDER, ...order, items };
     }
     return { ...EMPTY_ORDER };
   });
@@ -98,9 +109,12 @@ function SaleOrderForm({ mode, order, onBack }) {
     const e = {};
     if (!form.soNo?.trim()) e.soNo = 'PO Number is required';
     if (!form.partyName?.trim()) e.partyName = 'Party name is required';
-    if (!form.productName?.trim()) e.productName = 'Product name is required';
-    if (!form.orderQty || isNaN(form.orderQty)) e.orderQty = 'Valid quantity required';
-    if (!form.deliveryDate) e.deliveryDate = 'Delivery date required';
+    
+    (form.items || []).forEach((item, idx) => {
+      if (!item.orderQty || isNaN(item.orderQty)) e[`item_${idx}_orderQty`] = 'Valid quantity required';
+      if (!item.deliveryDate) e[`item_${idx}_deliveryDate`] = 'Delivery date required';
+    });
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -109,9 +123,19 @@ function SaleOrderForm({ mode, order, onBack }) {
     e.preventDefault();
     if (!validate()) return;
     const finalForm = { ...form };
-    finalForm.partNos = (finalForm.partNos || []).filter(p => p && String(p).trim() !== '');
-    if (finalForm.partNos.length === 0) finalForm.partNos = [''];
-    finalForm.partNo = finalForm.partNos[0] || '';
+    
+    finalForm.items = (finalForm.items || []).filter(item => 
+      item.partNo || item.productName || item.orderQty || item.deliveryDate || item.scheduleQty
+    );
+    if (finalForm.items.length === 0) {
+      finalForm.items = [{ ...EMPTY_ORDER.items[0] }];
+    }
+
+    delete finalForm.partNos;
+    delete finalForm.partNo;
+    delete finalForm.productName;
+    delete finalForm.orderQty;
+    delete finalForm.deliveryDate;
 
     if (isAdd) addOrder(finalForm);
     else updateOrder(order.id, finalForm);
@@ -249,118 +273,150 @@ function SaleOrderForm({ mode, order, onBack }) {
                   <Input type="text" value={form.soNo} isDisabled={isView} onChange={e => set('soNo', e.target.value)} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
-                <Field label="PO Type">
-                  <EditableCreatableSelect
-                    value={form.soType}
-                    options={saleOrderLookups.soType || []}
-                    disabled={isView}
-                    placeholder="PO Type"
-                    onChange={v => set('soType', v)}
-                    onAdd={(newOption) => addSaleOrderLookupOption('soType', newOption)}
-                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('soType', oldOption, newOption)}
-                    onDelete={(option) => deleteSaleOrderLookupOption('soType', option)}
-                  />
-                </Field>
-
 
 
                 <Field label="Party Name" required error={errors.partyName}>
                   <Input type="text" value={form.partyName} isDisabled={isView} onChange={e => set('partyName', e.target.value)} placeholder="Company / Party name" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
-                <Field label="Part Numbers" wide>
-                  <div className="flex flex-col gap-3">
-                    {(form.partNos || ['']).map((part, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <Input
-                            type="text"
-                            value={part}
-                            isDisabled={isView}
-                            placeholder={`Part Number ${index + 1}`}
-                            onChange={e => {
-                              const newPartNos = [...(form.partNos || [''])];
-                              newPartNos[index] = e.target.value;
-                              set('partNos', newPartNos);
-                            }}
-                            className={`${inputCls} px-4 py-3`}
-                          />
-                        </div>
-                        {!isView && (
+                <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col gap-4 mt-2">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Package size={16} className="text-emerald-500" />
+                    Line Items
+                  </h3>
+                  
+                  {(form.items || []).map((item, index) => (
+                    <div key={index} className="relative bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm group">
+                      <div className="absolute top-4 right-4">
+                        {!isView && (form.items.length > 1) && (
                           <button
                             type="button"
                             onClick={() => {
-                              const newPartNos = [...(form.partNos || [''])];
-                              newPartNos.splice(index, 1);
-                              if (newPartNos.length === 0) newPartNos.push('');
-                              set('partNos', newPartNos);
+                              const newItems = [...form.items];
+                              newItems.splice(index, 1);
+                              set('items', newItems);
                             }}
-                            className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors"
-                            title="Remove Part Number"
+                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove Item"
                           >
                             <Trash2 size={16} />
                           </button>
                         )}
                       </div>
-                    ))}
-                    {!isView && (
-                      <button
-                        type="button"
-                        onClick={() => set('partNos', [...(form.partNos || ['']), ''])}
-                        className="flex items-center gap-2 self-start px-4 py-2 mt-1 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                      >
-                        <Plus size={16} />
-                        Add Another Part Number
-                      </button>
-                    )}
-                  </div>
-                </Field>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 pr-8">
+                        <Field label={`Part Number ${index + 1}`}>
+                          <Input
+                            type="text"
+                            value={item.partNo || ''}
+                            isDisabled={isView}
+                            placeholder="Part Number"
+                            onChange={e => {
+                              const newItems = [...form.items];
+                              newItems[index] = { ...newItems[index], partNo: e.target.value };
+                              set('items', newItems);
+                            }}
+                            className={`${inputCls} px-4 py-3`}
+                          />
+                        </Field>
 
-                <Field label="Product Name" required wide error={errors.productName}>
-                  <Input type="text" value={form.productName} isDisabled={isView} onChange={e => set('productName', e.target.value)} placeholder="Full product description" className={`${inputCls} px-4 py-3`} />
-                </Field>
+                        <Field label="Product Name" wide>
+                          <Input
+                            type="text"
+                            value={item.productName || ''}
+                            isDisabled={isView}
+                            placeholder="Product Name"
+                            onChange={e => {
+                              const newItems = [...form.items];
+                              newItems[index] = { ...newItems[index], productName: e.target.value };
+                              set('items', newItems);
+                            }}
+                            className={`${inputCls} px-4 py-3`}
+                          />
+                        </Field>
+                        
+                        <Field label="Order Qty" required error={errors[`item_${index}_orderQty`]}>
+                          <Input
+                            type="number"
+                            value={item.orderQty || ''}
+                            isDisabled={isView}
+                            placeholder="0"
+                            onChange={e => {
+                              const newItems = [...form.items];
+                              newItems[index] = { ...newItems[index], orderQty: e.target.value };
+                              set('items', newItems);
+                            }}
+                            className={`${inputCls} px-4 py-3`}
+                          />
+                        </Field>
 
+                        <Field label="Schedule Qty">
+                          <Input
+                            type="number"
+                            value={item.scheduleQty || ''}
+                            isDisabled={isView}
+                            placeholder="0"
+                            onChange={e => {
+                              const newItems = [...form.items];
+                              newItems[index] = { ...newItems[index], scheduleQty: e.target.value };
+                              set('items', newItems);
+                            }}
+                            className={`${inputCls} px-4 py-3`}
+                          />
+                        </Field>
 
+                        <Field label="Delivery Date" required error={errors[`item_${index}_deliveryDate`]}>
+                          <DatePicker
+                            value={item.deliveryDate ? parseDate(item.deliveryDate) : null}
+                            isDisabled={isView}
+                            onChange={(dateVal) => {
+                              const newItems = [...form.items];
+                              newItems[index] = { ...newItems[index], deliveryDate: dateVal ? dateVal.toString() : '' };
+                              set('items', newItems);
+                            }}
+                            className="w-full"
+                          >
+                            <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                              <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
+                                {(segment) => <DateField.Segment segment={segment} />}
+                              </DateField.Input>
+                              <DateField.Suffix className="pr-2">
+                                <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                                  <DatePicker.TriggerIndicator />
+                                </DatePicker.Trigger>
+                              </DateField.Suffix>
+                            </DateField.Group>
+                            <DatePicker.Popover>
+                              <HeroCalendar>
+                                <HeroCalendar.Header>
+                                  <HeroCalendar.NavButton slot="previous" />
+                                  <HeroCalendar.NavButton slot="next" />
+                                </HeroCalendar.Header>
+                                <HeroCalendar.Grid>
+                                  <HeroCalendar.GridHeader>
+                                    {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                                  </HeroCalendar.GridHeader>
+                                  <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                                </HeroCalendar.Grid>
+                              </HeroCalendar>
+                            </DatePicker.Popover>
+                          </DatePicker>
+                        </Field>
+                      </div>
+                    </div>
+                  ))}
 
-                <Field label="Order Quantity" required error={errors.orderQty}>
-                  <Input type="number" value={form.orderQty} isDisabled={isView} onChange={e => set('orderQty', e.target.value)} placeholder="0" className={`${inputCls} px-4 py-3`} />
-                </Field>
-
-
-
-                <Field label="Delivery Date" required error={errors.deliveryDate}>
-                  <DatePicker
-                    value={form.deliveryDate ? parseDate(form.deliveryDate) : null}
-                    isDisabled={isView}
-                    onChange={(dateVal) => set('deliveryDate', dateVal ? dateVal.toString() : '')}
-                    className="w-full"
-                  >
-                    <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                      <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
-                        {(segment) => <DateField.Segment segment={segment} />}
-                      </DateField.Input>
-                      <DateField.Suffix className="pr-2">
-                        <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                          <DatePicker.TriggerIndicator />
-                        </DatePicker.Trigger>
-                      </DateField.Suffix>
-                    </DateField.Group>
-                    <DatePicker.Popover>
-                      <HeroCalendar>
-                        <HeroCalendar.Header>
-                          <HeroCalendar.NavButton slot="previous" />
-                          <HeroCalendar.NavButton slot="next" />
-                        </HeroCalendar.Header>
-                        <HeroCalendar.Grid>
-                          <HeroCalendar.GridHeader>
-                            {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                          </HeroCalendar.GridHeader>
-                          <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
-                        </HeroCalendar.Grid>
-                      </HeroCalendar>
-                    </DatePicker.Popover>
-                  </DatePicker>
-                </Field>
+                  {!isView && (
+                    <button
+                      type="button"
+                      onClick={() => set('items', [...(form.items || []), { ...EMPTY_ORDER.items[0] }])}
+                      className="flex items-center gap-2 self-start px-4 py-2 mt-1 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                    >
+                      <Plus size={16} />
+                      Add Another Item
+                    </button>
+                  )}
+                </div>
 
 
 
@@ -408,7 +464,6 @@ export default function SaleOrdersPage() {
     searchQuery, setSearchQuery,
     filterStatus, setFilterStatus,
     filterPriority, setFilterPriority,
-    filterPoType, setFilterPoType,
     currentPage, setCurrentPage,
     itemsPerPage, setItemsPerPage,
     sortField, sortDirection, setSortField, setSortDirection,
@@ -418,7 +473,7 @@ export default function SaleOrdersPage() {
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 
-  const allPoTypes = ['All', ...(saleOrderLookups?.soType || [])];
+
   const allStatuses = ['All', ...(saleOrderLookups?.finalStatus || [])];
   const allPriorities = ['All', ...(saleOrderLookups?.priority || [])];
 
@@ -438,7 +493,6 @@ export default function SaleOrdersPage() {
     setSearchQuery('');
     setFilterStatus('All');
     setFilterPriority('All');
-    setFilterPoType('All');
   };
 
   const exportCsv = () => {
@@ -465,16 +519,34 @@ export default function SaleOrdersPage() {
       );
     }
 
-    if (column.key === 'soType') {
-      return (
-        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${value === 'Sale' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
-          {value || '-'}
-        </span>
-      );
+
+
+    if (column.key === 'partyName') {
+      return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
     }
 
-    if (column.key === 'partyName' || column.key === 'productName') {
-      return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
+    if (column.key?.startsWith('items_')) {
+      const items = order.items || [];
+      if (column.key === 'items_partNo') {
+        const val = items.map(i => i.partNo).filter(Boolean).join(', ');
+        return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{val || '-'}</span>;
+      }
+      if (column.key === 'items_productName') {
+        const val = items.map(i => i.productName).filter(Boolean).join(', ');
+        return <span className="font-bold text-slate-800 line-clamp-2" title={val}>{val || '-'}</span>;
+      }
+      if (column.key === 'items_orderQty') {
+        const sum = items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
+        return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
+      }
+      if (column.key === 'items_scheduleQty') {
+        const sum = items.reduce((s, i) => s + Number(i.scheduleQty || 0), 0);
+        return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
+      }
+      if (column.key === 'items_deliveryDate') {
+        const val = [...new Set(items.map(i => i.deliveryDate).filter(Boolean))].join(', ');
+        return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{val || '-'}</span>;
+      }
     }
 
     if (column.key === 'priority') {
@@ -506,7 +578,6 @@ export default function SaleOrdersPage() {
       );
     }
 
-    if (column.key === 'orderQty') return <span className="text-slate-700 font-bold">{Number(value).toLocaleString()}</span>;
     if (column.key === 'dispatchQty') return <span className="text-emerald-600 font-bold">{Number(value).toLocaleString()}</span>;
     if (column.key === 'balanceQty') return <span className="font-bold" style={{ color: Number(value) > 0 ? '#ef4444' : '#10b981' }}>{Number(value).toLocaleString()}</span>;
 
@@ -518,12 +589,7 @@ export default function SaleOrdersPage() {
       );
     }
 
-    if (column.key === 'partNos') {
-      const displayVal = Array.isArray(value) ? value.join(', ') : value;
-      return <span className="font-semibold text-slate-700 whitespace-nowrap">{displayVal || '-'}</span>;
-    }
-
-    if (column.key === 'date' || column.key === 'deliveryDate' || column.key === 'partNo') {
+    if (column.key === 'date') {
       return <span className="font-semibold text-slate-700 whitespace-nowrap">{value || '-'}</span>;
     }
 
@@ -567,21 +633,6 @@ export default function SaleOrdersPage() {
               </div>
 
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-                <Select
-                  selectedKeys={[filterPoType]}
-                  onSelectionChange={v => setFilterPoType(Array.from(v)[0])}
-                  className="w-[150px]"
-                  aria-label="PO Type Filter"
-                >
-                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {allPoTypes.map(t => <ListBox.Item key={t} id={t} textValue={t === 'All' ? 'All Types' : t}>{t === 'All' ? 'All Types' : t}</ListBox.Item>)}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
                 <Select
                   selectedKeys={[filterStatus]}
                   onSelectionChange={v => setFilterStatus(Array.from(v)[0])}
@@ -630,7 +681,7 @@ export default function SaleOrdersPage() {
               <p className="text-xs font-medium text-slate-500">
                 Showing <span className="text-slate-800 font-bold px-1">{filtered.length}</span> of <span className="text-slate-800 font-bold px-1">{orders.length}</span> orders
               </p>
-              {(searchQuery || filterStatus !== 'All' || filterPriority !== 'All' || filterPoType !== 'All') && (
+              {(searchQuery || filterStatus !== 'All' || filterPriority !== 'All') && (
                 <button onClick={clearFilters} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                   <RefreshCw size={12} /> Clear Filters
                 </button>
