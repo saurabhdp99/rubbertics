@@ -1,8 +1,14 @@
-﻿export const ITEM_MASTER_FIELDS = [
+export const ITEM_MASTER_FIELDS = [
   {
     "key": "itemCategory",
     "label": "Item Category",
-    "type": "text",
+    "type": "creatable-select",
+    "section": "Basic Details"
+  },
+  {
+    "key": "subCategory",
+    "label": "Sub Category",
+    "type": "creatable-select",
     "section": "Basic Details"
   },
   {
@@ -30,26 +36,20 @@
     "section": "Basic Details"
   },
   {
-    "key": "remarks",
-    "label": "Remarks",
-    "type": "text",
-    "section": "Basic Details"
-  },
-  {
     "key": "itemHsn",
     "label": "Item HSN",
     "type": "text",
     "section": "Basic Details"
   },
   {
-    "key": "hsnTax",
-    "label": "HSN Tax",
-    "type": "number",
+    "key": "aliasName",
+    "label": "Alias Name",
+    "type": "text",
     "section": "Basic Details"
   },
   {
-    "key": "aliasName",
-    "label": "Alias Name",
+    "key": "remarks",
+    "label": "Remarks",
     "type": "text",
     "section": "Basic Details"
   },
@@ -66,27 +66,15 @@
     "section": "Measurements"
   },
   {
-    "key": "isProduct",
-    "label": "Is Product?",
-    "type": "select",
+    "key": "standardPacking",
+    "label": "Standard Packing",
+    "type": "number",
     "section": "Measurements"
   },
   {
-    "key": "isNeedToInspect",
-    "label": "Is Need to Inspect?",
-    "type": "select",
-    "section": "Measurements"
-  },
-  {
-    "key": "isQtyVerificationRequired",
-    "label": "Is Qty. Verification Required?",
-    "type": "select",
-    "section": "Measurements"
-  },
-  {
-    "key": "batchNumberApplicable",
-    "label": "Batch Number Applicable?",
-    "type": "select",
+    "key": "uom",
+    "label": "Unit of Measure",
+    "type": "creatable-select",
     "section": "Measurements"
   },
   {
@@ -150,30 +138,6 @@
     "section": "Planning & Stock"
   },
   {
-    "key": "itemPurchaseLedger",
-    "label": "Item Purchase Ledger",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "itemSaleLedger",
-    "label": "Item Sale Ledger",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "itemServiceLedger",
-    "label": "Item Service Ledger",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "className",
-    "label": "Class",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
     "key": "haveSelfLife",
     "label": "Have Self Life?",
     "type": "select",
@@ -186,21 +150,9 @@
     "section": "Ledgers & References"
   },
   {
-    "key": "autoConsumptionIssueToDept",
-    "label": "Auto Consumption @ Issue To Dept.?",
-    "type": "select",
-    "section": "Ledgers & References"
-  },
-  {
     "key": "scrapItem",
     "label": "Scrap Item",
     "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "mrpPrice",
-    "label": "MRP Price",
-    "type": "number",
     "section": "Ledgers & References"
   },
   {

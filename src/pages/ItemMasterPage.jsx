@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   ArrowLeft,
-  BadgeIndianRupee,
-  Boxes,
   Edit,
   Eye,
   FileDown,
@@ -18,7 +15,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import StatsCard from '../components/common/StatsCard';
+import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useERPStore } from '../store/erpStore';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
@@ -37,10 +34,29 @@ const TABLE_COLUMNS = ITEM_MASTER_FIELDS.map(field => ({
 
 const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References'];
 
-function FormField({ field, value, onChange, disabled, error }) {
+function FormField({ field, value, onChange, disabled, error, options = [] }) {
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;
+
+  if (field.type === 'creatable-select') {
+    return (
+      <div className="flex flex-col gap-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {field.label}
+          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <EditableCreatableSelect
+          value={value ?? ''}
+          options={options}
+          onChange={(val) => onChange(field.key, val)}
+          disabled={disabled}
+          placeholder={`Select or type ${field.label.toLowerCase()}`}
+        />
+        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+      </div>
+    );
+  }
 
   if (field.type === 'select') {
     return (
@@ -152,7 +168,7 @@ function FormField({ field, value, onChange, disabled, error }) {
 }
 
 function ItemMasterForm({ mode, item, onBack }) {
-  const { addItemMaster, updateItemMaster } = useERPStore();
+  const { addItemMaster, updateItemMaster, itemMasterItems } = useERPStore();
   const [form, setForm] = useState(EMPTY_ITEM);
   const [errors, setErrors] = useState({});
 
@@ -160,6 +176,18 @@ function ItemMasterForm({ mode, item, onBack }) {
     setForm(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
     setErrors({});
   }, [item, mode]);
+
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(itemMasterItems.map(i => i.itemCategory).filter(Boolean))).sort();
+  }, [itemMasterItems]);
+
+  const uniqueSubCategories = useMemo(() => {
+    return Array.from(new Set(itemMasterItems.map(i => i.subCategory).filter(Boolean))).sort();
+  }, [itemMasterItems]);
+
+  const uniqueUoms = useMemo(() => {
+    return Array.from(new Set(itemMasterItems.map(i => i.uom).filter(Boolean))).sort();
+  }, [itemMasterItems]);
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
@@ -252,6 +280,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                       onChange={set}
                       disabled={isView}
                       error={errors[field.key]}
+                      options={field.key === 'itemCategory' ? uniqueCategories : field.key === 'subCategory' ? uniqueSubCategories : field.key === 'uom' ? uniqueUoms : []}
                     />
                   ))}
                 </div>
@@ -299,13 +328,11 @@ export default function ItemMasterPage() {
     setItemMasterItemsPerPage,
     deleteItemMaster,
     getFilteredItemMasterItems,
-    getItemMasterStats,
   } = useERPStore();
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 
   const filtered = getFilteredItemMasterItems();
-  const stats = getItemMasterStats();
   const totalPages = Math.ceil(filtered.length / itemMasterItemsPerPage);
   const pagedItems = filtered.slice(
     (itemMasterCurrentPage - 1) * itemMasterItemsPerPage,
@@ -378,13 +405,6 @@ export default function ItemMasterPage() {
 
   return (
     <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatsCard label="Total Items" value={stats.total.toLocaleString()} icon={Boxes} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
-        <StatsCard label="Active Items" value={stats.active.toLocaleString()} icon={Activity} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
-        <StatsCard label="Categories" value={stats.categories.toLocaleString()} icon={Tag} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
-        <StatsCard label="Avg. Price" value={`Rs. ${stats.avgPrice.toFixed(2)}`} icon={BadgeIndianRupee} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
-      </div>
-
       {viewState.type === 'form' ? (
         <ItemMasterForm mode={viewState.mode} item={viewState.item} onBack={backToTable} />
       ) : (

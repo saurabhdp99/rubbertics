@@ -15,6 +15,7 @@ export default function EditableCreatableSelect({
   const [newValue, setNewValue] = useState('');
   const [editingValue, setEditingValue] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [localOptions, setLocalOptions] = useState([]);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -33,18 +34,19 @@ export default function EditableCreatableSelect({
 
   const uniqueOptions = useMemo(() => {
     const seen = new Set();
-    return options.filter(option => {
+    return [...options, ...localOptions].filter(option => {
       const key = String(option || '').trim().toLowerCase();
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [options]);
+  }, [options, localOptions]);
 
   const commitAdd = () => {
     const cleaned = newValue.trim();
     if (!cleaned) return;
     onAdd?.(cleaned);
+    setLocalOptions(prev => [...prev, cleaned]);
     onChange?.(cleaned);
     setNewValue('');
     setIsOpen(false);
@@ -59,14 +61,19 @@ export default function EditableCreatableSelect({
     const cleaned = editingText.trim();
     if (!editingValue || !cleaned) return;
     onRename?.(editingValue, cleaned);
+    setLocalOptions(prev => prev.map(opt => opt === editingValue ? cleaned : opt));
     if (value === editingValue) onChange?.(cleaned);
     setEditingValue(null);
     setEditingText('');
   };
 
   const commitDelete = (option) => {
-    const deleted = onDelete?.(option);
-    if (deleted && value === option) onChange?.('');
+    if (onDelete) {
+      const deleted = onDelete(option);
+      if (!deleted) return;
+    }
+    setLocalOptions(prev => prev.filter(opt => opt !== option));
+    if (value === option) onChange?.('');
   };
 
   return (
