@@ -168,12 +168,6 @@ export const ITEM_MASTER_FIELDS = [
     "section": "Ledgers & References"
   },
   {
-    "key": "customerName",
-    "label": "Customer Name",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
     "key": "partName",
     "label": "Part Name",
     "type": "text",
@@ -184,6 +178,24 @@ export const ITEM_MASTER_FIELDS = [
     "label": "Part No.",
     "type": "text",
     "section": "Ledgers & References"
+  },
+  {
+    "key": "preferredVendor",
+    "label": "Preferred Vendor",
+    "type": "dynamic-select",
+    "section": "Ledgers & References"
+  },
+  {
+    "key": "alternateVendor",
+    "label": "Alternate Vendor",
+    "type": "dynamic-select",
+    "section": "Ledgers & References"
+  },
+  {
+    "key": "qualityAttachments",
+    "label": "Quality Attachments",
+    "type": "attachments",
+    "section": "Quality"
   }
 ];
 

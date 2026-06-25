@@ -188,7 +188,35 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
   }));
 
   const set = (key, value) => {
-    setForm(current => ({ ...current, [key]: value }));
+    setForm(current => {
+      const updated = { ...current, [key]: value };
+      
+      // Handle "Same as Current Address" logic
+      if (key === 'sameAsCurrentAddress' && value === true) {
+        updated.permanentAddressLine1 = updated.currentAddressLine1;
+        updated.permanentAddressLine2 = updated.currentAddressLine2;
+        updated.permanentCity = updated.currentCity;
+        updated.permanentDistrict = updated.currentDistrict;
+        updated.permanentState = updated.currentState;
+        updated.permanentPincode = updated.currentPincode;
+        updated.permanentCountry = updated.currentCountry;
+      } else if (updated.sameAsCurrentAddress && key.startsWith('current')) {
+        const fieldMapping = {
+          currentAddressLine1: 'permanentAddressLine1',
+          currentAddressLine2: 'permanentAddressLine2',
+          currentCity: 'permanentCity',
+          currentDistrict: 'permanentDistrict',
+          currentState: 'permanentState',
+          currentPincode: 'permanentPincode',
+          currentCountry: 'permanentCountry'
+        };
+        if (fieldMapping[key]) {
+          updated[fieldMapping[key]] = value;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const validate = () => {
@@ -278,7 +306,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
                       field={field}
                       value={form[field.key]}
                       onChange={set}
-                      disabled={isView}
+                      disabled={isView || (form.sameAsCurrentAddress && field.key.startsWith('permanent'))}
                       error={errors[field.key]}
                       options={employeeMasterLookups[field.key] || field.options}
                       onAddOption={(newOption) => addEmployeeMasterLookupOption(field.key, newOption)}

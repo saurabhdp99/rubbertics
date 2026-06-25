@@ -27,6 +27,12 @@ export const TRANSPORT_MASTER_FIELDS = [
     wide: true,
   },
   {
+    key: 'location',
+    label: 'Location',
+    type: 'text',
+    section: 'Transporter Master - Main Details',
+  },
+  {
     key: 'gstNo',
     label: 'GST No',
     type: 'text',
@@ -119,6 +125,12 @@ export const TRANSPORT_MASTER_FIELDS = [
     key: 'createdDate',
     label: 'Created Date',
     type: 'date',
+    section: 'Transporter Master - Main Details',
+  },
+  {
+    key: 'otherContacts',
+    label: 'Other Contact Persons',
+    type: 'contacts',
     section: 'Transporter Master - Main Details',
   },
 ];

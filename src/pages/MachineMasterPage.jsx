@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Activity,
   ArrowLeft,
   Settings,
   Boxes,
+  Download,
   Edit,
   Eye,
   FileDown,
+  FileText,
   Hash,
   Wrench,
   Plus,
@@ -16,6 +18,7 @@ import {
   SlidersHorizontal,
   Tag,
   Trash2,
+  UploadCloud,
   X,
   AlertCircle
 } from 'lucide-react';
@@ -27,21 +30,158 @@ import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar }
 import { parseDate } from '@internationalized/date';
 
 const EMPTY_MACHINE = MACHINE_MASTER_FIELDS.reduce((machine, field) => {
-  machine[field.key] = field.type === 'select' ? 'Active' : '';
+  machine[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : '';
   return machine;
 }, {});
 
-const TABLE_COLUMNS = MACHINE_MASTER_FIELDS.map(field => ({
+const TABLE_COLUMNS = MACHINE_MASTER_FIELDS.filter(f => f.type !== 'attachments').map(field => ({
   ...field,
   width: field.type === 'number' ? '120px' : field.type === 'select' || field.type === 'date' ? '130px' : '180px',
   align: field.type === 'number' ? 'right' : field.type === 'select' || field.type === 'date' ? 'center' : 'left',
 }));
 
-const SECTION_ORDER = ['Basic Details', 'Maintenance & Specs', 'Status & Responsibilities'];
+const SECTION_ORDER = ['Basic Details', 'Maintenance & Specs', 'Status & Responsibilities', 'Documents & Attachments'];
 
 
+
+function AttachmentsField({ value, onChange, disabled, fieldKey }) {
+  const fileInputRef = useRef(null);
+  const [editingId, setEditingId] = useState(null);
+
+  const handleAdd = () => {
+    const newAttachment = { id: crypto.randomUUID(), name: '', fileData: null, fileName: '', fileType: '' };
+    onChange(fieldKey, [...(value || []), newAttachment]);
+  };
+
+  const handleRemove = (id) => {
+    onChange(fieldKey, (value || []).filter(att => att.id !== id));
+  };
+
+  const handleUpdate = (id, updates) => {
+    onChange(fieldKey, (value || []).map(att => att.id === id ? { ...att, ...updates } : att));
+  };
+
+  const handleFileChange = (id, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        handleUpdate(id, {
+          fileData: event.target.result,
+          fileName: file.name,
+          fileType: file.type
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = null;
+  };
+
+  const triggerFileInput = (id) => {
+    setEditingId(id);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const openFile = (fileData) => {
+    if (!fileData) return;
+    const newTab = window.open();
+    newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <input
+        type="file"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={(e) => handleFileChange(editingId, e)}
+        accept=".pdf,.doc,.docx,.xls,.xlsx"
+      />
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {(!value || value.length === 0) ? 'Attachments' : `Attachments (${value.length})`}
+        </Label>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+          >
+            <Plus size={14} /> Add Attachment
+          </button>
+        )}
+      </div>
+
+      {(!value || value.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
+          <FileText size={32} className="mb-2 opacity-50" />
+          <p className="text-sm font-medium">No attachments added</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {value.map((att) => (
+            <div key={att.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex-1 w-full">
+                <Input
+                  placeholder="Enter attachment name (e.g. Inspection Report)"
+                  value={att.name}
+                  onChange={(e) => handleUpdate(att.id, { name: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus-within:bg-white transition-colors h-[42px] px-3 rounded-lg border border-slate-200 focus-within:border-emerald-500/50"
+                  aria-label="Attachment Name"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                {!att.fileData ? (
+                  !disabled && (
+                    <button
+                      type="button"
+                      onClick={() => triggerFileInput(att.id)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors h-[42px]"
+                    >
+                      <UploadCloud size={16} /> Upload File
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openFile(att.fileData)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors truncate max-w-[200px] h-[42px]"
+                    title={att.fileName}
+                  >
+                    <Eye size={16} className="shrink-0" /> <span className="truncate">{att.fileName}</span>
+                  </button>
+                )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(att.id)}
+                    className="p-2 h-[42px] w-[42px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                    title="Remove Attachment"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FormField({ field, value, onChange, disabled, error, options, onAddOption, onRenameOption, onDeleteOption }) {
+  if (field.type === 'attachments') {
+    return (
+      <div className="col-span-1 md:col-span-2 xl:col-span-3">
+        <AttachmentsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+      </div>
+    );
+  }
+
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const customClass = `${baseInputClass} px-4 py-3`;

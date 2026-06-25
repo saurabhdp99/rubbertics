@@ -6,6 +6,7 @@ import {
   Eye,
   FileDown,
   Hash,
+  MapPin,
   Mail,
   Phone,
   Plus,
@@ -16,6 +17,7 @@ import {
   Tag,
   Trash2,
   Truck,
+  Users,
   X,
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
@@ -29,6 +31,7 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_TRANSPORTER = TRANSPORT_MASTER_FIELDS.reduce((transporter, field) => {
   if (field.type === 'select') transporter[field.key] = field.options?.[0] || '';
+  else if (field.type === 'contacts') transporter[field.key] = [];
   else if (field.key === 'createdDate') transporter[field.key] = todayIsoDate();
   else transporter[field.key] = '';
   return transporter;
@@ -46,11 +49,98 @@ const createInitialTransporterForm = (transporter, getNextTransporterCode) => {
 };
 
 const TABLE_COLUMNS = TRANSPORT_MASTER_FIELDS
+  .filter(field => field.type !== 'contacts')
   .map(field => ({
     ...field,
     width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' ? '170px' : '180px',
     align: ['transporterCode', 'status'].includes(field.key) ? 'center' : 'left',
   }));
+
+function ContactsField({ value, onChange, disabled, fieldKey }) {
+  const handleAdd = () => {
+    const newContact = { id: crypto.randomUUID(), name: '', mobileNo: '', location: '' };
+    onChange(fieldKey, [...(value || []), newContact]);
+  };
+
+  const handleRemove = (id) => {
+    onChange(fieldKey, (value || []).filter(c => c.id !== id));
+  };
+
+  const handleUpdate = (id, updates) => {
+    onChange(fieldKey, (value || []).map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {(!value || value.length === 0) ? 'Other Contact Persons' : `Other Contact Persons (${value.length})`}
+        </Label>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+          >
+            <Plus size={14} /> Add Contact
+          </button>
+        )}
+      </div>
+
+      {(!value || value.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
+          <Users size={32} className="mb-2 opacity-50" />
+          <p className="text-sm font-medium">No other contacts added</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {value.map((contact) => (
+            <div key={contact.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input
+                  placeholder="Contact Person Name"
+                  value={contact.name}
+                  onChange={(e) => handleUpdate(contact.id, { name: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus-within:bg-white transition-colors h-[42px] px-3 rounded-lg border border-slate-200 focus-within:border-emerald-500/50"
+                  aria-label="Contact Person Name"
+                />
+                <Input
+                  placeholder="Mobile No"
+                  value={contact.mobileNo}
+                  onChange={(e) => handleUpdate(contact.id, { mobileNo: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus-within:bg-white transition-colors h-[42px] px-3 rounded-lg border border-slate-200 focus-within:border-emerald-500/50"
+                  aria-label="Mobile No"
+                />
+                <Input
+                  placeholder="Location"
+                  value={contact.location}
+                  onChange={(e) => handleUpdate(contact.id, { location: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus-within:bg-white transition-colors h-[42px] px-3 rounded-lg border border-slate-200 focus-within:border-emerald-500/50"
+                  aria-label="Location"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 self-end md:self-auto">
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(contact.id)}
+                    className="p-2 h-[42px] w-[42px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                    title="Remove Contact"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FormField({
   field,
@@ -63,6 +153,14 @@ function FormField({
   onRenameOption,
   onDeleteOption,
 }) {
+  if (field.type === 'contacts') {
+    return (
+      <div className="col-span-1 md:col-span-2 xl:col-span-3">
+        <ContactsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+      </div>
+    );
+  }
+
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;

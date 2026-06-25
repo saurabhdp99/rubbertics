@@ -13,12 +13,6 @@ export const MACHINE_MASTER_FIELDS = [
     section: 'Basic Details',
   },
   {
-    key: 'machineType',
-    label: 'Machine Type',
-    type: 'text',
-    section: 'Basic Details',
-  },
-  {
     key: 'machineMake',
     label: 'Machine Make',
     type: 'text',
@@ -60,7 +54,7 @@ export const MACHINE_MASTER_FIELDS = [
     type: 'text',
     section: 'Basic Details',
   },
-  
+
   // Maintenance & Specs
   {
     key: 'locationArea',
@@ -108,6 +102,12 @@ export const MACHINE_MASTER_FIELDS = [
     type: 'pm-frequency',
     section: 'Maintenance & Specs',
   },
+  {
+    key: 'noOfStroke',
+    label: 'No of Stroke',
+    type: 'number',
+    section: 'Maintenance & Specs',
+  },
 
   {
     key: 'criticality',
@@ -141,5 +141,13 @@ export const MACHINE_MASTER_FIELDS = [
     label: 'Remarks',
     type: 'text',
     section: 'Status & Responsibilities',
+  },
+
+  // Documents
+  {
+    key: 'machineAttachments',
+    label: 'Machine Attachments',
+    type: 'attachments',
+    section: 'Documents & Attachments',
   },
 ];
