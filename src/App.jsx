@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
+import SaleOrdersPage from './pages/SaleOrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import ItemMasterPage from './pages/ItemMasterPage';
 import MachineMasterPage from './pages/MachineMasterPage';
@@ -47,7 +47,7 @@ function ERPApp() {
         <div className="px-1">
           <Routes>
             <Route path="/" element={<Navigate to={defaultPath} replace />} />
-            {canAccess('/orders') && <Route path="/orders" element={<PurchaseOrdersPage />} />}
+            {canAccess('/orders') && <Route path="/orders" element={<SaleOrdersPage />} />}
             {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
             {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
             {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}

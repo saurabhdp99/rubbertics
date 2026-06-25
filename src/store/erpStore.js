@@ -713,8 +713,8 @@ const initialPartyMasterLookups = {
   msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
 };
 
-const initialPurchaseOrderLookups = {
-  poType: ['Purchase', 'Production'],
+const initialSaleOrderLookups = {
+  soType: ['Sale', 'Production'],
   priority: ['Urgent', 'High', 'Medium', 'Normal', 'Low'],
   finalStatus: ['Dispatched', 'Partial Dispatch', 'Pending Dispatch', 'In Progress'],
 };
@@ -1005,7 +1005,7 @@ export const useERPStore = create((set, get) => ({
   partyMasterLookups: initialPartyMasterLookups,
   transportMasterLookups: initialTransportMasterLookups,
   machineMasterLookups: initialMachineMasterLookups,
-  purchaseOrderLookups: initialPurchaseOrderLookups,
+  saleOrderLookups: initialSaleOrderLookups,
   employeeMasterItems: initialEmployeeMasterItems,
   employeeMasterLookups: initialEmployeeMasterLookups,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
@@ -1086,7 +1086,7 @@ export const useERPStore = create((set, get) => ({
       date: orderData.date || new Date().toISOString().split('T')[0],
     };
     set(state => ({ orders: [newOrder, ...state.orders] }));
-    get().addNotification('Purchase order created successfully!', 'success');
+    get().addNotification('Sale order created successfully!', 'success');
     get().closeModal();
   },
 
@@ -1292,20 +1292,20 @@ export const useERPStore = create((set, get) => ({
     return true;
   },
 
-  addPurchaseOrderLookupOption: (fieldKey, value) => {
+  addSaleOrderLookupOption: (fieldKey, value) => {
     const cleaned = String(value || '').trim();
     if (!cleaned) return false;
 
     let wasAdded = false;
     set(state => {
-      const currentOptions = state.purchaseOrderLookups[fieldKey] || [];
+      const currentOptions = state.saleOrderLookups[fieldKey] || [];
       const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
       if (exists) return state;
       wasAdded = true;
 
       return {
-        purchaseOrderLookups: {
-          ...state.purchaseOrderLookups,
+        saleOrderLookups: {
+          ...state.saleOrderLookups,
           [fieldKey]: [...currentOptions, cleaned],
         },
       };
@@ -1314,13 +1314,13 @@ export const useERPStore = create((set, get) => ({
     return wasAdded;
   },
 
-  renamePurchaseOrderLookupOption: (fieldKey, oldValue, newValue) => {
+  renameSaleOrderLookupOption: (fieldKey, oldValue, newValue) => {
     const cleaned = String(newValue || '').trim();
     if (!fieldKey || !oldValue || !cleaned) return false;
 
     let renamed = false;
     set(state => {
-      const currentOptions = state.purchaseOrderLookups[fieldKey] || [];
+      const currentOptions = state.saleOrderLookups[fieldKey] || [];
       const duplicate = currentOptions.some(option =>
         option.toLowerCase() === cleaned.toLowerCase() && option !== oldValue
       );
@@ -1333,8 +1333,8 @@ export const useERPStore = create((set, get) => ({
 
       renamed = true;
       return {
-        purchaseOrderLookups: {
-          ...state.purchaseOrderLookups,
+        saleOrderLookups: {
+          ...state.saleOrderLookups,
           [fieldKey]: currentOptions.map(option => option === oldValue ? cleaned : option),
         },
         orders: renamedOrders,
@@ -1344,7 +1344,7 @@ export const useERPStore = create((set, get) => ({
     return renamed;
   },
 
-  deletePurchaseOrderLookupOption: (fieldKey, value) => {
+  deleteSaleOrderLookupOption: (fieldKey, value) => {
     if (!fieldKey || !value) return false;
     const usedCount = get().orders.filter(order => order[fieldKey] === value).length;
 
@@ -1354,9 +1354,9 @@ export const useERPStore = create((set, get) => ({
     }
 
     set(state => ({
-      purchaseOrderLookups: {
-        ...state.purchaseOrderLookups,
-        [fieldKey]: (state.purchaseOrderLookups[fieldKey] || []).filter(option => option !== value),
+      saleOrderLookups: {
+        ...state.saleOrderLookups,
+        [fieldKey]: (state.saleOrderLookups[fieldKey] || []).filter(option => option !== value),
       },
     }));
     get().addNotification(`${value} deleted from dropdown`, 'error');

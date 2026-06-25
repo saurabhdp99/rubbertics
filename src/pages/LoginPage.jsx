@@ -39,7 +39,7 @@ export default function LoginPage() {
             <h2 className="features-heading">Everything you need to run your factory</h2>
             <div className="feature-list">
               {[
-                { icon: '📦', text: 'Purchase Orders & Inventory' },
+                { icon: '📦', text: 'Sale Orders & Inventory' },
                 { icon: '🏭', text: 'Production Planning & Work Orders' },
                 { icon: '🚚', text: 'Dispatch & Inward Tracking' },
                 { icon: '📊', text: 'Reports & Analytics' },

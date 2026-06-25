@@ -17,9 +17,9 @@ import DataTable from '../components/common/DataTable';
 import TableFooter from '../components/common/TableFooter';
 
 const DUMMY_DISPATCH_DATA = [
-  { id: 1, srNo: 1, invDate: '2/1/2026', invoiceNo: 'NP/25-26/2068', purchaseOrderNo: 'P20260034385', partyName: 'RAYCHEM RPG PVT LTD', partNo: 'OS D4B4001209', materialDescription: 'LABOUR CHARG.MOULD ELASTOMER 2T SQ', quantity: 42, transport: 'TEMPO DELIVERY', lrNo: '', noOfBags: '' },
-  { id: 2, srNo: 2, invDate: '2/1/2026', invoiceNo: 'NP/25-26/2069', purchaseOrderNo: 'P20260033827', partyName: 'RAYCHEM RPG PVT LTD', partNo: 'OS D4B4000802', materialDescription: 'LABOUR CHARG. RUBBER ELASTOMER 4.7T', quantity: 36, transport: 'TEMPO DELIVERY', lrNo: '', noOfBags: '' },
-  { id: 3, srNo: 3, invDate: '3/1/2026', invoiceNo: 'NP/25-26/2070', purchaseOrderNo: '42873', partyName: 'JYOTI WORLD PRIVATE LIMITED', partNo: '1008000076', materialDescription: 'PTRB63H O-RING', quantity: 90000, transport: 'NANDWANA CARRIER', lrNo: '12345', noOfBags: '10' },
+  { id: 1, srNo: 1, invDate: '2/1/2026', invoiceNo: 'NP/25-26/2068', saleOrderNo: 'P20260034385', partyName: 'RAYCHEM RPG PVT LTD', partNo: 'OS D4B4001209', materialDescription: 'LABOUR CHARG.MOULD ELASTOMER 2T SQ', quantity: 42, transport: 'TEMPO DELIVERY', lrNo: '', noOfBags: '' },
+  { id: 2, srNo: 2, invDate: '2/1/2026', invoiceNo: 'NP/25-26/2069', saleOrderNo: 'P20260033827', partyName: 'RAYCHEM RPG PVT LTD', partNo: 'OS D4B4000802', materialDescription: 'LABOUR CHARG. RUBBER ELASTOMER 4.7T', quantity: 36, transport: 'TEMPO DELIVERY', lrNo: '', noOfBags: '' },
+  { id: 3, srNo: 3, invDate: '3/1/2026', invoiceNo: 'NP/25-26/2070', saleOrderNo: '42873', partyName: 'JYOTI WORLD PRIVATE LIMITED', partNo: '1008000076', materialDescription: 'PTRB63H O-RING', quantity: 90000, transport: 'NANDWANA CARRIER', lrNo: '12345', noOfBags: '10' },
 ];
 
 export default function DispatchPage() {
@@ -38,7 +38,7 @@ export default function DispatchPage() {
     const q = searchTerm.toLowerCase();
     return DUMMY_DISPATCH_DATA.filter(row =>
       row.invoiceNo.toLowerCase().includes(q) ||
-      row.purchaseOrderNo.toLowerCase().includes(q) ||
+      row.saleOrderNo.toLowerCase().includes(q) ||
       row.partyName.toLowerCase().includes(q) ||
       row.partNo.toLowerCase().includes(q) ||
       row.materialDescription.toLowerCase().includes(q) ||
@@ -63,7 +63,7 @@ export default function DispatchPage() {
       )
     },
     {
-      header: 'PURCHASE ORDER NO', accessor: 'purchaseOrderNo', icon: ClipboardList, width: 'w-[170px]', render: (value) => (
+      header: 'SALE ORDER NO', accessor: 'saleOrderNo', icon: ClipboardList, width: 'w-[170px]', render: (value) => (
         <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 whitespace-nowrap">{value}</span>
       )
     },

@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 
 // Map routes → page titles
 const PAGE_TITLES = {
-  '/orders':                      'Purchase Orders',
+  '/orders':                      'Sale Orders',
   '/item-master':                 'Item Master',
   '/party-master':             'Party Master',
   '/inventory':                   'Inventory',

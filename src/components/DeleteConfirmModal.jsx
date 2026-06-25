@@ -48,7 +48,7 @@ export default function DeleteConfirmModal() {
           </div>
 
           <p className="text-sm text-slate-600 mb-5">
-            Are you sure you want to permanently delete this purchase order? All associated data will be removed.
+            Are you sure you want to permanently delete this sale order? All associated data will be removed.
           </p>
 
           <div className="flex gap-3">

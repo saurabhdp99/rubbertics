@@ -15,20 +15,14 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 const EMPTY_ORDER = {
   createdDate: todayIsoDate(),
   date: todayIsoDate(),
-  poNo: '',
-  poType: 'Purchase',
-  processLocation: '',
+  soNo: '',
+  soType: 'Sale',
   partyName: '',
-  partNo: '',
+  partNos: [''],
   productName: '',
-  typeOfProcess: '',
   orderQty: '',
-  dispatchQty: '',
   deliveryDate: '',
-  daysLeft: '',
-  priority: 'Normal',
   remark: '',
-  finalStatus: 'Pending Dispatch',
 };
 
 const PRIORITY_STYLES = {
@@ -55,21 +49,14 @@ function SortIcon({ sortDirection }) {
 
 const COLUMNS = [
   { key: 'date', label: 'Date', width: '100px' },
-  { key: 'poNo', label: 'PO No', width: '140px' },
-  { key: 'poType', label: 'PO Type', width: '110px' },
-  { key: 'processLocation', label: 'Process Location', width: '160px' },
+  { key: 'soNo', label: 'PO No', width: '140px' },
+  { key: 'soType', label: 'PO Type', width: '110px' },
   { key: 'partyName', label: 'Party Name', width: '180px' },
-  { key: 'partNo', label: 'Part No', width: '130px' },
+  { key: 'partNos', label: 'Part No', width: '150px' },
   { key: 'productName', label: 'Product Name', width: '240px' },
-  { key: 'typeOfProcess', label: 'Type of Process', width: '160px' },
   { key: 'orderQty', label: 'Order Qty', width: '100px', align: 'right' },
-  { key: 'dispatchQty', label: 'Dispatch Qty', width: '110px', align: 'right' },
-  { key: 'balanceQty', label: 'Balance Qty', width: '110px', align: 'right' },
   { key: 'deliveryDate', label: 'Delivery Date', width: '120px' },
-  { key: 'daysLeft', label: 'Days Left', width: '90px', align: 'center' },
-  { key: 'priority', label: 'Priority', width: '100px' },
   { key: 'remark', label: 'Remarks', width: '140px' },
-  { key: 'finalStatus', label: 'Final Status', width: '140px' },
 ];
 
 // --- Form Component ---
@@ -86,12 +73,20 @@ function Field({ label, children, required, error, wide }) {
   );
 }
 
-function PurchaseOrderForm({ mode, order, onBack }) {
-  const { 
-    addOrder, updateOrder, purchaseOrderLookups,
-    addPurchaseOrderLookupOption, renamePurchaseOrderLookupOption, deletePurchaseOrderLookupOption
+function SaleOrderForm({ mode, order, onBack }) {
+  const {
+    addOrder, updateOrder, saleOrderLookups,
+    addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption
   } = useERPStore();
-  const [form, setForm] = useState(() => order ? { ...EMPTY_ORDER, ...order } : { ...EMPTY_ORDER });
+  const [form, setForm] = useState(() => {
+    if (order) {
+      let parsedPartNos = [''];
+      if (Array.isArray(order.partNos) && order.partNos.length > 0) parsedPartNos = [...order.partNos];
+      else if (order.partNo) parsedPartNos = [order.partNo];
+      return { ...EMPTY_ORDER, ...order, partNos: parsedPartNos };
+    }
+    return { ...EMPTY_ORDER };
+  });
   const [errors, setErrors] = useState({});
 
   const isView = mode === 'view';
@@ -101,7 +96,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
 
   const validate = () => {
     const e = {};
-    if (!form.poNo?.trim()) e.poNo = 'PO Number is required';
+    if (!form.soNo?.trim()) e.soNo = 'PO Number is required';
     if (!form.partyName?.trim()) e.partyName = 'Party name is required';
     if (!form.productName?.trim()) e.productName = 'Product name is required';
     if (!form.orderQty || isNaN(form.orderQty)) e.orderQty = 'Valid quantity required';
@@ -113,8 +108,13 @@ function PurchaseOrderForm({ mode, order, onBack }) {
   const submit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    if (isAdd) addOrder(form);
-    else updateOrder(order.id, form);
+    const finalForm = { ...form };
+    finalForm.partNos = (finalForm.partNos || []).filter(p => p && String(p).trim() !== '');
+    if (finalForm.partNos.length === 0) finalForm.partNos = [''];
+    finalForm.partNo = finalForm.partNos[0] || '';
+
+    if (isAdd) addOrder(finalForm);
+    else updateOrder(order.id, finalForm);
     onBack();
   };
 
@@ -137,10 +137,10 @@ function PurchaseOrderForm({ mode, order, onBack }) {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800 tracking-tight">
-                {isView ? 'View Purchase Order' : isAdd ? 'Create Purchase Order' : 'Edit Purchase Order'}
+                {isView ? 'View Sale Order' : isAdd ? 'Create Sale Order' : 'Edit Sale Order'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.poNo || 'Fill the details below'}
+                {form.soNo || 'Fill the details below'}
               </p>
             </div>
           </div>
@@ -211,7 +211,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   </DatePicker>
                 </Field>
 
-                <Field label="Purchase Order Actual Date">
+                <Field label="Purchase Date">
                   <DatePicker
                     value={form.date ? parseDate(form.date) : null}
                     isDisabled={!isAdd}
@@ -245,56 +245,88 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   </DatePicker>
                 </Field>
 
-                <Field label="PO Number" required error={errors.poNo}>
-                  <Input type="text" value={form.poNo} isDisabled={isView} onChange={e => set('poNo', e.target.value)} placeholder="PO2024-XXXX" className={`${inputCls} px-4 py-3`} />
+                <Field label="PO Number" required error={errors.soNo}>
+                  <Input type="text" value={form.soNo} isDisabled={isView} onChange={e => set('soNo', e.target.value)} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
                 <Field label="PO Type">
                   <EditableCreatableSelect
-                    value={form.poType}
-                    options={purchaseOrderLookups.poType || []}
+                    value={form.soType}
+                    options={saleOrderLookups.soType || []}
                     disabled={isView}
                     placeholder="PO Type"
-                    onChange={v => set('poType', v)}
-                    onAdd={(newOption) => addPurchaseOrderLookupOption('poType', newOption)}
-                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('poType', oldOption, newOption)}
-                    onDelete={(option) => deletePurchaseOrderLookupOption('poType', option)}
+                    onChange={v => set('soType', v)}
+                    onAdd={(newOption) => addSaleOrderLookupOption('soType', newOption)}
+                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('soType', oldOption, newOption)}
+                    onDelete={(option) => deleteSaleOrderLookupOption('soType', option)}
                   />
                 </Field>
 
-                <Field label="Process Location">
-                  <Input type="text" value={form.processLocation} isDisabled={isView} onChange={e => set('processLocation', e.target.value)} placeholder="E.g. Vendor / Production" className={`${inputCls} px-4 py-3`} />
-                </Field>
+
 
                 <Field label="Party Name" required error={errors.partyName}>
                   <Input type="text" value={form.partyName} isDisabled={isView} onChange={e => set('partyName', e.target.value)} placeholder="Company / Party name" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
-                <Field label="Part Number">
-                  <Input type="text" value={form.partNo} isDisabled={isView} onChange={e => set('partNo', e.target.value)} placeholder="PART-XXXX" className={`${inputCls} px-4 py-3`} />
+                <Field label="Part Numbers" wide>
+                  <div className="flex flex-col gap-3">
+                    {(form.partNos || ['']).map((part, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Input
+                            type="text"
+                            value={part}
+                            isDisabled={isView}
+                            placeholder={`Part Number ${index + 1}`}
+                            onChange={e => {
+                              const newPartNos = [...(form.partNos || [''])];
+                              newPartNos[index] = e.target.value;
+                              set('partNos', newPartNos);
+                            }}
+                            className={`${inputCls} px-4 py-3`}
+                          />
+                        </div>
+                        {!isView && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newPartNos = [...(form.partNos || [''])];
+                              newPartNos.splice(index, 1);
+                              if (newPartNos.length === 0) newPartNos.push('');
+                              set('partNos', newPartNos);
+                            }}
+                            className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors"
+                            title="Remove Part Number"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!isView && (
+                      <button
+                        type="button"
+                        onClick={() => set('partNos', [...(form.partNos || ['']), ''])}
+                        className="flex items-center gap-2 self-start px-4 py-2 mt-1 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                      >
+                        <Plus size={16} />
+                        Add Another Part Number
+                      </button>
+                    )}
+                  </div>
                 </Field>
 
                 <Field label="Product Name" required wide error={errors.productName}>
                   <Input type="text" value={form.productName} isDisabled={isView} onChange={e => set('productName', e.target.value)} placeholder="Full product description" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
-                <Field label="Type of Process">
-                  <Input type="text" value={form.typeOfProcess} isDisabled={isView} onChange={e => set('typeOfProcess', e.target.value)} placeholder="E.g. Moulding" className={`${inputCls} px-4 py-3`} />
-                </Field>
+
 
                 <Field label="Order Quantity" required error={errors.orderQty}>
                   <Input type="number" value={form.orderQty} isDisabled={isView} onChange={e => set('orderQty', e.target.value)} placeholder="0" className={`${inputCls} px-4 py-3`} />
                 </Field>
 
-                <Field label="Dispatch Quantity">
-                  <Input type="number" value={form.dispatchQty} isDisabled={isView} onChange={e => set('dispatchQty', e.target.value)} placeholder="0" className={`${inputCls} px-4 py-3`} />
-                </Field>
 
-                <Field label="Balance Qty">
-                  <div className="w-full px-4 py-3 text-[13px] font-bold rounded-xl border border-slate-200 font-mono shadow-sm bg-slate-50 flex items-center h-[46px]" style={{ color: (Number(form.orderQty || 0) - Number(form.dispatchQty || 0)) > 0 ? '#ef4444' : '#10b981' }}>
-                    {Math.max(0, Number(form.orderQty || 0) - Number(form.dispatchQty || 0))}
-                  </div>
-                </Field>
 
                 <Field label="Delivery Date" required error={errors.deliveryDate}>
                   <DatePicker
@@ -330,35 +362,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   </DatePicker>
                 </Field>
 
-                <Field label="Days Left">
-                  <Input type="number" value={form.daysLeft} isDisabled={isView} onChange={e => set('daysLeft', e.target.value)} placeholder="0" className={`${inputCls} px-4 py-3`} />
-                </Field>
 
-                <Field label="Priority">
-                  <EditableCreatableSelect
-                    value={form.priority}
-                    options={purchaseOrderLookups.priority || []}
-                    disabled={isView}
-                    placeholder="Priority"
-                    onChange={v => set('priority', v)}
-                    onAdd={(newOption) => addPurchaseOrderLookupOption('priority', newOption)}
-                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('priority', oldOption, newOption)}
-                    onDelete={(option) => deletePurchaseOrderLookupOption('priority', option)}
-                  />
-                </Field>
-
-                <Field label="Final Status">
-                  <EditableCreatableSelect
-                    value={form.finalStatus}
-                    options={purchaseOrderLookups.finalStatus || []}
-                    disabled={isView}
-                    placeholder="Final Status"
-                    onChange={v => set('finalStatus', v)}
-                    onAdd={(newOption) => addPurchaseOrderLookupOption('finalStatus', newOption)}
-                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('finalStatus', oldOption, newOption)}
-                    onDelete={(option) => deletePurchaseOrderLookupOption('finalStatus', option)}
-                  />
-                </Field>
 
                 <Field label="Remarks" wide>
                   <textarea
@@ -399,7 +403,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
   );
 }
 
-export default function PurchaseOrdersPage() {
+export default function SaleOrdersPage() {
   const {
     searchQuery, setSearchQuery,
     filterStatus, setFilterStatus,
@@ -408,15 +412,15 @@ export default function PurchaseOrdersPage() {
     currentPage, setCurrentPage,
     itemsPerPage, setItemsPerPage,
     sortField, sortDirection, setSortField, setSortDirection,
-    getFilteredOrders, deleteOrder, getStats, orders, purchaseOrderLookups
+    getFilteredOrders, deleteOrder, getStats, orders, saleOrderLookups
   } = useERPStore();
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 
-  const allPoTypes = ['All', ...(purchaseOrderLookups?.poType || [])];
-  const allStatuses = ['All', ...(purchaseOrderLookups?.finalStatus || [])];
-  const allPriorities = ['All', ...(purchaseOrderLookups?.priority || [])];
+  const allPoTypes = ['All', ...(saleOrderLookups?.soType || [])];
+  const allStatuses = ['All', ...(saleOrderLookups?.finalStatus || [])];
+  const allPriorities = ['All', ...(saleOrderLookups?.priority || [])];
 
   const filtered = getFilteredOrders();
   const stats = getStats();
@@ -445,7 +449,7 @@ export default function PurchaseOrdersPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'purchase-orders.csv';
+    link.download = 'sale-orders.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -453,7 +457,7 @@ export default function PurchaseOrdersPage() {
   const renderCellValue = (order, column) => {
     const value = order[column.key];
 
-    if (column.key === 'poNo') {
+    if (column.key === 'soNo') {
       return (
         <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 whitespace-nowrap">
           <Hash size={12} /> {value || '-'}
@@ -461,9 +465,9 @@ export default function PurchaseOrdersPage() {
       );
     }
 
-    if (column.key === 'poType') {
+    if (column.key === 'soType') {
       return (
-        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${value === 'Purchase' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
+        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${value === 'Sale' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
           {value || '-'}
         </span>
       );
@@ -514,6 +518,11 @@ export default function PurchaseOrdersPage() {
       );
     }
 
+    if (column.key === 'partNos') {
+      const displayVal = Array.isArray(value) ? value.join(', ') : value;
+      return <span className="font-semibold text-slate-700 whitespace-nowrap">{displayVal || '-'}</span>;
+    }
+
     if (column.key === 'date' || column.key === 'deliveryDate' || column.key === 'partNo') {
       return <span className="font-semibold text-slate-700 whitespace-nowrap">{value || '-'}</span>;
     }
@@ -533,7 +542,7 @@ export default function PurchaseOrdersPage() {
       )}
 
       {viewState.type === 'form' ? (
-        <PurchaseOrderForm
+        <SaleOrderForm
           key={`${viewState.mode}-${viewState.order?.id || 'new'}`}
           mode={viewState.mode}
           order={viewState.order}
@@ -546,7 +555,7 @@ export default function PurchaseOrdersPage() {
               <div className="relative flex-1 w-full min-w-0 group">
                 <Input
                   type="text"
-                  placeholder="Search by PO No, Party, Product, Part No..."
+                  placeholder="Search by SO No, Party, Product, Part No..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="w-full"
