@@ -713,6 +713,13 @@ const initialPartyMasterLookups = {
   msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
 };
 
+const initialPurchaseOrderLookups = {
+  poType: ['Purchase', 'Production'],
+  priority: ['Urgent', 'High', 'Medium', 'Normal', 'Low'],
+  finalStatus: ['Dispatched', 'Partial Dispatch', 'Pending Dispatch', 'In Progress'],
+};
+
+
 const initialTransporterMasterItems = [
   {
     id: 1,
@@ -998,6 +1005,7 @@ export const useERPStore = create((set, get) => ({
   partyMasterLookups: initialPartyMasterLookups,
   transportMasterLookups: initialTransportMasterLookups,
   machineMasterLookups: initialMachineMasterLookups,
+  purchaseOrderLookups: initialPurchaseOrderLookups,
   employeeMasterItems: initialEmployeeMasterItems,
   employeeMasterLookups: initialEmployeeMasterLookups,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
@@ -1279,6 +1287,77 @@ export const useERPStore = create((set, get) => ({
       ...(fieldKey === 'partyCategory'
         ? { partyCategories: state.partyCategories.filter(option => option !== value) }
         : {}),
+    }));
+    get().addNotification(`${value} deleted from dropdown`, 'error');
+    return true;
+  },
+
+  addPurchaseOrderLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+
+    let wasAdded = false;
+    set(state => {
+      const currentOptions = state.purchaseOrderLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+
+      return {
+        purchaseOrderLookups: {
+          ...state.purchaseOrderLookups,
+          [fieldKey]: [...currentOptions, cleaned],
+        },
+      };
+    });
+    if (wasAdded) get().addNotification(`${cleaned} added to dropdown`, 'success');
+    return wasAdded;
+  },
+
+  renamePurchaseOrderLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.purchaseOrderLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(option =>
+        option.toLowerCase() === cleaned.toLowerCase() && option !== oldValue
+      );
+      if (duplicate) return state;
+
+      const renamedOrders = state.orders.map(order => {
+        if (order[fieldKey] !== oldValue) return order;
+        return { ...order, [fieldKey]: cleaned };
+      });
+
+      renamed = true;
+      return {
+        purchaseOrderLookups: {
+          ...state.purchaseOrderLookups,
+          [fieldKey]: currentOptions.map(option => option === oldValue ? cleaned : option),
+        },
+        orders: renamedOrders,
+      };
+    });
+    if (renamed) get().addNotification(`${oldValue} renamed to ${cleaned}`, 'success');
+    return renamed;
+  },
+
+  deletePurchaseOrderLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().orders.filter(order => order[fieldKey] === value).length;
+
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete ${value}; it is used in ${usedCount} order${usedCount > 1 ? 's' : ''}.`, 'error');
+      return false;
+    }
+
+    set(state => ({
+      purchaseOrderLookups: {
+        ...state.purchaseOrderLookups,
+        [fieldKey]: (state.purchaseOrderLookups[fieldKey] || []).filter(option => option !== value),
+      },
     }));
     get().addNotification(`${value} deleted from dropdown`, 'error');
     return true;

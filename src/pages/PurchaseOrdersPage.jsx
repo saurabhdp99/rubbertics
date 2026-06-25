@@ -7,11 +7,13 @@ import {
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
+import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { useERPStore } from '../store/erpStore';
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_ORDER = {
+  createdDate: todayIsoDate(),
   date: todayIsoDate(),
   poNo: '',
   poType: 'Purchase',
@@ -70,13 +72,25 @@ const COLUMNS = [
   { key: 'finalStatus', label: 'Final Status', width: '140px' },
 ];
 
-const ALL_STATUSES = ['All', 'Dispatched', 'Partial Dispatch', 'Pending Dispatch'];
-const ALL_PRIORITIES = ['All', 'Urgent', 'High', 'Medium', 'Normal', 'Low'];
-const ALL_PO_TYPES = ['All', 'Purchase', 'Production'];
-
 // --- Form Component ---
+function Field({ label, children, required, error, wide }) {
+  return (
+    <label className={`flex flex-col gap-2 relative ${wide ? 'md:col-span-2 xl:col-span-3' : ''}`}>
+      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </span>
+      {children}
+      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+    </label>
+  );
+}
+
 function PurchaseOrderForm({ mode, order, onBack }) {
-  const { addOrder, updateOrder } = useERPStore();
+  const { 
+    addOrder, updateOrder, purchaseOrderLookups,
+    addPurchaseOrderLookupOption, renamePurchaseOrderLookupOption, deletePurchaseOrderLookupOption
+  } = useERPStore();
   const [form, setForm] = useState(() => order ? { ...EMPTY_ORDER, ...order } : { ...EMPTY_ORDER });
   const [errors, setErrors] = useState({});
 
@@ -105,19 +119,6 @@ function PurchaseOrderForm({ mode, order, onBack }) {
   };
 
   const inputCls = "w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none border-slate-200 focus:border-emerald-500/50 input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";
-
-  function Field({ label, children, required, error, wide }) {
-    return (
-      <label className={`flex flex-col gap-2 relative ${wide ? 'md:col-span-2 xl:col-span-3' : ''}`}>
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </span>
-        {children}
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </label>
-    );
-  }
 
   return (
     <div className="animate-slide-up">
@@ -176,10 +177,44 @@ function PurchaseOrderForm({ mode, order, onBack }) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                <Field label="Date">
+                <Field label="Created Date">
+                  <DatePicker
+                    value={form.createdDate ? parseDate(form.createdDate) : (form.date ? parseDate(form.date) : null)}
+                    isDisabled={true}
+                    onChange={(dateVal) => set('createdDate', dateVal ? dateVal.toString() : '')}
+                    className="w-full"
+                  >
+                    <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                      <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent opacity-70">
+                        {(segment) => <DateField.Segment segment={segment} />}
+                      </DateField.Input>
+                      <DateField.Suffix className="pr-2 opacity-50">
+                        <DatePicker.Trigger className="text-slate-500 cursor-not-allowed">
+                          <DatePicker.TriggerIndicator />
+                        </DatePicker.Trigger>
+                      </DateField.Suffix>
+                    </DateField.Group>
+                    <DatePicker.Popover>
+                      <HeroCalendar>
+                        <HeroCalendar.Header>
+                          <HeroCalendar.NavButton slot="previous" />
+                          <HeroCalendar.NavButton slot="next" />
+                        </HeroCalendar.Header>
+                        <HeroCalendar.Grid>
+                          <HeroCalendar.GridHeader>
+                            {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                          </HeroCalendar.GridHeader>
+                          <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                        </HeroCalendar.Grid>
+                      </HeroCalendar>
+                    </DatePicker.Popover>
+                  </DatePicker>
+                </Field>
+
+                <Field label="Purchase Order Actual Date">
                   <DatePicker
                     value={form.date ? parseDate(form.date) : null}
-                    isDisabled={isView}
+                    isDisabled={!isAdd}
                     onChange={(dateVal) => set('date', dateVal ? dateVal.toString() : '')}
                     className="w-full"
                   >
@@ -215,18 +250,16 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                 </Field>
 
                 <Field label="PO Type">
-                  <Select selectedKeys={form.poType ? [form.poType] : []} onSelectionChange={v => set('poType', Array.from(v)[0])} isDisabled={isView} className="w-full">
-                    <Select.Trigger className={`${inputCls} !p-0 px-4 h-[46px] flex items-center justify-between`}>
-                      <Select.Value />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {ALL_PO_TYPES.filter(t => t !== 'All').map(t => (
-                          <ListBox.Item key={t} id={t} textValue={t}>{t}</ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
+                  <EditableCreatableSelect
+                    value={form.poType}
+                    options={purchaseOrderLookups.poType || []}
+                    disabled={isView}
+                    placeholder="PO Type"
+                    onChange={v => set('poType', v)}
+                    onAdd={(newOption) => addPurchaseOrderLookupOption('poType', newOption)}
+                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('poType', oldOption, newOption)}
+                    onDelete={(option) => deletePurchaseOrderLookupOption('poType', option)}
+                  />
                 </Field>
 
                 <Field label="Process Location">
@@ -302,33 +335,29 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                 </Field>
 
                 <Field label="Priority">
-                  <Select selectedKeys={form.priority ? [form.priority] : []} onSelectionChange={v => set('priority', Array.from(v)[0])} isDisabled={isView} className="w-full">
-                    <Select.Trigger className={`${inputCls} !p-0 px-4 h-[46px] flex items-center justify-between`}>
-                      <Select.Value />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {ALL_PRIORITIES.filter(t => t !== 'All').map(t => (
-                          <ListBox.Item key={t} id={t} textValue={t}>{t}</ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
+                  <EditableCreatableSelect
+                    value={form.priority}
+                    options={purchaseOrderLookups.priority || []}
+                    disabled={isView}
+                    placeholder="Priority"
+                    onChange={v => set('priority', v)}
+                    onAdd={(newOption) => addPurchaseOrderLookupOption('priority', newOption)}
+                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('priority', oldOption, newOption)}
+                    onDelete={(option) => deletePurchaseOrderLookupOption('priority', option)}
+                  />
                 </Field>
 
                 <Field label="Final Status">
-                  <Select selectedKeys={form.finalStatus ? [form.finalStatus] : []} onSelectionChange={v => set('finalStatus', Array.from(v)[0])} isDisabled={isView} className="w-full">
-                    <Select.Trigger className={`${inputCls} !p-0 px-4 h-[46px] flex items-center justify-between`}>
-                      <Select.Value />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {ALL_STATUSES.filter(t => t !== 'All').map(t => (
-                          <ListBox.Item key={t} id={t} textValue={t}>{t}</ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
+                  <EditableCreatableSelect
+                    value={form.finalStatus}
+                    options={purchaseOrderLookups.finalStatus || []}
+                    disabled={isView}
+                    placeholder="Final Status"
+                    onChange={v => set('finalStatus', v)}
+                    onAdd={(newOption) => addPurchaseOrderLookupOption('finalStatus', newOption)}
+                    onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('finalStatus', oldOption, newOption)}
+                    onDelete={(option) => deletePurchaseOrderLookupOption('finalStatus', option)}
+                  />
                 </Field>
 
                 <Field label="Remarks" wide>
@@ -379,11 +408,15 @@ export default function PurchaseOrdersPage() {
     currentPage, setCurrentPage,
     itemsPerPage, setItemsPerPage,
     sortField, sortDirection, setSortField, setSortDirection,
-    getFilteredOrders, deleteOrder, getStats, orders
+    getFilteredOrders, deleteOrder, getStats, orders, purchaseOrderLookups
   } = useERPStore();
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
+
+  const allPoTypes = ['All', ...(purchaseOrderLookups?.poType || [])];
+  const allStatuses = ['All', ...(purchaseOrderLookups?.finalStatus || [])];
+  const allPriorities = ['All', ...(purchaseOrderLookups?.priority || [])];
 
   const filtered = getFilteredOrders();
   const stats = getStats();
@@ -536,7 +569,7 @@ export default function PurchaseOrdersPage() {
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {ALL_PO_TYPES.map(t => <ListBox.Item key={t} id={t} textValue={t === 'All' ? 'All Types' : t}>{t === 'All' ? 'All Types' : t}</ListBox.Item>)}
+                      {allPoTypes.map(t => <ListBox.Item key={t} id={t} textValue={t === 'All' ? 'All Types' : t}>{t === 'All' ? 'All Types' : t}</ListBox.Item>)}
                     </ListBox>
                   </Select.Popover>
                 </Select>
@@ -551,7 +584,7 @@ export default function PurchaseOrdersPage() {
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {ALL_STATUSES.map(s => <ListBox.Item key={s} id={s} textValue={s === 'All' ? 'All Status' : s}>{s === 'All' ? 'All Status' : s}</ListBox.Item>)}
+                      {allStatuses.map(s => <ListBox.Item key={s} id={s} textValue={s === 'All' ? 'All Status' : s}>{s === 'All' ? 'All Status' : s}</ListBox.Item>)}
                     </ListBox>
                   </Select.Popover>
                 </Select>
@@ -566,7 +599,7 @@ export default function PurchaseOrdersPage() {
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {ALL_PRIORITIES.map(p => <ListBox.Item key={p} id={p} textValue={p === 'All' ? 'All Priority' : p}>{p === 'All' ? 'All Priority' : p}</ListBox.Item>)}
+                      {allPriorities.map(p => <ListBox.Item key={p} id={p} textValue={p === 'All' ? 'All Priority' : p}>{p === 'All' ? 'All Priority' : p}</ListBox.Item>)}
                     </ListBox>
                   </Select.Popover>
                 </Select>
