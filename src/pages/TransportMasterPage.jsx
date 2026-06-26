@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { TRANSPORT_MASTER_FIELDS, TRANSPORT_MASTER_SECTIONS } from '../data/transportMasterTemplate';
@@ -58,18 +61,48 @@ const TABLE_COLUMNS = TRANSPORT_MASTER_FIELDS
     align: ['transporterCode', 'status'].includes(field.key) ? 'center' : 'left',
   }));
 
-function ContactsField({ value, onChange, disabled, fieldKey }) {
+const contactSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  mobileNo: z.string().optional(),
+  location: z.string().optional()
+});
+
+const transportMasterSchema = z.object({
+  transporterCode: z.string().min(1, 'Transporter code is required'),
+  transporterName: z.string().min(1, 'Transporter name is required'),
+  trasnporterAdd: z.string().optional(),
+  location: z.string().optional(),
+  gstNo: z.string().optional(),
+  panNo: z.string().optional(),
+  transporterType: z.string().optional(),
+  transporterId: z.string().optional(),
+  contactPerson: z.string().optional(),
+  mobileNo: z.string().optional(),
+  alternateMobileNo: z.string().optional(),
+  email: z.string().optional(),
+  website: z.string().optional(),
+  defaultPaymentTerms: z.string().optional(),
+  defaultFreightType: z.string().optional(),
+  status: z.string().optional(),
+  remarks: z.string().optional(),
+  createdBy: z.string().optional(),
+  createdDate: z.string().optional(),
+  otherContacts: z.array(contactSchema).optional()
+});
+
+function ContactsField({ value, onChange, disabled }) {
   const handleAdd = () => {
     const newContact = { id: crypto.randomUUID(), name: '', mobileNo: '', location: '' };
-    onChange(fieldKey, [...(value || []), newContact]);
+    onChange([...(value || []), newContact]);
   };
 
   const handleRemove = (id) => {
-    onChange(fieldKey, (value || []).filter(c => c.id !== id));
+    onChange((value || []).filter(c => c.id !== id));
   };
 
   const handleUpdate = (id, updates) => {
-    onChange(fieldKey, (value || []).map(c => c.id === id ? { ...c, ...updates } : c));
+    onChange((value || []).map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
   return (
@@ -146,8 +179,7 @@ function ContactsField({ value, onChange, disabled, fieldKey }) {
 
 function FormField({
   field,
-  value,
-  onChange,
+  control,
   disabled,
   error,
   options,
@@ -158,7 +190,13 @@ function FormField({
   if (field.type === 'contacts') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
-        <ContactsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+        <Controller
+          control={control}
+          name={field.key}
+          render={({ field: { value, onChange } }) => (
+            <ContactsField value={value} onChange={onChange} disabled={disabled} />
+          )}
+        />
       </div>
     );
   }
@@ -174,79 +212,98 @@ function FormField({
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </span>
-      {field.type === 'select' ? (
-        <EditableCreatableSelect
-          value={value || options?.[0] || ''}
-          options={options || field.options || []}
-          disabled={disabled}
-          placeholder={field.label}
-          onChange={(nextValue) => onChange(field.key, nextValue)}
-          onAdd={onAddOption}
-          onRename={onRenameOption}
-          onDelete={onDeleteOption}
-        />
-      ) : field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${inputClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={isLocked}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : (
-        <Input
-          type={field.type || 'text'}
-          step={field.type === 'number' ? '0.01' : undefined}
-          value={value ?? ''}
-          disabled={isLocked}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
-          placeholder={field.autoGenerated ? 'Auto generated on create' : field.label}
-          aria-label={field.label}
-        />
-      )}
+      <Controller
+        control={control}
+        name={field.key}
+        render={({ field: { onChange, value, onBlur, ref } }) => {
+          if (field.type === 'select') {
+            return (
+              <EditableCreatableSelect
+                value={value || options?.[0] || ''}
+                options={options || field.options || []}
+                disabled={disabled}
+                placeholder={field.label}
+                onChange={onChange}
+                onAdd={onAddOption}
+                onRename={onRenameOption}
+                onDelete={onDeleteOption}
+              />
+            );
+          }
+          if (field.type === 'textarea') {
+            return (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${inputClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            );
+          }
+          if (field.type === 'date') {
+            return (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={isLocked}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            );
+          }
+          return (
+            <Input
+              type={field.type || 'text'}
+              step={field.type === 'number' ? '0.01' : undefined}
+              value={value ?? ''}
+              disabled={isLocked}
+              onChange={onChange}
+              onBlur={onBlur}
+              className={inputClass}
+              placeholder={field.autoGenerated ? 'Auto generated on create' : field.label}
+              aria-label={field.label}
+              ref={ref}
+            />
+          );
+        }}
+      />
       {field.autoGenerated && !disabled && (
         <span className="text-[11px] font-semibold text-emerald-600">Auto generated and locked</span>
       )}
@@ -267,30 +324,26 @@ function TransportMasterForm({ mode, transporter, onBack }) {
   } = useTransportMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(() => createInitialTransporterForm(transporter, getNextTransporterCode));
-  const [errors, setErrors] = useState({});
-
   const isView = mode === 'view';
   const isAdd = mode === 'add';
+
+  const { control, handleSubmit: hookFormSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(transportMasterSchema),
+    defaultValues: createInitialTransporterForm(transporter, getNextTransporterCode)
+  });
+
+  useEffect(() => {
+    reset(createInitialTransporterForm(transporter, getNextTransporterCode));
+  }, [transporter, mode, reset, getNextTransporterCode]);
+
   const groupedFields = TRANSPORT_MASTER_SECTIONS.map(section => ({
     section,
     fields: TRANSPORT_MASTER_FIELDS.filter(field => field.section === section),
   }));
 
-  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!String(form.transporterName || '').trim()) nextErrors.transporterName = 'Transporter name is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    if (isAdd) await addTransporterMaster(form, currentOrg?.id, currentUser?.id);
-    else await updateTransporterMaster(transporter.id, form, currentUser?.id);
+  const onSubmit = async (data) => {
+    if (isAdd) await addTransporterMaster(data, currentOrg?.id, currentUser?.id);
+    else await updateTransporterMaster(transporter.id, data, currentUser?.id);
     onBack();
   };
 
@@ -315,7 +368,7 @@ function TransportMasterForm({ mode, transporter, onBack }) {
                 {isView ? 'View Transport Master' : isAdd ? 'Add Transport Master' : 'Edit Transport Master'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.transporterCode || 'Transporter code will be generated automatically'}
+                {watch('transporterCode') || 'Transporter code will be generated automatically'}
               </p>
             </div>
           </div>
@@ -342,7 +395,7 @@ function TransportMasterForm({ mode, transporter, onBack }) {
           </div>
         </div>
 
-        <form id="transport-master-page-form" onSubmit={submit} className="p-6">
+        <form id="transport-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -357,10 +410,9 @@ function TransportMasterForm({ mode, transporter, onBack }) {
                     <FormField
                       key={field.key}
                       field={field}
-                      value={form[field.key]}
-                      onChange={set}
-                      disabled={isView}
-                      error={errors[field.key]}
+                      control={control}
+                      disabled={isView || isSubmitting}
+                      error={errors[field.key]?.message}
                       options={transportMasterLookups[field.key] || field.options}
                       onAddOption={(value) => addTransportMasterLookupOption(field.key, value)}
                       onRenameOption={(oldValue, newValue) => renameTransportMasterLookupOption(field.key, oldValue, newValue)}
@@ -384,9 +436,10 @@ function TransportMasterForm({ mode, transporter, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Transporter' : 'Save Changes'}
               </button>
             </div>

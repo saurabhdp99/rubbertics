@@ -18,14 +18,16 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react';
+import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
-
-import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
-import { parseDate } from '@internationalized/date';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Yes' : '';
@@ -40,21 +42,66 @@ const TABLE_COLUMNS = ITEM_MASTER_FIELDS.filter(f => f.type !== 'attachments').m
 
 const SECTION_ORDER = ['Basic Details', 'Measurements', 'Planning & Stock', 'Ledgers & References', 'Quality'];
 
-function AttachmentsField({ value, onChange, disabled, fieldKey }) {
+const attachmentSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  fileData: z.any().optional(),
+  fileName: z.string().optional(),
+  fileType: z.string().optional(),
+  fileObject: z.any().optional()
+});
+
+const itemMasterSchema = z.object({
+  itemCategory: z.string().optional(),
+  subCategory: z.string().optional(),
+  itemCode: z.string().min(1, 'Item code is required'),
+  itemName: z.string().min(1, 'Item name is required'),
+  description: z.string().optional(),
+  itemPrice: z.coerce.number().optional().or(z.literal('')),
+  itemHsn: z.string().optional(),
+  aliasName: z.string().optional(),
+  remarks: z.string().optional(),
+  isActive: z.string().optional(),
+  itemStdWeight: z.coerce.number().optional().or(z.literal('')),
+  standardPacking: z.coerce.number().optional().or(z.literal('')),
+  uom: z.string().optional(),
+  warehouseName: z.string().optional(),
+  departmentName: z.string().optional(),
+  moq: z.coerce.number().optional().or(z.literal('')),
+  leadTime: z.coerce.number().optional().or(z.literal('')),
+  batchQty: z.coerce.number().optional().or(z.literal('')),
+  minimumQty: z.coerce.number().optional().or(z.literal('')),
+  maximumQty: z.coerce.number().optional().or(z.literal('')),
+  reorderLevelQty: z.coerce.number().optional().or(z.literal('')),
+  salesTolerance: z.coerce.number().optional().or(z.literal('')),
+  purchaseTolerance: z.coerce.number().optional().or(z.literal('')),
+  haveSelfLife: z.string().optional(),
+  selfLifeDays: z.coerce.number().optional().or(z.literal('')),
+  scrapItem: z.string().optional(),
+  drawingNo: z.string().optional(),
+  revisionNo: z.string().optional(),
+  partName: z.string().optional(),
+  partNo: z.string().optional(),
+  preferredVendor: z.string().optional(),
+  alternateVendor: z.string().optional(),
+  qualityAttachments: z.array(attachmentSchema).optional()
+});
+
+function AttachmentsField({ value, onChange, disabled }) {
   const fileInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
 
   const handleAdd = () => {
     const newAttachment = { id: crypto.randomUUID(), name: '', fileData: null, fileName: '', fileType: '' };
-    onChange(fieldKey, [...(value || []), newAttachment]);
+    onChange([...(value || []), newAttachment]);
   };
 
   const handleRemove = (id) => {
-    onChange(fieldKey, (value || []).filter(att => att.id !== id));
+    onChange((value || []).filter(att => att.id !== id));
   };
 
   const handleUpdate = (id, updates) => {
-    onChange(fieldKey, (value || []).map(att => att.id === id ? { ...att, ...updates } : att));
+    onChange((value || []).map(att => att.id === id ? { ...att, ...updates } : att));
   };
 
   const handleFileChange = (id, e) => {
@@ -171,11 +218,17 @@ function AttachmentsField({ value, onChange, disabled, fieldKey }) {
   );
 }
 
-function FormField({ field, value, onChange, disabled, error, options = [] }) {
+function FormField({ field, control, disabled, error, options = [] }) {
   if (field.type === 'attachments') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
-        <AttachmentsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+        <Controller
+          control={control}
+          name={field.key}
+          render={({ field: { value, onChange } }) => (
+            <AttachmentsField value={value} onChange={onChange} disabled={disabled} />
+          )}
+        />
       </div>
     );
   }
@@ -184,165 +237,177 @@ function FormField({ field, value, onChange, disabled, error, options = [] }) {
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;
 
-  if (field.type === 'creatable-select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <EditableCreatableSelect
-          value={value ?? ''}
-          options={options}
-          onChange={(val) => onChange(field.key, val)}
-          disabled={disabled}
-          placeholder={`Select or type ${field.label.toLowerCase()}`}
-        />
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.type === 'dynamic-select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <Select
-          isDisabled={disabled}
-          value={value || ''}
-          onChange={(val) => onChange(field.key, val)}
-          placeholder={`Select ${field.label.toLowerCase()}`}
-          aria-label={field.label}
-        >
-          <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {options.map(opt => (
-                <ListBox.Item key={opt} id={opt} textValue={opt}>
-                  {opt}
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.type === 'select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-          {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <Select
-          isDisabled={disabled}
-          value={value || 'Yes'}
-          onChange={(val) => onChange(field.key, val)}
-          placeholder="Select option"
-          aria-label={field.label}
-        >
-          <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              <ListBox.Item id="Yes" textValue="Yes">
-                Yes
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-              <ListBox.Item id="No" textValue="No">
-                No
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-        {field.label}
-        {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-      </Label>
-      {field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${inputClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={disabled}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : (
-        <Input
-          type={field.type === 'number' ? 'number' : 'text'}
-          step={field.type === 'number' ? '0.01' : undefined}
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
-          placeholder={field.label}
-          aria-label={field.label}
-        />
-      )}
-      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-    </div>
+    <Controller
+      control={control}
+      name={field.key}
+      render={({ field: { onChange, value, onBlur, ref } }) => {
+        if (field.type === 'creatable-select') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+                {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <EditableCreatableSelect
+                value={value ?? ''}
+                options={options}
+                onChange={onChange}
+                disabled={disabled}
+                placeholder={`Select or type ${field.label.toLowerCase()}`}
+              />
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        if (field.type === 'dynamic-select') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+                {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <Select
+                isDisabled={disabled}
+                value={value || ''}
+                onChange={onChange}
+                placeholder={`Select ${field.label.toLowerCase()}`}
+                aria-label={field.label}
+              >
+                <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {options.map(opt => (
+                      <ListBox.Item key={opt} id={opt} textValue={opt}>
+                        {opt}
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        if (field.type === 'select') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+                {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <Select
+                isDisabled={disabled}
+                value={value || 'Yes'}
+                onChange={onChange}
+                placeholder="Select option"
+                aria-label={field.label}
+              >
+                <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="Yes" textValue="Yes">
+                      Yes
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="No" textValue="No">
+                      No
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex flex-col gap-2">
+            <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              {field.label}
+              {['itemCode', 'itemName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            {field.type === 'textarea' ? (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${inputClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            ) : field.type === 'date' ? (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={disabled}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            ) : (
+              <Input
+                type={field.type === 'number' ? 'number' : 'text'}
+                step={field.type === 'number' ? '0.01' : undefined}
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={inputClass}
+                placeholder={field.label}
+                aria-label={field.label}
+                ref={ref}
+              />
+            )}
+            {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+          </div>
+        );
+      }}
+    />
   );
 }
 
@@ -351,13 +416,8 @@ function ItemMasterForm({ mode, item, onBack }) {
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(EMPTY_ITEM);
-  const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    setForm(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
-    setErrors({});
-  }, [item, mode]);
+  const isView = mode === 'view';
+  const isAdd = mode === 'add';
 
   const uniqueCategories = useMemo(() => {
     return Array.from(new Set(itemMasterItems.map(i => i.itemCategory).filter(Boolean))).sort();
@@ -382,28 +442,23 @@ function ItemMasterForm({ mode, item, onBack }) {
     ).sort();
   }, [partyMasterItems]);
 
-  const isView = mode === 'view';
-  const isAdd = mode === 'add';
+  const { control, handleSubmit: hookFormSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(itemMasterSchema),
+    defaultValues: item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM }
+  });
+
+  useEffect(() => {
+    reset(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
+  }, [item, mode, reset]);
+
   const groupedFields = SECTION_ORDER.map(section => ({
     section,
     fields: ITEM_MASTER_FIELDS.filter(field => field.section === section),
   }));
 
-  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!String(form.itemCode || '').trim()) nextErrors.itemCode = 'Item code is required';
-    if (!String(form.itemName || '').trim()) nextErrors.itemName = 'Item name is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    if (isAdd) await addItem(form, currentOrg?.id, currentUser?.id);
-    else await updateItem(item.id, form, currentUser?.id);
+  const onSubmit = async (data) => {
+    if (isAdd) await addItem(data, currentOrg?.id, currentUser?.id);
+    else await updateItem(item.id, data, currentUser?.id);
     onBack();
   };
 
@@ -428,7 +483,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                 {isView ? 'View Item Master' : isAdd ? 'Add Item Master' : 'Edit Item Master'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.itemCode || 'Manual entry from Sales Item Master template'}
+                {watch('itemCode') || 'Manual entry from Sales Item Master template'}
               </p>
             </div>
           </div>
@@ -455,7 +510,7 @@ function ItemMasterForm({ mode, item, onBack }) {
           </div>
         </div>
 
-        <form id="item-master-page-form" onSubmit={submit} className="p-6">
+        <form id="item-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -470,10 +525,9 @@ function ItemMasterForm({ mode, item, onBack }) {
                     <FormField
                       key={field.key}
                       field={field}
-                      value={form[field.key]}
-                      onChange={set}
-                      disabled={isView}
-                      error={errors[field.key]}
+                      control={control}
+                      disabled={isView || isSubmitting}
+                      error={errors[field.key]?.message}
                       options={
                         field.key === 'itemCategory' ? uniqueCategories :
                           field.key === 'subCategory' ? uniqueSubCategories :
@@ -501,9 +555,10 @@ function ItemMasterForm({ mode, item, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Item' : 'Save Changes'}
               </button>
             </div>

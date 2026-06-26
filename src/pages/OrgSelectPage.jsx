@@ -5,7 +5,16 @@ import {
   Loader2, Check, Users, Briefcase, Edit2, Trash2,
   AlertTriangle, Settings, ArrowRight, ChevronDown,
 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
+
+const orgSchema = z.object({
+  name: z.string().min(1, 'Organisation name is required'),
+  industry: z.string(),
+  size: z.string()
+});
 
 const INDUSTRY_OPTIONS = [
   'Manufacturing', 'Automotive', 'Chemical', 'Pharmaceutical',
@@ -17,24 +26,23 @@ const SIZE_OPTIONS = ['1-10', '11-50', '51-200', '201-500', '500+'];
 // ─── Modal: Create / Edit Org ────────────────────────────────────────────────
 function OrgFormModal({ onClose, onSaved, editOrg = null }) {
   const { createOrganization, updateOrganization } = useAuthStore();
-  const [form, setForm] = useState({
-    name: editOrg?.name || '',
-    industry: editOrg?.industry || 'Manufacturing',
-    size: editOrg?.size || '11-50',
-  });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const isEdit = !!editOrg;
+  
+  const { register, handleSubmit: hookFormSubmit, formState: { errors, isSubmitting }, watch } = useForm({
+    resolver: zodResolver(orgSchema),
+    defaultValues: {
+      name: editOrg?.name || '',
+      industry: editOrg?.industry || 'Manufacturing',
+      size: editOrg?.size || '11-50',
+    }
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim()) { setError('Organisation name is required'); return; }
-    setSaving(true);
+  const onSubmit = async (data) => {
     setError('');
     const result = isEdit
-      ? await updateOrganization(editOrg.id, form)
-      : await createOrganization(form);
-    setSaving(false);
+      ? await updateOrganization(editOrg.id, data)
+      : await createOrganization(data);
     if (!result.success) { setError(result.error || 'Something went wrong'); return; }
     onSaved(result.data);
   };
@@ -59,7 +67,7 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="create-org-form" id="org-form">
+        <form onSubmit={hookFormSubmit(onSubmit)} className="create-org-form" id="org-form">
           {error && (
             <div className="flex items-center gap-2 px-3.5 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-[13px] mb-3.5">
               <AlertTriangle size={15} />
@@ -74,13 +82,12 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
             <input
               id="org-name"
               type="text"
-              value={form.name}
-              onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Nisarg Polymers Pvt. Ltd."
-              className="login-input"
-              required
+              className={`login-input ${errors.name ? 'border-red-400 focus:border-red-500' : ''}`}
               autoFocus
+              {...register('name')}
             />
+            {errors.name && <span className="text-xs font-medium text-red-500 mt-1 block">{errors.name.message}</span>}
           </div>
 
           <div className="form-row">
@@ -88,9 +95,8 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
               <label className="form-label" htmlFor="org-industry">Industry</label>
               <select
                 id="org-industry"
-                value={form.industry}
-                onChange={(e) => setForm(f => ({ ...f, industry: e.target.value }))}
                 className="login-input"
+                {...register('industry')}
               >
                 {INDUSTRY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
               </select>
@@ -99,9 +105,8 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
               <label className="form-label" htmlFor="org-size">Team Size</label>
               <select
                 id="org-size"
-                value={form.size}
-                onChange={(e) => setForm(f => ({ ...f, size: e.target.value }))}
                 className="login-input"
+                {...register('size')}
               >
                 {SIZE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt} employees</option>)}
               </select>
@@ -114,11 +119,11 @@ function OrgFormModal({ onClose, onSaved, editOrg = null }) {
             </button>
             <button
               type="submit"
-              disabled={saving || !form.name.trim()}
+              disabled={isSubmitting || !watch('name')?.trim()}
               className="login-submit-btn flex-1"
               id="submit-org-btn"
             >
-              {saving ? (
+              {isSubmitting ? (
                 <><Loader2 size={18} className="spin" /><span>{isEdit ? 'Saving…' : 'Creating…'}</span></>
               ) : (
                 <><Check size={18} /><span>{isEdit ? 'Save Changes' : 'Create & Continue'}</span></>

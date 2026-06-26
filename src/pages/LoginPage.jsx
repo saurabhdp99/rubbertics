@@ -1,17 +1,27 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Factory, Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
 
+const loginSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  password: z.string().min(1, 'Password is required')
+});
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading, authError, clearError } = useAuthStore();
+  
+  const { register, handleSubmit: hookFormSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' }
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await login(email, password);
+  const onSubmit = async (data) => {
+    await login(data.email, data.password);
   };
 
   return (
@@ -70,7 +80,7 @@ export default function LoginPage() {
               <p className="login-subtitle">Sign in to your workspace</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="login-form" id="login-form">
+            <form onSubmit={hookFormSubmit(onSubmit)} className="login-form" id="login-form">
               {authError && (
                 <div className="auth-error" onClick={clearError} role="alert">
                   <span>⚠️</span>
@@ -85,14 +95,17 @@ export default function LoginPage() {
                   <input
                     id="login-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); clearError(); }}
                     placeholder="you@company.com"
-                    className="login-input"
-                    required
+                    className={`login-input ${errors.email ? 'border-red-400 focus:border-red-500' : ''}`}
                     autoComplete="email"
+                    {...register('email', {
+                      onChange: () => {
+                        if (authError) clearError();
+                      }
+                    })}
                   />
                 </div>
+                {errors.email && <span className="text-xs font-medium text-red-500 mt-1.5 block">{errors.email.message}</span>}
               </div>
 
               <div className="form-group">
@@ -111,12 +124,14 @@ export default function LoginPage() {
                   <input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => { setPassword(e.target.value); clearError(); }}
                     placeholder="••••••••"
-                    className="login-input"
-                    required
+                    className={`login-input ${errors.password ? 'border-red-400 focus:border-red-500' : ''}`}
                     autoComplete="current-password"
+                    {...register('password', {
+                      onChange: () => {
+                        if (authError) clearError();
+                      }
+                    })}
                   />
                   <button
                     type="button"
@@ -129,6 +144,7 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {errors.password && <span className="text-xs font-medium text-red-500 mt-1.5 block">{errors.password.message}</span>}
               </div>
 
               <button

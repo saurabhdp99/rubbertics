@@ -1,35 +1,32 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Activity,
   ArrowLeft,
   Settings,
-  Boxes,
-  Download,
   Edit,
   Eye,
   FileDown,
   FileText,
   Hash,
-  Wrench,
   Plus,
   RefreshCw,
   Save,
-  Search,
   SlidersHorizontal,
   Tag,
   Trash2,
   UploadCloud,
-  X,
-  AlertCircle
+  X
 } from 'lucide-react';
+import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import StatsCard from '../components/common/StatsCard';
 import { MACHINE_MASTER_FIELDS } from '../data/machineMasterTemplate';
 import { useMachineMasterStore } from '../store/machineMasterStore';
 import { useAuthStore } from '../store/authStore';
-
-import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
-import { parseDate } from '@internationalized/date';
 
 const EMPTY_MACHINE = MACHINE_MASTER_FIELDS.reduce((machine, field) => {
   machine[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : '';
@@ -44,23 +41,54 @@ const TABLE_COLUMNS = MACHINE_MASTER_FIELDS.filter(f => f.type !== 'attachments'
 
 const SECTION_ORDER = ['Basic Details', 'Maintenance & Specs', 'Status & Responsibilities', 'Documents & Attachments'];
 
+const attachmentSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  fileData: z.any().optional(),
+  fileName: z.string().optional(),
+  fileType: z.string().optional(),
+  fileObject: z.any().optional()
+});
 
+const machineMasterSchema = z.object({
+  machineCode: z.string().min(1, 'Machine code is required'),
+  machineName: z.string().min(1, 'Machine name is required'),
+  machineMake: z.string().optional(),
+  machineModel: z.string().optional(),
+  serialNo: z.string().optional(),
+  machineSize: z.string().optional(),
+  capacity: z.coerce.number().optional().or(z.literal('')),
+  capacityUnit: z.string().optional(),
+  departmentOfUse: z.string().optional(),
+  locationArea: z.string().optional(),
+  rubberProcess: z.string().optional(),
+  powerHpKw: z.coerce.number().optional().or(z.literal('')),
+  installationDate: z.string().optional(),
+  pmFrequency: z.string().optional(),
+  noOfStroke: z.coerce.number().optional().or(z.literal('')),
+  criticality: z.string().optional(),
+  machineCondition: z.string().optional(),
+  responsiblePerson: z.string().optional(),
+  status: z.string().optional(),
+  remarks: z.string().optional(),
+  machineAttachments: z.array(attachmentSchema).optional()
+});
 
-function AttachmentsField({ value, onChange, disabled, fieldKey }) {
+function AttachmentsField({ value, onChange, disabled }) {
   const fileInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
 
   const handleAdd = () => {
     const newAttachment = { id: crypto.randomUUID(), name: '', fileData: null, fileName: '', fileType: '' };
-    onChange(fieldKey, [...(value || []), newAttachment]);
+    onChange([...(value || []), newAttachment]);
   };
 
   const handleRemove = (id) => {
-    onChange(fieldKey, (value || []).filter(att => att.id !== id));
+    onChange((value || []).filter(att => att.id !== id));
   };
 
   const handleUpdate = (id, updates) => {
-    onChange(fieldKey, (value || []).map(att => att.id === id ? { ...att, ...updates } : att));
+    onChange((value || []).map(att => att.id === id ? { ...att, ...updates } : att));
   };
 
   const handleFileChange = (id, e) => {
@@ -177,11 +205,17 @@ function AttachmentsField({ value, onChange, disabled, fieldKey }) {
   );
 }
 
-function FormField({ field, value, onChange, disabled, error, options, onAddOption, onRenameOption, onDeleteOption }) {
+function FormField({ field, control, disabled, error, options, onAddOption, onRenameOption, onDeleteOption }) {
   if (field.type === 'attachments') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
-        <AttachmentsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+        <Controller
+          control={control}
+          name={field.key}
+          render={({ field: { value, onChange } }) => (
+            <AttachmentsField value={value} onChange={onChange} disabled={disabled} />
+          )}
+        />
       </div>
     );
   }
@@ -190,238 +224,250 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const customClass = `${baseInputClass} px-4 py-3`;
 
-  if (field.type === 'select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-          {['machineCode', 'machineName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <Select
-          isDisabled={disabled}
-          value={value || 'Active'}
-          onChange={(val) => onChange(field.key, val)}
-          placeholder="Select status"
-          aria-label={field.label}
-        >
-          <Select.Trigger className={customClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              <ListBox.Item id="Active" textValue="Active">
-                Active
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-              <ListBox.Item id="Inactive" textValue="Inactive">
-                Inactive
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.type === 'creatable-select') {
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-        </Label>
-        <EditableCreatableSelect
-          value={value || ''}
-          options={options || field.options || []}
-          disabled={disabled}
-          placeholder={`Select ${field.label}`}
-          onChange={(val) => onChange(field.key, val)}
-          onAdd={onAddOption}
-          onRename={onRenameOption}
-          onDelete={onDeleteOption}
-        />
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.type === 'options') {
-    const OPTION_COLORS = {
-      Critical: 'bg-red-50 text-red-700 border-red-200',
-      High:     'bg-orange-50 text-orange-700 border-orange-200',
-      Medium:   'bg-amber-50 text-amber-700 border-amber-200',
-      Low:      'bg-emerald-50 text-emerald-700 border-emerald-200',
-      Standby:  'bg-slate-50 text-slate-500 border-slate-200',
-    };
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-        </Label>
-        <Select
-          isDisabled={disabled}
-          value={value || ''}
-          onChange={(val) => onChange(field.key, val)}
-          aria-label={field.label}
-          placeholder={`Select ${field.label}`}
-          className="w-full"
-        >
-          <Select.Trigger className={`h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}>
-            <Select.Value>
-              {value ? (
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${OPTION_COLORS[value] || 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                  {value}
-                </span>
-              ) : (
-                <span className="text-slate-400">{`Select ${field.label}`}</span>
-              )}
-            </Select.Value>
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {(field.options || []).map(opt => (
-                <ListBox.Item key={opt} id={opt} textValue={opt}>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${OPTION_COLORS[opt] || 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                    {opt}
-                  </span>
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.type === 'pm-frequency') {
-    const parts = (value || '').toString().split(' ');
-    const numVal = parts[0] || '';
-    const unitVal = parts[1] || 'Day';
-    const PM_UNITS = ['Day', 'Month', 'Year'];
-
-    const handleNum = (e) => onChange(field.key, `${e.target.value} ${unitVal}`);
-    const handleUnit = (val) => onChange(field.key, `${numVal} ${val}`);
-
-    return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          {field.label}
-        </Label>
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            min={1}
-            step={1}
-            value={numVal}
-            disabled={disabled}
-            onChange={handleNum}
-            placeholder="e.g. 3"
-            aria-label="Frequency Value"
-            className={`flex-1 min-w-0 h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}
-          />
-          <Select
-            isDisabled={disabled}
-            value={unitVal}
-            onChange={handleUnit}
-            aria-label="Frequency Unit"
-            className="w-[120px] shrink-0"
-          >
-            <Select.Trigger className={`h-[46px] px-3 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                {PM_UNITS.map(unit => (
-                  <ListBox.Item key={unit} id={unit} textValue={unit}>
-                    {unit}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
-          </Select>
-        </div>
-        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-        {field.label}
-        {['machineCode', 'machineName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
-      </Label>
-      {field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${customClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={disabled}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : (
-        <Input
-          type={field.type === 'number' ? 'number' : 'text'}
-          step={field.type === 'number' ? '0.01' : undefined}
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={customClass}
-          placeholder={field.label}
-          aria-label={field.label}
-        />
-      )}
-      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-    </div>
+    <Controller
+      control={control}
+      name={field.key}
+      render={({ field: { onChange, value, onBlur, ref } }) => {
+        if (field.type === 'select') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+                {['machineCode', 'machineName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <Select
+                isDisabled={disabled}
+                value={value || 'Active'}
+                onChange={onChange}
+                placeholder="Select status"
+                aria-label={field.label}
+              >
+                <Select.Trigger className={customClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="Active" textValue="Active">
+                      Active
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="Inactive" textValue="Inactive">
+                      Inactive
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        if (field.type === 'creatable-select') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+              </Label>
+              <EditableCreatableSelect
+                value={value || ''}
+                options={options || field.options || []}
+                disabled={disabled}
+                placeholder={`Select ${field.label}`}
+                onChange={onChange}
+                onAdd={onAddOption}
+                onRename={onRenameOption}
+                onDelete={onDeleteOption}
+              />
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        if (field.type === 'options') {
+          const OPTION_COLORS = {
+            Critical: 'bg-red-50 text-red-700 border-red-200',
+            High:     'bg-orange-50 text-orange-700 border-orange-200',
+            Medium:   'bg-amber-50 text-amber-700 border-amber-200',
+            Low:      'bg-emerald-50 text-emerald-700 border-emerald-200',
+            Standby:  'bg-slate-50 text-slate-500 border-slate-200',
+          };
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+              </Label>
+              <Select
+                isDisabled={disabled}
+                value={value || ''}
+                onChange={onChange}
+                aria-label={field.label}
+                placeholder={`Select ${field.label}`}
+                className="w-full"
+              >
+                <Select.Trigger className={`h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}>
+                  <Select.Value>
+                    {value ? (
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${OPTION_COLORS[value] || 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                        {value}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">{`Select ${field.label}`}</span>
+                    )}
+                  </Select.Value>
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {(field.options || []).map(opt => (
+                      <ListBox.Item key={opt} id={opt} textValue={opt}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${OPTION_COLORS[opt] || 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          {opt}
+                        </span>
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        if (field.type === 'pm-frequency') {
+          const parts = (value || '').toString().split(' ');
+          const numVal = parts[0] || '';
+          const unitVal = parts[1] || 'Day';
+          const PM_UNITS = ['Day', 'Month', 'Year'];
+
+          const handleNum = (e) => onChange(`${e.target.value} ${unitVal}`);
+          const handleUnit = (val) => onChange(`${numVal} ${val}`);
+
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={numVal}
+                  disabled={disabled}
+                  onChange={handleNum}
+                  placeholder="e.g. 3"
+                  aria-label="Frequency Value"
+                  className={`flex-1 min-w-0 h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}
+                />
+                <Select
+                  isDisabled={disabled}
+                  value={unitVal}
+                  onChange={handleUnit}
+                  aria-label="Frequency Unit"
+                  className="w-[120px] shrink-0"
+                >
+                  <Select.Trigger className={`h-[46px] px-3 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {PM_UNITS.map(unit => (
+                        <ListBox.Item key={unit} id={unit} textValue={unit}>
+                          {unit}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              </div>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex flex-col gap-2">
+            <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              {field.label}
+              {['machineCode', 'machineName'].includes(field.key) && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            {field.type === 'textarea' ? (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${customClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            ) : field.type === 'date' ? (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={disabled}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            ) : (
+              <Input
+                type={field.type === 'number' ? 'number' : 'text'}
+                step={field.type === 'number' ? '0.01' : undefined}
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={customClass}
+                placeholder={field.label}
+                aria-label={field.label}
+                ref={ref}
+              />
+            )}
+            {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+          </div>
+        );
+      }}
+    />
   );
 }
 
@@ -437,10 +483,10 @@ function MachineMasterForm({ mode, machine, onBack }) {
   } = useMachineMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(EMPTY_MACHINE);
-  const [errors, setErrors] = useState({});
+  const isView = mode === 'view';
+  const isAdd = mode === 'add';
 
-  useEffect(() => {
+  const getInitialValues = () => {
     const initialForm = machine ? { ...EMPTY_MACHINE, ...machine } : { ...EMPTY_MACHINE };
     if (mode === 'add') {
       const nextNumber = machines.reduce((max, m) => {
@@ -452,32 +498,26 @@ function MachineMasterForm({ mode, machine, onBack }) {
       }, 0) + 1;
       initialForm.machineCode = `M-${String(nextNumber).padStart(3, '0')}`;
     }
-    setForm(initialForm);
-    setErrors({});
-  }, [machine, mode, machines]);
+    return initialForm;
+  };
 
-  const isView = mode === 'view';
-  const isAdd = mode === 'add';
+  const { control, handleSubmit: hookFormSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(machineMasterSchema),
+    defaultValues: getInitialValues()
+  });
+
+  useEffect(() => {
+    reset(getInitialValues());
+  }, [machine, mode, reset, machines]);
+
   const groupedFields = SECTION_ORDER.map(section => ({
     section,
     fields: MACHINE_MASTER_FIELDS.filter(field => field.section === section),
   }));
 
-  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!isAdd && !String(form.machineCode || '').trim()) nextErrors.machineCode = 'Machine code is required';
-    if (!String(form.machineName || '').trim()) nextErrors.machineName = 'Machine name is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    if (isAdd) await addMachineMaster(form, currentOrg?.id, currentUser?.id);
-    else await updateMachineMaster(machine.id, form, currentUser?.id);
+  const onSubmit = async (data) => {
+    if (isAdd) await addMachineMaster(data, currentOrg?.id, currentUser?.id);
+    else await updateMachineMaster(machine.id, data, currentUser?.id);
     onBack();
   };
 
@@ -502,7 +542,7 @@ function MachineMasterForm({ mode, machine, onBack }) {
                 {isView ? 'View Machine Master' : isAdd ? 'Add Machine Master' : 'Edit Machine Master'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.machineCode || 'Manual entry for machine specifications'}
+                {watch('machineCode') || 'Manual entry for machine specifications'}
               </p>
             </div>
           </div>
@@ -529,7 +569,7 @@ function MachineMasterForm({ mode, machine, onBack }) {
           </div>
         </div>
 
-        <form id="machine-master-page-form" onSubmit={submit} className="p-6">
+        <form id="machine-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -544,10 +584,9 @@ function MachineMasterForm({ mode, machine, onBack }) {
                     <FormField
                       key={field.key}
                       field={field}
-                      value={form[field.key]}
-                      onChange={set}
-                      disabled={isView || (isAdd && field.key === 'machineCode')}
-                      error={errors[field.key]}
+                      control={control}
+                      disabled={isView || isSubmitting || (isAdd && field.key === 'machineCode')}
+                      error={errors[field.key]?.message}
                       options={machineMasterLookups[field.key]}
                       onAddOption={(val) => addMachineMasterLookupOption(field.key, val)}
                       onRenameOption={(oldVal, newVal) => renameMachineMasterLookupOption(field.key, oldVal, newVal)}
@@ -571,9 +610,10 @@ function MachineMasterForm({ mode, machine, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Machine' : 'Save Changes'}
               </button>
             </div>
@@ -600,13 +640,13 @@ export default function MachineMasterPage() {
     deleteMachine: deleteMachineMaster,
     getFilteredMachines: getFilteredMachineMasterItems,
     getStats: getMachineMasterStats,
-    fetchMachines, isLoading,
+    fetchMachines,
   } = useMachineMasterStore();
   const { currentOrg } = useAuthStore();
 
   useEffect(() => {
     if (currentOrg?.id) fetchMachines(currentOrg.id);
-  }, [currentOrg?.id]);
+  }, [currentOrg?.id, fetchMachines]);
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
@@ -712,7 +752,12 @@ export default function MachineMasterPage() {
       )}
 
       {viewState.type === 'form' ? (
-        <MachineMasterForm mode={viewState.mode} machine={viewState.item} onBack={backToTable} />
+        <MachineMasterForm
+          key={`${viewState.mode}-${viewState.item?.id || 'new'}`}
+          mode={viewState.mode}
+          machine={viewState.item}
+          onBack={backToTable}
+        />
       ) : (
         <>
           <div className="glass-card rounded-2xl p-5 shadow-xl mb-6">
@@ -722,7 +767,7 @@ export default function MachineMasterPage() {
                   type="text"
                   placeholder="Search by code, name, type, serial no..."
                   value={machineMasterSearchQuery}
-                  onChange={event => setStoreState({ machineMasterSearchQuery: event.target.value })}
+                  onChange={event => setMachineMasterSearchQuery(event.target.value)}
                   aria-label="Search machines"
                   className="w-full pl-11 pr-4 py-3 h-auto min-h-[46px] text-sm input-glow rounded-xl focus-within:border-emerald-500/50 bg-white border border-slate-200"
                 />
@@ -731,7 +776,7 @@ export default function MachineMasterPage() {
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
                 <Select
                   value={machineMasterDepartmentFilter}
-                  onChange={(val) => setStoreState({ machineMasterDepartmentFilter: val })}
+                  onChange={(val) => setMachineMasterDepartmentFilter(val)}
                   className="w-[180px]"
                   aria-label="Department Filter"
                 >
@@ -753,7 +798,7 @@ export default function MachineMasterPage() {
 
                 <Select
                   value={machineMasterStatusFilter}
-                  onChange={(val) => setStoreState({ machineMasterStatusFilter: val })}
+                  onChange={(val) => setMachineMasterStatusFilter(val)}
                   className="w-[140px]"
                   aria-label="Status Filter"
                 >
@@ -882,7 +927,7 @@ export default function MachineMasterPage() {
                 <span>Rows per page:</span>
                 <Select
                   value={machineMasterItemsPerPage.toString()}
-                  onChange={(val) => setStoreState({ machineMasterItemsPerPage: Number(val) })}
+                  onChange={(val) => setMachineMasterItemsPerPage(Number(val))}
                   className="w-[80px]"
                   aria-label="Rows per page"
                 >
@@ -905,7 +950,7 @@ export default function MachineMasterPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setStoreState({ machineMasterCurrentPage: Math.max(1, machineMasterCurrentPage - 1) })}
+                  onClick={() => setMachineMasterCurrentPage(Math.max(1, machineMasterCurrentPage - 1))}
                   disabled={machineMasterCurrentPage === 1}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 >
@@ -923,7 +968,7 @@ export default function MachineMasterPage() {
                     return (
                       <button
                         key={page}
-                        onClick={() => setStoreState({ machineMasterCurrentPage: page })}
+                        onClick={() => setMachineMasterCurrentPage(page)}
                         className={`w-10 h-10 text-sm rounded-xl transition-all font-bold ${machineMasterCurrentPage === page
                           ? 'text-white bg-emerald-600 border border-emerald-500 shadow-lg shadow-emerald-500/30'
                           : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50'
@@ -936,7 +981,7 @@ export default function MachineMasterPage() {
                 </div>
 
                 <button
-                  onClick={() => setStoreState({ machineMasterCurrentPage: Math.min(totalPages, machineMasterCurrentPage + 1) })}
+                  onClick={() => setMachineMasterCurrentPage(Math.min(totalPages, machineMasterCurrentPage + 1))}
                   disabled={machineMasterCurrentPage === totalPages || totalPages === 0}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 >

@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { EMPLOYEE_MASTER_FIELDS, EMPLOYEE_MASTER_SECTIONS } from '../data/employeeMasterTemplate';
@@ -55,10 +58,73 @@ const TABLE_COLUMNS = EMPLOYEE_MASTER_FIELDS
     align: ['employeeCode'].includes(field.key) ? 'center' : 'left',
   }));
 
+const employeeMasterSchema = z.object({
+  employeeCode: z.string().optional(),
+  employeeName: z.string().min(1, 'Employee name is required'),
+  employeeType: z.string().optional(),
+  gender: z.string().optional(),
+  dob: z.string().optional(),
+  mobileNo: z.string().optional(),
+  alternateMobile: z.string().optional(),
+  bloodGroup: z.string().optional(),
+  maritalStatus: z.string().optional(),
+  department: z.string().optional(),
+  designation: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactNumber: z.string().optional(),
+  emergencyContactRelation: z.string().optional(),
+  currentAddressLine1: z.string().optional(),
+  currentAddressLine2: z.string().optional(),
+  currentCity: z.string().optional(),
+  currentDistrict: z.string().optional(),
+  currentState: z.string().optional(),
+  currentPincode: z.string().optional(),
+  currentCountry: z.string().optional(),
+  sameAsCurrentAddress: z.boolean().optional(),
+  permanentAddressLine1: z.string().optional(),
+  permanentAddressLine2: z.string().optional(),
+  permanentCity: z.string().optional(),
+  permanentDistrict: z.string().optional(),
+  permanentState: z.string().optional(),
+  permanentPincode: z.string().optional(),
+  permanentCountry: z.string().optional(),
+  addressRemarks: z.string().optional(),
+  panNo: z.string().optional(),
+  aadhaarNo: z.string().optional(),
+  uanNo: z.string().optional(),
+  pfNo: z.string().optional(),
+  esiNo: z.string().optional(),
+  professionalTaxNo: z.string().optional(),
+  pfApplicable: z.boolean().optional(),
+  esiApplicable: z.boolean().optional(),
+  statutoryRemarks: z.string().optional(),
+  salaryType: z.string().optional(),
+  basicSalary: z.coerce.number().optional().or(z.literal('')),
+  hra: z.coerce.number().optional().or(z.literal('')),
+  conveyance: z.coerce.number().optional().or(z.literal('')),
+  otherAllowance: z.coerce.number().optional().or(z.literal('')),
+  grossSalary: z.coerce.number().optional().or(z.literal('')),
+  pfDeduction: z.coerce.number().optional().or(z.literal('')),
+  esiDeduction: z.coerce.number().optional().or(z.literal('')),
+  otherDeduction: z.coerce.number().optional().or(z.literal('')),
+  netSalary: z.coerce.number().optional().or(z.literal('')),
+  effectiveFrom: z.string().optional(),
+  salaryRemarks: z.string().optional(),
+  bankName: z.string().optional(),
+  accountNo: z.string().optional(),
+  ifscCode: z.string().optional(),
+  accountHolderName: z.string().optional(),
+  paymentMode: z.string().optional(),
+  upiId: z.string().optional(),
+  bankRemarks: z.string().optional(),
+  skillCategory: z.string().optional(),
+  skillLevel: z.string().optional(),
+  skillRemarks: z.string().optional()
+});
+
 function FormField({
   field,
-  value,
-  onChange,
+  control,
   disabled,
   error,
   options,
@@ -78,89 +144,114 @@ function FormField({
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </span>
-      {field.type === 'creatable-select' || field.type === 'select' ? (
-        <EditableCreatableSelect
-          value={value || selectOptions[0] || ''}
-          options={selectOptions}
-          disabled={disabled}
-          placeholder={field.label}
-          onChange={(nextValue) => onChange(field.key, nextValue)}
-          onAdd={onAddOption}
-          onRename={onRenameOption}
-          onDelete={onDeleteOption}
-        />
-      ) : field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${inputClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={isLocked}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : field.type === 'checkbox' || field.type === 'switch' ? (
-        <div className="flex items-center h-[46px] px-2">
-          <input
-            type="checkbox"
-            checked={!!value}
-            disabled={isLocked}
-            onChange={(e) => onChange(field.key, e.target.checked)}
-            className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-          />
-          <span className="ml-3 text-sm font-medium text-slate-700">{field.label}</span>
-        </div>
-      ) : (
-        <Input
-          type={field.type || 'text'}
-          value={value ?? ''}
-          disabled={isLocked}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
-          placeholder={field.autoGenerated ? 'Auto generated on create' : field.placeholder || field.label}
-          aria-label={field.label}
-        />
-      )}
+      <Controller
+        control={control}
+        name={field.key}
+        render={({ field: { onChange, value, onBlur, ref } }) => {
+          if (field.type === 'creatable-select' || field.type === 'select') {
+            return (
+              <EditableCreatableSelect
+                value={value || selectOptions[0] || ''}
+                options={selectOptions}
+                disabled={disabled}
+                placeholder={field.label}
+                onChange={onChange}
+                onAdd={onAddOption}
+                onRename={onRenameOption}
+                onDelete={onDeleteOption}
+              />
+            );
+          }
+          if (field.type === 'textarea') {
+            return (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${inputClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            );
+          }
+          if (field.type === 'date') {
+            return (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={isLocked}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            );
+          }
+          if (field.type === 'checkbox' || field.type === 'switch') {
+            return (
+              <div className="flex items-center h-[46px] px-2">
+                <input
+                  type="checkbox"
+                  checked={!!value}
+                  disabled={isLocked}
+                  onChange={(e) => onChange(e.target.checked)}
+                  onBlur={onBlur}
+                  className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                  ref={ref}
+                />
+                <span className="ml-3 text-sm font-medium text-slate-700">{field.label}</span>
+              </div>
+            );
+          }
+          return (
+            <Input
+              type={field.type || 'text'}
+              step={field.type === 'number' ? '0.01' : undefined}
+              value={value ?? ''}
+              disabled={isLocked}
+              onChange={onChange}
+              onBlur={onBlur}
+              className={inputClass}
+              placeholder={field.autoGenerated ? 'Auto generated on create' : field.placeholder || field.label}
+              aria-label={field.label}
+              ref={ref}
+            />
+          );
+        }}
+      />
       {field.autoGenerated && !disabled && (
         <span className="text-[11px] font-semibold text-emerald-600">Auto generated and locked</span>
       )}
@@ -181,60 +272,48 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
   } = useEmployeeMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(() => createInitialEmployeeForm(employee));
-  const [errors, setErrors] = useState({});
-
   const isView = mode === 'view';
   const isAdd = mode === 'add';
+
+  const { control, handleSubmit: hookFormSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(employeeMasterSchema),
+    defaultValues: createInitialEmployeeForm(employee)
+  });
+
+  useEffect(() => {
+    reset(createInitialEmployeeForm(employee));
+  }, [employee, mode, reset]);
+
+  const sameAsCurrentAddress = watch('sameAsCurrentAddress');
+  const currentAddress = watch([
+    'currentAddressLine1',
+    'currentAddressLine2',
+    'currentCity',
+    'currentDistrict',
+    'currentState',
+    'currentPincode',
+    'currentCountry'
+  ]);
+
+  useEffect(() => {
+    if (sameAsCurrentAddress) {
+      setValue('permanentAddressLine1', currentAddress[0] || '');
+      setValue('permanentAddressLine2', currentAddress[1] || '');
+      setValue('permanentCity', currentAddress[2] || '');
+      setValue('permanentDistrict', currentAddress[3] || '');
+      setValue('permanentState', currentAddress[4] || '');
+      setValue('permanentPincode', currentAddress[5] || '');
+      setValue('permanentCountry', currentAddress[6] || '');
+    }
+  }, [sameAsCurrentAddress, ...currentAddress, setValue]);
+
   const groupedFields = EMPLOYEE_MASTER_SECTIONS.map(section => ({
     section,
     fields: EMPLOYEE_MASTER_FIELDS.filter(field => field.section === section),
   }));
 
-  const set = (key, value) => {
-    setForm(current => {
-      const updated = { ...current, [key]: value };
-      
-      // Handle "Same as Current Address" logic
-      if (key === 'sameAsCurrentAddress' && value === true) {
-        updated.permanentAddressLine1 = updated.currentAddressLine1;
-        updated.permanentAddressLine2 = updated.currentAddressLine2;
-        updated.permanentCity = updated.currentCity;
-        updated.permanentDistrict = updated.currentDistrict;
-        updated.permanentState = updated.currentState;
-        updated.permanentPincode = updated.currentPincode;
-        updated.permanentCountry = updated.currentCountry;
-      } else if (updated.sameAsCurrentAddress && key.startsWith('current')) {
-        const fieldMapping = {
-          currentAddressLine1: 'permanentAddressLine1',
-          currentAddressLine2: 'permanentAddressLine2',
-          currentCity: 'permanentCity',
-          currentDistrict: 'permanentDistrict',
-          currentState: 'permanentState',
-          currentPincode: 'permanentPincode',
-          currentCountry: 'permanentCountry'
-        };
-        if (fieldMapping[key]) {
-          updated[fieldMapping[key]] = value;
-        }
-      }
-      
-      return updated;
-    });
-  };
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!String(form.employeeName || '').trim()) nextErrors.employeeName = 'Employee name is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    
-    const finalForm = { ...form };
+  const onSubmit = async (data) => {
+    const finalForm = { ...data };
     if (isAdd) {
       // Auto generate employee code based on max id
       const maxId = employeeMasterItems.reduce((max, item) => Math.max(max, item.id || 0), 0);
@@ -267,7 +346,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
                 {isView ? 'View Employee' : isAdd ? 'Add Employee' : 'Edit Employee'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {isAdd ? 'Employee code will be generated automatically' : form.employeeCode}
+                {isAdd ? 'Employee code will be generated automatically' : watch('employeeCode')}
               </p>
             </div>
           </div>
@@ -294,7 +373,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
           </div>
         </div>
 
-        <form id="employee-master-page-form" onSubmit={submit} className="p-6">
+        <form id="employee-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -309,10 +388,9 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
                     <FormField
                       key={field.key}
                       field={field}
-                      value={form[field.key]}
-                      onChange={set}
-                      disabled={isView || (form.sameAsCurrentAddress && field.key.startsWith('permanent'))}
-                      error={errors[field.key]}
+                      control={control}
+                      disabled={isView || isSubmitting || (sameAsCurrentAddress && field.key.startsWith('permanent'))}
+                      error={errors[field.key]?.message}
                       options={employeeMasterLookups[field.key] || field.options}
                       onAddOption={(newOption) => addEmployeeMasterLookupOption(field.key, newOption)}
                       onRenameOption={(oldOption, newOption) => renameEmployeeMasterLookupOption(field.key, oldOption, newOption)}
@@ -336,9 +414,10 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Employee' : 'Save Changes'}
               </button>
             </div>

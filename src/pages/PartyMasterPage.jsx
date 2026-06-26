@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { PARTY_MASTER_FIELDS, PARTY_MASTER_SECTIONS } from '../data/partyMasterTemplate';
@@ -59,10 +62,46 @@ const TABLE_COLUMNS = PARTY_MASTER_FIELDS
     align: ['partyCode', 'gstStateCode'].includes(field.key) ? 'center' : 'left',
   }));
 
+const partyMasterSchema = z.object({
+  partyCategory: z.string().min(1, 'Party category is required'),
+  partyName: z.string().min(1, 'Party name is required'),
+  partyCode: z.string().optional(),
+  aliasName: z.string().optional(),
+  natureOfBusiness: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional(),
+  pinCode: z.string().optional(),
+  country: z.string().optional(),
+  procurementPersonName: z.string().optional(),
+  procurementContactNo: z.string().optional(),
+  procurementEmail: z.string().optional(),
+  plannerPersonName: z.string().optional(),
+  plannerContactNo: z.string().optional(),
+  plannerEmail: z.string().optional(),
+  accountsPersonName: z.string().optional(),
+  accountsContactNo: z.string().optional(),
+  accountsEmail: z.string().optional(),
+  gstNo: z.string().optional(),
+  gstRegistrationDate: z.string().optional(),
+  gstStateCode: z.string().optional(),
+  panDetails: z.string().optional(),
+  msmeCertificateNo: z.string().optional(),
+  msmeEnterpriseType: z.string().optional(),
+  msmeCertificateValidity: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  deliveryTerms: z.string().optional(),
+  transport: z.string().optional(),
+  transportDistance: z.coerce.number().optional().or(z.literal('')),
+  detailsSharedVia: z.string().optional(),
+  partyEnrollmentDate: z.string().optional()
+});
+
 function FormField({
   field,
-  value,
-  onChange,
+  control,
   disabled,
   error,
   options,
@@ -83,78 +122,98 @@ function FormField({
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </span>
-      {field.type === 'creatable-select' || field.type === 'select' ? (
-        <EditableCreatableSelect
-          value={value || selectOptions[0] || ''}
-          options={selectOptions}
-          disabled={disabled}
-          placeholder={field.label}
-          onChange={(nextValue) => onChange(field.key, nextValue)}
-          onAdd={onAddOption}
-          onRename={onRenameOption}
-          onDelete={onDeleteOption}
-        />
-      ) : field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${inputClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={isLocked}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : (
-        <Input
-          type={field.type || 'text'}
-          value={value ?? ''}
-          disabled={isLocked}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
-          placeholder={field.autoGenerated ? 'Auto generated on create' : field.placeholder || field.label}
-          aria-label={field.label}
-        />
-      )}
+      <Controller
+        control={control}
+        name={field.key}
+        render={({ field: { onChange, value, onBlur, ref } }) => {
+          if (field.type === 'creatable-select' || field.type === 'select') {
+            return (
+              <EditableCreatableSelect
+                value={value || selectOptions[0] || ''}
+                options={selectOptions}
+                disabled={disabled}
+                placeholder={field.label}
+                onChange={onChange}
+                onAdd={onAddOption}
+                onRename={onRenameOption}
+                onDelete={onDeleteOption}
+              />
+            );
+          }
+          if (field.type === 'textarea') {
+            return (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${inputClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            );
+          }
+          if (field.type === 'date') {
+            return (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={isLocked}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            );
+          }
+          return (
+            <Input
+              type={field.type || 'text'}
+              step={field.type === 'number' ? '0.01' : undefined}
+              value={value ?? ''}
+              disabled={isLocked}
+              onChange={onChange}
+              onBlur={onBlur}
+              className={inputClass}
+              placeholder={field.autoGenerated ? 'Auto generated on create' : field.placeholder || field.label}
+              aria-label={field.label}
+              ref={ref}
+            />
+          );
+        }}
+      />
       {field.autoGenerated && !disabled && (
         <span className="text-[11px] font-semibold text-emerald-600">Auto generated and locked</span>
       )}
@@ -178,23 +237,46 @@ function PartyMasterForm({ mode, party, onBack }) {
   } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(() => createInitialPartyForm(
-    party,
-    partyMasterLookups.partyCategory[0],
-    getNextPartyCode
-  ));
-  const [errors, setErrors] = useState({});
+  const isView = mode === 'view';
+  const isAdd = mode === 'add';
+
+  const { control, handleSubmit: hookFormSubmit, reset, setValue, watch, getValues, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(partyMasterSchema),
+    defaultValues: createInitialPartyForm(
+      party,
+      partyMasterLookups.partyCategory[0],
+      getNextPartyCode
+    )
+  });
+
+  useEffect(() => {
+    reset(createInitialPartyForm(
+      party,
+      partyMasterLookups.partyCategory[0],
+      getNextPartyCode
+    ));
+  }, [party, mode, reset, partyMasterLookups.partyCategory, getNextPartyCode]);
+
   const [cityOptions, setCityOptions] = useState([]);
   const [isLoadingPincode, setIsLoadingPincode] = useState(false);
+
+  const pinCode = watch('pinCode');
+  const partyCategory = watch('partyCategory');
+
+  useEffect(() => {
+    if (isAdd && partyCategory) {
+      setValue('partyCode', getNextPartyCode(partyCategory));
+    }
+  }, [partyCategory, isAdd, getNextPartyCode, setValue]);
 
   useEffect(() => {
     const fetchPincodeDetails = async () => {
       if (mode === 'view') return;
 
-      if (form.pinCode?.length === 6) {
+      if (pinCode?.length === 6) {
         setIsLoadingPincode(true);
         try {
-          const res = await fetch(`https://api.postalpincode.in/pincode/${form.pinCode}`);
+          const res = await fetch(`https://api.postalpincode.in/pincode/${pinCode}`);
           const data = await res.json();
           if (data && data[0]?.Status === 'Success') {
             const postOffices = data[0].PostOffice;
@@ -212,7 +294,7 @@ function PartyMasterForm({ mode, party, onBack }) {
               // Fetch coordinates from OpenStreetMap for Company PIN (401208) and Target PIN
               const [resCompany, resTarget] = await Promise.all([
                 fetch(`https://nominatim.openstreetmap.org/search?postalcode=401208&country=india&format=json`),
-                fetch(`https://nominatim.openstreetmap.org/search?postalcode=${form.pinCode}&country=india&format=json`)
+                fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pinCode}&country=india&format=json`)
               ]);
               const dataCompany = await resCompany.json();
               const dataTarget = await resTarget.json();
@@ -244,23 +326,22 @@ function PartyMasterForm({ mode, party, onBack }) {
               console.error("Distance calculation failed", e);
             }
 
-            setForm(prev => ({
-              ...prev,
-              state: state,
-              district: district,
-              country: country,
-              city: areas.includes(prev.city) ? prev.city : areas[0],
-              ...(distanceVal !== '' ? { transportDistance: distanceVal } : {})
-            }));
+            setValue('state', state);
+            setValue('district', district);
+            setValue('country', country);
+            
+            const currentCity = getValues('city');
+            setValue('city', areas.includes(currentCity) ? currentCity : areas[0]);
+            
+            if (distanceVal !== '') {
+              setValue('transportDistance', distanceVal);
+            }
           } else {
             setCityOptions([]);
-            setForm(prev => ({
-              ...prev,
-              state: '',
-              district: '',
-              city: '',
-              transportDistance: ''
-            }));
+            setValue('state', '');
+            setValue('district', '');
+            setValue('city', '');
+            setValue('transportDistance', '');
           }
         } catch (error) {
           console.error("Failed to fetch pincode details", error);
@@ -270,52 +351,29 @@ function PartyMasterForm({ mode, party, onBack }) {
       } else {
         // If pincode is removed or not 6 digits, clear the fields
         setCityOptions([]);
-        setForm(prev => {
-          if (!prev.state && !prev.district && !prev.city && !prev.transportDistance) return prev;
-          return {
-            ...prev,
-            state: '',
-            district: '',
-            city: '',
-            transportDistance: ''
-          };
-        });
+        const currentVals = getValues(['state', 'district', 'city', 'transportDistance']);
+        if (currentVals.some(v => v)) {
+          setValue('state', '');
+          setValue('district', '');
+          setValue('city', '');
+          setValue('transportDistance', '');
+        }
       }
     };
 
     const timeoutId = setTimeout(fetchPincodeDetails, 600);
     return () => clearTimeout(timeoutId);
-  }, [form.pinCode, mode]);
+  }, [pinCode, mode, setValue, getValues]);
 
-  const isView = mode === 'view';
-  const isAdd = mode === 'add';
+
   const groupedFields = PARTY_MASTER_SECTIONS.map(section => ({
     section,
     fields: PARTY_MASTER_FIELDS.filter(field => field.section === section),
   }));
 
-  const set = (key, value) => {
-    setForm(current => {
-      const next = { ...current, [key]: value };
-      if (key === 'partyCategory') {
-        next.partyCode = getNextPartyCode(value);
-      }
-      return next;
-    });
-  };
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!String(form.partyName || '').trim()) nextErrors.partyName = 'Party name is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    if (isAdd) await addPartyMaster(form, currentOrg?.id, currentUser?.id);
-    else await updatePartyMaster(party.id, form, currentUser?.id);
+  const onSubmit = async (data) => {
+    if (isAdd) await addPartyMaster(data, currentOrg?.id, currentUser?.id);
+    else await updatePartyMaster(party.id, data, currentUser?.id);
     onBack();
   };
 
@@ -340,7 +398,7 @@ function PartyMasterForm({ mode, party, onBack }) {
                 {isView ? 'View Party Master' : isAdd ? 'Add Party Master' : 'Edit Party Master'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.partyCode || 'Party code will be generated automatically'}
+                {watch('partyCode') || 'Party code will be generated automatically'}
               </p>
             </div>
           </div>
@@ -367,7 +425,7 @@ function PartyMasterForm({ mode, party, onBack }) {
           </div>
         </div>
 
-        <form id="party-master-page-form" onSubmit={submit} className="p-6">
+        <form id="party-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -390,10 +448,9 @@ function PartyMasterForm({ mode, party, onBack }) {
                       <FormField
                         key={field.key}
                         field={fieldProps}
-                        value={form[field.key]}
-                        onChange={set}
-                        disabled={isView || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key))}
-                        error={errors[field.key]}
+                        control={control}
+                        disabled={isView || isSubmitting || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key))}
+                        error={errors[field.key]?.message}
                         options={isCityField && cityOptions.length > 0 ? cityOptions : partyMasterLookups[field.key] || field.options}
                         onAddOption={(newOption) => {
                           if (isCityField) setCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
@@ -402,7 +459,7 @@ function PartyMasterForm({ mode, party, onBack }) {
                         onRenameOption={(oldOption, newOption) => {
                           if (isCityField) {
                             setCityOptions(prev => prev.map(option => option === oldOption ? newOption : option));
-                            if (form.city === oldOption) set('city', newOption);
+                            if (watch('city') === oldOption) setValue('city', newOption);
                           } else {
                             renamePartyMasterLookupOption(field.key, oldOption, newOption);
                           }
@@ -410,7 +467,7 @@ function PartyMasterForm({ mode, party, onBack }) {
                         onDeleteOption={(option) => {
                           if (isCityField) {
                             setCityOptions(prev => prev.filter(item => item !== option));
-                            if (form.city === option) set('city', '');
+                            if (watch('city') === option) setValue('city', '');
                             return true;
                           }
                           return deletePartyMasterLookupOption(field.key, option);
@@ -436,9 +493,10 @@ function PartyMasterForm({ mode, party, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Party' : 'Save Changes'}
               </button>
             </div>

@@ -14,6 +14,9 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { HSN_SAC_MASTER_FIELDS } from '../data/hsnSacTemplate';
 import { useHsnSacStore } from '../store/hsnSacStore';
 import { useAuthStore } from '../store/authStore';
@@ -32,7 +35,15 @@ const TABLE_COLUMNS = HSN_SAC_MASTER_FIELDS.map(field => ({
   align: field.type === 'number' ? 'right' : 'left',
 }));
 
-function FormField({ field, value, onChange, disabled, error }) {
+const hsnSacSchema = z.object({
+  hsnCode: z.string().min(1, 'HSN/SAC Code is required'),
+  description: z.string().optional(),
+  gstPercentage: z.coerce.number().optional().or(z.literal('')),
+  effectiveFrom: z.string().optional(),
+  effectiveTo: z.string().optional(),
+});
+
+function FormField({ field, control, disabled, error }) {
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;
@@ -43,68 +54,84 @@ function FormField({ field, value, onChange, disabled, error }) {
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </Label>
-      {field.type === 'textarea' ? (
-        <textarea
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={`${inputClass} min-h-28 resize-y`}
-          placeholder={field.label}
-        />
-      ) : field.type === 'date' ? (
-        <DatePicker
-          value={value ? parseDate(value) : null}
-          isDisabled={disabled}
-          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
-          className="w-full"
-          aria-label={field.label}
-        >
-          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
-            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
-              {(segment) => <DateField.Segment segment={segment} />}
-            </DateField.Input>
-            <DateField.Suffix className="pr-4">
-              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <DatePicker.Popover>
-            <Calendar aria-label={field.label}>
-              <Calendar.Header>
-                <Calendar.YearPickerTrigger>
-                  <Calendar.YearPickerTriggerHeading />
-                  <Calendar.YearPickerTriggerIndicator />
-                </Calendar.YearPickerTrigger>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-              <Calendar.YearPickerGrid>
-                <Calendar.YearPickerGridBody>
-                  {({ year }) => <Calendar.YearPickerCell year={year} />}
-                </Calendar.YearPickerGridBody>
-              </Calendar.YearPickerGrid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
-      ) : (
-        <Input
-          type={field.type === 'number' ? 'number' : 'text'}
-          step={field.type === 'number' ? '0.01' : undefined}
-          value={value ?? ''}
-          disabled={disabled}
-          onChange={(event) => onChange(field.key, event.target.value)}
-          className={inputClass}
-          placeholder={field.label}
-          aria-label={field.label}
-        />
-      )}
+      <Controller
+        control={control}
+        name={field.key}
+        render={({ field: { onChange, value, onBlur, ref } }) => {
+          if (field.type === 'textarea') {
+            return (
+              <textarea
+                value={value ?? ''}
+                disabled={disabled}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={`${inputClass} min-h-28 resize-y`}
+                placeholder={field.label}
+                ref={ref}
+              />
+            );
+          }
+          if (field.type === 'date') {
+            return (
+              <DatePicker
+                value={value ? parseDate(value) : null}
+                isDisabled={disabled}
+                onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                className="w-full"
+                aria-label={field.label}
+              >
+                <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+                  <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateField.Suffix className="pr-4">
+                    <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                      <DatePicker.TriggerIndicator />
+                    </DatePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DatePicker.Popover>
+                  <Calendar aria-label={field.label}>
+                    <Calendar.Header>
+                      <Calendar.YearPickerTrigger>
+                        <Calendar.YearPickerTriggerHeading />
+                        <Calendar.YearPickerTriggerIndicator />
+                      </Calendar.YearPickerTrigger>
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
+                    </Calendar.Header>
+                    <Calendar.Grid>
+                      <Calendar.GridHeader>
+                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                      </Calendar.GridHeader>
+                      <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                    </Calendar.Grid>
+                    <Calendar.YearPickerGrid>
+                      <Calendar.YearPickerGridBody>
+                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                      </Calendar.YearPickerGridBody>
+                    </Calendar.YearPickerGrid>
+                  </Calendar>
+                </DatePicker.Popover>
+              </DatePicker>
+            );
+          }
+          return (
+            <Input
+              type={field.type === 'number' ? 'number' : 'text'}
+              step={field.type === 'number' ? '0.01' : undefined}
+              value={value ?? ''}
+              disabled={disabled}
+              onChange={onChange}
+              onBlur={onBlur}
+              className={inputClass}
+              placeholder={field.label}
+              aria-label={field.label}
+              ref={ref}
+            />
+          );
+        }}
+      />
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
     </div>
   );
@@ -113,34 +140,21 @@ function FormField({ field, value, onChange, disabled, error }) {
 function HsnSacMasterForm({ mode, item, onBack }) {
   const { addItem, updateItem } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
-
-  const [form, setForm] = useState(EMPTY_ITEM);
-  const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    setForm(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
-    setErrors({});
-  }, [item, mode]);
-
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
-  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+  const { control, handleSubmit: hookFormSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(hsnSacSchema),
+    defaultValues: item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM }
+  });
 
-  const validate = () => {
-    const nextErrors = {};
-    if (!String(form.hsnCode || '').trim()) nextErrors.hsnCode = 'HSN/SAC Code is required';
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
+  useEffect(() => {
+    reset(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
+  }, [item, mode, reset]);
 
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!validate()) return;
-    if (isAdd) await addItem(form, currentOrg?.id, currentUser?.id);
-    else await updateItem(item.id, form, currentUser?.id);
-
-
+  const onSubmit = async (data) => {
+    if (isAdd) await addItem(data, currentOrg?.id, currentUser?.id);
+    else await updateItem(item.id, data, currentUser?.id);
     onBack();
   };
 
@@ -188,16 +202,15 @@ function HsnSacMasterForm({ mode, item, onBack }) {
           </div>
         </div>
 
-        <form id="hsn-sac-master-form" onSubmit={submit} className="p-6">
+        <form id="hsn-sac-master-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {HSN_SAC_MASTER_FIELDS.map(field => (
               <FormField
                 key={field.key}
                 field={field}
-                value={form[field.key]}
-                onChange={set}
-                disabled={isView}
-                error={errors[field.key]}
+                control={control}
+                disabled={isView || isSubmitting}
+                error={errors[field.key]?.message}
               />
             ))}
           </div>
@@ -214,9 +227,10 @@ function HsnSacMasterForm({ mode, item, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Entry' : 'Save Changes'}
               </button>
             </div>

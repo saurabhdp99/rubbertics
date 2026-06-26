@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { useSaleOrderStore } from '../store/saleOrderStore';
@@ -72,6 +75,30 @@ const COLUMNS = [
   { key: 'remark', label: 'Remarks', width: '140px' },
 ];
 
+const itemSchema = z.object({
+  partNo: z.string().optional(),
+  productName: z.string().optional(),
+  hsnCode: z.string().optional(),
+  orderQty: z.coerce.number().min(1, 'Valid quantity required'),
+  uom: z.string().optional(),
+  price: z.coerce.number().optional().or(z.literal('')),
+  scheduleQty: z.coerce.number().optional().or(z.literal('')),
+  deliveryDate: z.string().min(1, 'Schedule date required'),
+});
+
+const saleOrderSchema = z.object({
+  createdDate: z.string().optional(),
+  date: z.string().optional(),
+  soNo: z.string().min(1, 'PO Number is required'),
+  partyName: z.string().min(1, 'Party name is required'),
+  partyAddress: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  items: z.array(itemSchema).min(1, 'At least one item is required'),
+  paymentTerms: z.string().optional(),
+  deliveryTerms: z.string().optional(),
+  remark: z.string().optional(),
+});
+
 // --- Form Component ---
 function Field({ label, children, required, error, wide }) {
   return (
@@ -94,7 +121,7 @@ function SaleOrderForm({ mode, order, onBack }) {
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
-  const [form, setForm] = useState(() => {
+  const getInitialValues = () => {
     if (order) {
       let items = order.items || [];
       if (items.length === 0) {
@@ -119,34 +146,29 @@ function SaleOrderForm({ mode, order, onBack }) {
       return { ...EMPTY_ORDER, ...order, items, partyAddress };
     }
     return { ...EMPTY_ORDER };
+  };
+
+  const { control, handleSubmit: hookFormSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(saleOrderSchema),
+    defaultValues: getInitialValues()
   });
-  const [errors, setErrors] = useState({});
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'items'
+  });
+
+  useEffect(() => {
+    reset(getInitialValues());
+  }, [order, mode, reset]);
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
   const customerParties = (partyMasterItems || []).filter(p => p.partyCategory === 'Customer');
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
-
-  const validate = () => {
-    const e = {};
-    if (!form.soNo?.trim()) e.soNo = 'PO Number is required';
-    if (!form.partyName?.trim()) e.partyName = 'Party name is required';
-
-    (form.items || []).forEach((item, idx) => {
-      if (!item.orderQty || isNaN(item.orderQty)) e[`item_${idx}_orderQty`] = 'Valid quantity required';
-      if (!item.deliveryDate) e[`item_${idx}_deliveryDate`] = 'Schedule date required';
-    });
-
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    const finalForm = { ...form };
+  const onSubmit = async (data) => {
+    const finalForm = { ...data };
 
     finalForm.items = (finalForm.items || []).filter(item =>
       item.partNo || item.productName || item.hsnCode || item.uom || item.price || item.orderQty || item.deliveryDate || item.scheduleQty
@@ -190,7 +212,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                 {isView ? 'View Sale Order' : isAdd ? 'Create Sale Order' : 'Edit Sale Order'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {form.soNo || 'Fill the details below'}
+                {watch('soNo') || 'Fill the details below'}
               </p>
             </div>
           </div>
@@ -207,16 +229,17 @@ function SaleOrderForm({ mode, order, onBack }) {
               <button
                 type="submit"
                 form="po-form"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Order' : 'Save Changes'}
               </button>
             )}
           </div>
         </div>
 
-        <form id="po-form" onSubmit={submit} className="p-6">
+        <form id="po-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
             <section className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
               <div className="flex items-center gap-3 mb-4">
@@ -227,115 +250,143 @@ function SaleOrderForm({ mode, order, onBack }) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                <Field label="Created Date">
-                  <DatePicker
-                    value={form.createdDate ? parseDate(form.createdDate) : (form.date ? parseDate(form.date) : null)}
-                    isDisabled={true}
-                    onChange={(dateVal) => set('createdDate', dateVal ? dateVal.toString() : '')}
-                    className="w-full"
-                    aria-label="Created Date"
-                  >
-                    <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                      <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent opacity-70">
-                        {(segment) => <DateField.Segment segment={segment} />}
-                      </DateField.Input>
-                      <DateField.Suffix className="pr-2 opacity-50">
-                        <DatePicker.Trigger className="text-slate-500 cursor-not-allowed">
-                          <DatePicker.TriggerIndicator />
-                        </DatePicker.Trigger>
-                      </DateField.Suffix>
-                    </DateField.Group>
-                    <DatePicker.Popover>
-                      <HeroCalendar aria-label="Created Date Calendar">
-                        <HeroCalendar.Header>
-                          <HeroCalendar.NavButton slot="previous" />
-                          <HeroCalendar.NavButton slot="next" />
-                        </HeroCalendar.Header>
-                        <HeroCalendar.Grid>
-                          <HeroCalendar.GridHeader>
-                            {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                          </HeroCalendar.GridHeader>
-                          <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
-                        </HeroCalendar.Grid>
-                      </HeroCalendar>
-                    </DatePicker.Popover>
-                  </DatePicker>
-                </Field>
+                <Controller
+                  control={control}
+                  name="createdDate"
+                  render={({ field: { onChange, value } }) => {
+                    const dateVal = value || watch('date');
+                    return (
+                      <Field label="Created Date">
+                        <DatePicker
+                          value={dateVal ? parseDate(dateVal) : null}
+                          isDisabled={true}
+                          onChange={(v) => onChange(v ? v.toString() : '')}
+                          className="w-full"
+                          aria-label="Created Date"
+                        >
+                          <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                            <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent opacity-70">
+                              {(segment) => <DateField.Segment segment={segment} />}
+                            </DateField.Input>
+                            <DateField.Suffix className="pr-2 opacity-50">
+                              <DatePicker.Trigger className="text-slate-500 cursor-not-allowed">
+                                <DatePicker.TriggerIndicator />
+                              </DatePicker.Trigger>
+                            </DateField.Suffix>
+                          </DateField.Group>
+                          <DatePicker.Popover>
+                            <HeroCalendar aria-label="Created Date Calendar">
+                              <HeroCalendar.Header>
+                                <HeroCalendar.NavButton slot="previous" />
+                                <HeroCalendar.NavButton slot="next" />
+                              </HeroCalendar.Header>
+                              <HeroCalendar.Grid>
+                                <HeroCalendar.GridHeader>
+                                  {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                                </HeroCalendar.GridHeader>
+                                <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                              </HeroCalendar.Grid>
+                            </HeroCalendar>
+                          </DatePicker.Popover>
+                        </DatePicker>
+                      </Field>
+                    );
+                  }}
+                />
 
-                <Field label="Purchase Date">
-                  <DatePicker
-                    value={form.date ? parseDate(form.date) : null}
-                    isDisabled={!isAdd}
-                    onChange={(dateVal) => set('date', dateVal ? dateVal.toString() : '')}
-                    className="w-full"
-                    aria-label="Purchase Date"
-                  >
-                    <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                      <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
-                        {(segment) => <DateField.Segment segment={segment} />}
-                      </DateField.Input>
-                      <DateField.Suffix className="pr-2">
-                        <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                          <DatePicker.TriggerIndicator />
-                        </DatePicker.Trigger>
-                      </DateField.Suffix>
-                    </DateField.Group>
-                    <DatePicker.Popover>
-                      <HeroCalendar aria-label="Purchase Date Calendar">
-                        <HeroCalendar.Header>
-                          <HeroCalendar.NavButton slot="previous" />
-                          <HeroCalendar.NavButton slot="next" />
-                        </HeroCalendar.Header>
-                        <HeroCalendar.Grid>
-                          <HeroCalendar.GridHeader>
-                            {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                          </HeroCalendar.GridHeader>
-                          <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
-                        </HeroCalendar.Grid>
-                      </HeroCalendar>
-                    </DatePicker.Popover>
-                  </DatePicker>
-                </Field>
+                <Controller
+                  control={control}
+                  name="date"
+                  render={({ field: { onChange, value } }) => (
+                    <Field label="Purchase Date">
+                      <DatePicker
+                        value={value ? parseDate(value) : null}
+                        isDisabled={!isAdd}
+                        onChange={(v) => onChange(v ? v.toString() : '')}
+                        className="w-full"
+                        aria-label="Purchase Date"
+                      >
+                        <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                          <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
+                            {(segment) => <DateField.Segment segment={segment} />}
+                          </DateField.Input>
+                          <DateField.Suffix className="pr-2">
+                            <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                              <DatePicker.TriggerIndicator />
+                            </DatePicker.Trigger>
+                          </DateField.Suffix>
+                        </DateField.Group>
+                        <DatePicker.Popover>
+                          <HeroCalendar aria-label="Purchase Date Calendar">
+                            <HeroCalendar.Header>
+                              <HeroCalendar.NavButton slot="previous" />
+                              <HeroCalendar.NavButton slot="next" />
+                            </HeroCalendar.Header>
+                            <HeroCalendar.Grid>
+                              <HeroCalendar.GridHeader>
+                                {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                              </HeroCalendar.GridHeader>
+                              <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                            </HeroCalendar.Grid>
+                          </HeroCalendar>
+                        </DatePicker.Popover>
+                      </DatePicker>
+                    </Field>
+                  )}
+                />
 
-                <Field label="PO Number" required error={errors.soNo}>
-                  <Input type="text" value={form.soNo} disabled={isView} onChange={e => set('soNo', e.target.value)} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
-                </Field>
+                <Controller
+                  control={control}
+                  name="soNo"
+                  render={({ field: { onChange, value, ref } }) => (
+                    <Field label="PO Number" required error={errors.soNo?.message}>
+                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
+                    </Field>
+                  )}
+                />
 
 
 
-                <Field label="Party Name" required error={errors.partyName}>
-                  <Select
-                    selectedKeys={form.partyName ? [form.partyName] : []}
-                    onSelectionChange={v => {
-                      const partyName = Array.from(v)[0];
-                      const party = customerParties.find(p => p.partyName === partyName);
-                      setForm(f => ({ ...f, partyName, partyAddress: party?.address || '' }));
-                    }}
-                    isDisabled={isView}
-                    className="w-full"
-                    aria-label="Party Name"
-                  >
-                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                      <Select.Value placeholder="Select Customer Party" />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {customerParties.map(p => (
-                          <ListBox.Item key={p.partyName} id={p.partyName} textValue={p.partyName}>
-                            <div className="flex flex-col gap-0.5 py-0.5">
-                              <span className="font-bold text-slate-800">{p.partyName}</span>
-                            </div>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                </Field>
+                <Controller
+                  control={control}
+                  name="partyName"
+                  render={({ field: { onChange, value } }) => (
+                    <Field label="Party Name" required error={errors.partyName?.message}>
+                      <Select
+                        selectedKeys={value ? [value] : []}
+                        onSelectionChange={v => {
+                          const partyName = Array.from(v)[0];
+                          onChange(partyName);
+                          const party = customerParties.find(p => p.partyName === partyName);
+                          setValue('partyAddress', party?.address || '');
+                        }}
+                        isDisabled={isView}
+                        className="w-full"
+                        aria-label="Party Name"
+                      >
+                        <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                          <Select.Value placeholder="Select Customer Party" />
+                        </Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {customerParties.map(p => (
+                              <ListBox.Item key={p.partyName} id={p.partyName} textValue={p.partyName}>
+                                <div className="flex flex-col gap-0.5 py-0.5">
+                                  <span className="font-bold text-slate-800">{p.partyName}</span>
+                                </div>
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    </Field>
+                  )}
+                />
 
-                {form.partyAddress && (
+                {watch('partyAddress') && (
                   <Field label="Party Address" wide>
                     <textarea
-                      value={form.partyAddress}
+                      value={watch('partyAddress')}
                       disabled={true}
                       className={`${inputCls} min-h-[60px] resize-y px-4 py-3 bg-slate-50 text-slate-600`}
                       readOnly
@@ -343,221 +394,291 @@ function SaleOrderForm({ mode, order, onBack }) {
                   </Field>
                 )}
 
-                <Field label="Shipping Address" wide>
-                  <textarea
-                    value={form.shippingAddress || ''}
-                    disabled={isView}
-                    onChange={e => set('shippingAddress', e.target.value)}
-                    className={`${inputCls} min-h-[60px] resize-y px-4 py-3`}
-                    placeholder="Enter shipping address..."
-                  />
-                </Field>
+                <Controller
+                  control={control}
+                  name="shippingAddress"
+                  render={({ field: { onChange, value, ref } }) => (
+                    <Field label="Shipping Address" wide>
+                      <textarea
+                        value={value || ''}
+                        disabled={isView}
+                        onChange={onChange}
+                        ref={ref}
+                        className={`${inputCls} min-h-[60px] resize-y px-4 py-3`}
+                        placeholder="Enter shipping address..."
+                      />
+                    </Field>
+                  )}
+                />
 
-                <Field label="Payment Terms">
-                  <EditableCreatableSelect
-                    value={form.paymentTerms}
-                    options={saleOrderLookups.paymentTerms || []}
-                    disabled={isView}
-                    placeholder="Select or enter payment terms"
-                    onChange={v => set('paymentTerms', v)}
-                    onAdd={(newOption) => addSaleOrderLookupOption('paymentTerms', newOption)}
-                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('paymentTerms', oldOption, newOption)}
-                    onDelete={(option) => deleteSaleOrderLookupOption('paymentTerms', option)}
-                  />
-                </Field>
+                <Controller
+                  control={control}
+                  name="paymentTerms"
+                  render={({ field: { onChange, value } }) => (
+                    <Field label="Payment Terms">
+                      <EditableCreatableSelect
+                        value={value}
+                        options={saleOrderLookups.paymentTerms || []}
+                        disabled={isView}
+                        placeholder="Select or enter payment terms"
+                        onChange={onChange}
+                        onAdd={(newOption) => addSaleOrderLookupOption('paymentTerms', newOption)}
+                        onRename={(oldOption, newOption) => renameSaleOrderLookupOption('paymentTerms', oldOption, newOption)}
+                        onDelete={(option) => deleteSaleOrderLookupOption('paymentTerms', option)}
+                      />
+                    </Field>
+                  )}
+                />
 
-                <Field label="Delivery Terms">
-                  <EditableCreatableSelect
-                    value={form.deliveryTerms}
-                    options={saleOrderLookups.deliveryTerms || []}
-                    disabled={isView}
-                    placeholder="Select or enter delivery terms"
-                    onChange={v => set('deliveryTerms', v)}
-                    onAdd={(newOption) => addSaleOrderLookupOption('deliveryTerms', newOption)}
-                    onRename={(oldOption, newOption) => renameSaleOrderLookupOption('deliveryTerms', oldOption, newOption)}
-                    onDelete={(option) => deleteSaleOrderLookupOption('deliveryTerms', option)}
-                  />
-                </Field>
+                <Controller
+                  control={control}
+                  name="deliveryTerms"
+                  render={({ field: { onChange, value } }) => (
+                    <Field label="Delivery Terms">
+                      <EditableCreatableSelect
+                        value={value}
+                        options={saleOrderLookups.deliveryTerms || []}
+                        disabled={isView}
+                        placeholder="Select or enter delivery terms"
+                        onChange={onChange}
+                        onAdd={(newOption) => addSaleOrderLookupOption('deliveryTerms', newOption)}
+                        onRename={(oldOption, newOption) => renameSaleOrderLookupOption('deliveryTerms', oldOption, newOption)}
+                        onDelete={(option) => deleteSaleOrderLookupOption('deliveryTerms', option)}
+                      />
+                    </Field>
+                  )}
+                />
 
                 <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col gap-4 mt-2">
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Package size={16} className="text-emerald-500" />
-                    Item Details
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Package size={16} className="text-emerald-500" />
+                      Item Details
+                    </h3>
+                    {!isView && (
+                      <button
+                        type="button"
+                        onClick={() => append({ ...EMPTY_ORDER.items[0] })}
+                        className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors border border-emerald-200 shadow-sm"
+                      >
+                        <Plus size={14} /> Add Item
+                      </button>
+                    )}
+                  </div>
 
-                  {(() => {
-                    const item = form.items?.[0] || {};
-                    const index = 0;
-                    return (
-                      <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                          <Field label="Part Number">
-                            <Input
-                              type="text"
-                              value={item.partNo || ''}
-                              disabled={isView}
-                              placeholder="Part Number"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), partNo: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="Part Number"
-                            />
-                          </Field>
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="relative bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-1">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Item #{index + 1}
+                        </span>
+                        {!isView && fields.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-red-500 bg-red-50/50 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                            title="Remove item"
+                          >
+                            <Trash2 size={14} /> Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                          <Controller
+                            control={control}
+                            name={`items.${index}.partNo`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="Part Number">
+                                <Input
+                                  type="text"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="Part Number"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="Part Number"
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="Product Name" wide>
-                            <Input
-                              type="text"
-                              value={item.productName || ''}
-                              disabled={isView}
-                              placeholder="Product Name"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), productName: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="Product Name"
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.productName`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="Product Name" wide>
+                                <Input
+                                  type="text"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="Product Name"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="Product Name"
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="HSN Code">
-                            <Input
-                              type="text"
-                              value={item.hsnCode || ''}
-                              disabled={isView}
-                              placeholder="HSN Code"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), hsnCode: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="HSN Code"
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.hsnCode`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="HSN Code">
+                                <Input
+                                  type="text"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="HSN Code"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="HSN Code"
+                                />
+                              </Field>
+                            )}
+                          />
                           
-                          <Field label="Order Qty" required error={errors[`item_${index}_orderQty`]}>
-                            <Input
-                              type="number"
-                              value={item.orderQty || ''}
-                              disabled={isView}
-                              placeholder="0"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), orderQty: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="Order Qty"
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.orderQty`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="Order Qty" required error={errors?.items?.[index]?.orderQty?.message}>
+                                <Input
+                                  type="number"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="0"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="Order Qty"
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="UOM">
-                            <EditableCreatableSelect
-                              value={item.uom || ''}
-                              options={saleOrderLookups.uom || []}
-                              disabled={isView}
-                              placeholder="Select UOM"
-                              onChange={v => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), uom: v };
-                                set('items', newItems);
-                              }}
-                              onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
-                              onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
-                              onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.uom`}
+                            render={({ field: { onChange, value } }) => (
+                              <Field label="UOM">
+                                <EditableCreatableSelect
+                                  value={value || ''}
+                                  options={saleOrderLookups.uom || []}
+                                  disabled={isView}
+                                  placeholder="Select UOM"
+                                  onChange={onChange}
+                                  onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
+                                  onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
+                                  onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="Price">
-                            <Input
-                              type="number"
-                              value={item.price || ''}
-                              disabled={isView}
-                              placeholder="0.00"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), price: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="Price"
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.price`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="Price">
+                                <Input
+                                  type="number"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="0.00"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="Price"
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="Schedule Qty">
-                            <Input
-                              type="number"
-                              value={item.scheduleQty || ''}
-                              disabled={isView}
-                              placeholder="0"
-                              onChange={e => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), scheduleQty: e.target.value };
-                                set('items', newItems);
-                              }}
-                              className={`${inputCls} px-4 py-3`}
-                              aria-label="Schedule Qty"
-                            />
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.scheduleQty`}
+                            render={({ field: { onChange, value, ref } }) => (
+                              <Field label="Schedule Qty">
+                                <Input
+                                  type="number"
+                                  value={value || ''}
+                                  disabled={isView}
+                                  placeholder="0"
+                                  onChange={onChange}
+                                  ref={ref}
+                                  className={`${inputCls} px-4 py-3`}
+                                  aria-label="Schedule Qty"
+                                />
+                              </Field>
+                            )}
+                          />
 
-                          <Field label="Schedule Date" required error={errors[`item_${index}_deliveryDate`]}>
-                            <DatePicker
-                              value={item.deliveryDate ? parseDate(item.deliveryDate) : null}
-                              isDisabled={isView}
-                              onChange={(dateVal) => {
-                                const newItems = [...(form.items || [])];
-                                newItems[0] = { ...(newItems[0] || {}), deliveryDate: dateVal ? dateVal.toString() : '' };
-                                set('items', newItems);
-                              }}
-                              className="w-full"
-                              aria-label="Schedule Date"
-                            >
-                              <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                                <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
-                                  {(segment) => <DateField.Segment segment={segment} />}
-                                </DateField.Input>
-                                <DateField.Suffix className="pr-2">
-                                  <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                                    <DatePicker.TriggerIndicator />
-                                  </DatePicker.Trigger>
-                                </DateField.Suffix>
-                              </DateField.Group>
-                              <DatePicker.Popover>
-                                <HeroCalendar aria-label="Schedule Date Calendar">
-                                  <HeroCalendar.Header>
-                                    <HeroCalendar.NavButton slot="previous" />
-                                    <HeroCalendar.NavButton slot="next" />
-                                  </HeroCalendar.Header>
-                                  <HeroCalendar.Grid>
-                                    <HeroCalendar.GridHeader>
-                                      {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                                    </HeroCalendar.GridHeader>
-                                    <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
-                                  </HeroCalendar.Grid>
-                                </HeroCalendar>
-                              </DatePicker.Popover>
-                            </DatePicker>
-                          </Field>
+                          <Controller
+                            control={control}
+                            name={`items.${index}.deliveryDate`}
+                            render={({ field: { onChange, value } }) => (
+                              <Field label="Schedule Date" required error={errors?.items?.[index]?.deliveryDate?.message}>
+                                <DatePicker
+                                  value={value ? parseDate(value) : null}
+                                  isDisabled={isView}
+                                  onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                                  className="w-full"
+                                  aria-label="Schedule Date"
+                                >
+                                  <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
+                                    <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
+                                      {(segment) => <DateField.Segment segment={segment} />}
+                                    </DateField.Input>
+                                    <DateField.Suffix className="pr-2">
+                                      <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                                        <DatePicker.TriggerIndicator />
+                                      </DatePicker.Trigger>
+                                    </DateField.Suffix>
+                                  </DateField.Group>
+                                  <DatePicker.Popover>
+                                    <HeroCalendar aria-label="Schedule Date Calendar">
+                                      <HeroCalendar.Header>
+                                        <HeroCalendar.NavButton slot="previous" />
+                                        <HeroCalendar.NavButton slot="next" />
+                                      </HeroCalendar.Header>
+                                      <HeroCalendar.Grid>
+                                        <HeroCalendar.GridHeader>
+                                          {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                                        </HeroCalendar.GridHeader>
+                                        <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                                      </HeroCalendar.Grid>
+                                    </HeroCalendar>
+                                  </DatePicker.Popover>
+                                </DatePicker>
+                              </Field>
+                            )}
+                          />
                         </div>
                       </div>
-                    );
-                  })()}
+                  ))}
                 </div>
 
 
-                <Field label="Remarks" wide>
-                  <textarea
-                    value={form.remark || ''}
-                    disabled={isView}
-                    onChange={e => set('remark', e.target.value)}
-                    className={`${inputCls} min-h-28 resize-y px-4 py-3`}
-                    placeholder="Additional notes..."
-                  />
-                </Field>
+                <Controller
+                  control={control}
+                  name="remark"
+                  render={({ field: { onChange, value, ref } }) => (
+                    <Field label="Remarks" wide>
+                      <textarea
+                        value={value || ''}
+                        disabled={isView}
+                        onChange={onChange}
+                        ref={ref}
+                        className={`${inputCls} min-h-28 resize-y px-4 py-3`}
+                        placeholder="Additional notes..."
+                      />
+                    </Field>
+                  )}
+                />
 
               </div>
             </section>
@@ -575,9 +696,10 @@ function SaleOrderForm({ mode, order, onBack }) {
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
               >
-                <Save size={16} />
+                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
                 {isAdd ? 'Create Order' : 'Save Changes'}
               </button>
             </div>

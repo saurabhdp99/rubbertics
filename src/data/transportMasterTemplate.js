@@ -20,17 +20,18 @@ export const TRANSPORT_MASTER_FIELDS = [
     wide: true,
   },
   {
+    key: 'transporterType',
+    label: 'Transporter Type',
+    type: 'select',
+    options: ['Road Transport', 'Courier', 'Tempo', 'Truck', 'Container', 'Local Transport'],
+    section: 'Transporter Master - Main Details',
+  },
+  {
     key: 'trasnporterAdd',
     label: 'Trasnporter Add.',
     type: 'text',
     section: 'Transporter Master - Main Details',
     wide: true,
-  },
-  {
-    key: 'location',
-    label: 'Location',
-    type: 'text',
-    section: 'Transporter Master - Main Details',
   },
   {
     key: 'gstNo',
@@ -42,13 +43,6 @@ export const TRANSPORT_MASTER_FIELDS = [
     key: 'panNo',
     label: 'PAN No',
     type: 'text',
-    section: 'Transporter Master - Main Details',
-  },
-  {
-    key: 'transporterType',
-    label: 'Transporter Type',
-    type: 'select',
-    options: ['Road Transport', 'Courier', 'Tempo', 'Truck', 'Container', 'Local Transport'],
     section: 'Transporter Master - Main Details',
   },
   {
@@ -76,6 +70,12 @@ export const TRANSPORT_MASTER_FIELDS = [
     section: 'Transporter Master - Main Details',
   },
   {
+    key: 'location',
+    label: 'Location',
+    type: 'text',
+    section: 'Transporter Master - Main Details',
+  },
+  {
     key: 'email',
     label: 'Email',
     type: 'email',
@@ -85,6 +85,12 @@ export const TRANSPORT_MASTER_FIELDS = [
     key: 'website',
     label: 'Website',
     type: 'url',
+    section: 'Transporter Master - Main Details',
+  },
+  {
+    key: 'otherContacts',
+    label: 'Other Contact Persons',
+    type: 'contacts',
     section: 'Transporter Master - Main Details',
   },
   {
@@ -109,13 +115,6 @@ export const TRANSPORT_MASTER_FIELDS = [
     section: 'Transporter Master - Main Details',
   },
   {
-    key: 'remarks',
-    label: 'Remarks',
-    type: 'textarea',
-    section: 'Transporter Master - Main Details',
-    wide: true,
-  },
-  {
     key: 'createdBy',
     label: 'Created By',
     type: 'text',
@@ -128,9 +127,10 @@ export const TRANSPORT_MASTER_FIELDS = [
     section: 'Transporter Master - Main Details',
   },
   {
-    key: 'otherContacts',
-    label: 'Other Contact Persons',
-    type: 'contacts',
+    key: 'remarks',
+    label: 'Remarks',
+    type: 'textarea',
     section: 'Transporter Master - Main Details',
-  },
+    wide: true,
+  }
 ];

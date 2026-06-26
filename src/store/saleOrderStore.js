@@ -272,6 +272,7 @@ function mapFromDb(row) {
     remark: row.remark,
     finalStatus: row.final_status,
     orgId: row.org_id,
+    items: row.items || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -293,6 +294,7 @@ function mapToDb(data, orgId, userId) {
     priority: data.priority,
     remark: data.remark,
     final_status: data.finalStatus,
+    items: data.items || [],
     date: data.date || new Date().toISOString().split('T')[0],
   };
   if (orgId) payload.org_id = orgId;

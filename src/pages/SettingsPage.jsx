@@ -2,8 +2,30 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, CheckCircle, X, AlertCircle, ToggleLeft, ToggleRight, Hash, Mail, User, Building, Lock, KeyRound, ArrowLeft, Trash2 } from 'lucide-react';
 import { Tabs, Card, Button, TextField, Input, Label, Description, FieldError, Spinner } from '@heroui/react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
 import { navItems } from '../components/Sidebar';
+
+const createStaffSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  staffId: z.string().min(1, 'Staff ID is required').regex(/^[A-Za-z0-9_-]+$/, 'Staff ID can only contain letters, numbers, - and _'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const changeEmailSchema = z.object({
+  newEmail: z.string().email('Invalid email address'),
+});
+
+const changePasswordSchema = z.object({
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string()
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 function StaffBadge({ role }) {
   return (
@@ -203,11 +225,13 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   // Staff form state
-  const [form, setForm] = useState({ name: '', email: '', password: '', staffId: '' });
+  const { control: controlStaff, handleSubmit: handleSubmitStaff, formState: { errors: errorsStaff, isSubmitting: isSubmittingStaff }, watch: watchStaff, reset: resetStaff } = useForm({
+    resolver: zodResolver(createStaffSchema),
+    defaultValues: { name: '', email: '', password: '', staffId: '' }
+  });
   const [showPassword, setShowPassword] = useState(true);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const [newStaffAccessMap, setNewStaffAccessMap] = useState({});
   const {
     handleToggleOrg: handleNewStaffToggleOrg,
@@ -225,16 +249,20 @@ export default function SettingsPage() {
   const [removeError, setRemoveError] = useState('');
 
   // Account – change email
-  const [emailForm, setEmailForm] = useState({ newEmail: '' });
-  const [emailLoading, setEmailLoading] = useState(false);
+  const { control: controlEmail, handleSubmit: handleSubmitEmail, formState: { errors: errorsEmail, isSubmitting: isSubmittingEmail }, reset: resetEmail } = useForm({
+    resolver: zodResolver(changeEmailSchema),
+    defaultValues: { newEmail: '' }
+  });
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
 
   // Account – change password
-  const [pwdForm, setPwdForm] = useState({ newPassword: '', confirmPassword: '' });
+  const { control: controlPwd, handleSubmit: handleSubmitPwd, formState: { errors: errorsPwd, isSubmitting: isSubmittingPwd }, watch: watchPwd, reset: resetPwd } = useForm({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { newPassword: '', confirmPassword: '' }
+  });
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
-  const [pwdLoading, setPwdLoading] = useState(false);
   const [pwdError, setPwdError] = useState('');
   const [pwdSuccess, setPwdSuccess] = useState('');
 
@@ -249,23 +277,9 @@ export default function SettingsPage() {
     setLoadingStaff(false);
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleCreate = async (data) => {
     setFormError('');
     setFormSuccess('');
-
-    if (!form.name.trim() || !form.email.trim() || !form.password || !form.staffId.trim()) {
-      setFormError('All fields are required.');
-      return;
-    }
-    if (form.password.length < 8) {
-      setFormError('Password must be at least 8 characters.');
-      return;
-    }
-    if (!/^[A-Za-z0-9_-]+$/.test(form.staffId)) {
-      setFormError('Staff ID can only contain letters, numbers, - and _');
-      return;
-    }
 
     const hasAnyOrgSelected = Object.values(newStaffAccessMap).some(org => org.hasAccess);
     if (!hasAnyOrgSelected) {
@@ -273,18 +287,17 @@ export default function SettingsPage() {
       return;
     }
 
-    setIsCreating(true);
     const result = await createStaff({
-      email: form.email,
-      password: form.password,
-      name: form.name,
-      staffId: form.staffId,
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      staffId: data.staffId,
     });
 
     if (result.success) {
       // Find the new staff to assign access
       const updatedStaffList = await listStaff();
-      const newStaff = updatedStaffList.find(s => s.email === form.email);
+      const newStaff = updatedStaffList.find(s => s.email === data.email);
       if (newStaff) {
         const changedOrgs = Object.keys(newStaffAccessMap).filter(orgId => newStaffAccessMap[orgId].hasAccess);
         await Promise.all(changedOrgs.map(orgId => {
@@ -293,14 +306,13 @@ export default function SettingsPage() {
         }));
       }
 
-      setFormSuccess(`Staff member "${form.name}" (ID: ${form.staffId}) created successfully!`);
-      setForm({ name: '', email: '', password: '', staffId: '' });
+      setFormSuccess(`Staff member "${data.name}" (ID: ${data.staffId}) created successfully!`);
+      resetStaff();
       setNewStaffAccessMap({});
       setStaffList(updatedStaffList);
     } else {
       setFormError(result.error || 'Failed to create staff. Please try again.');
     }
-    setIsCreating(false);
   };
 
   const handleRemoveStaff = async (staffMember) => {
@@ -333,7 +345,8 @@ export default function SettingsPage() {
     return score;
   };
 
-  const strengthScore = getPasswordStrength(form.password);
+  const staffPassword = watchStaff('password') || '';
+  const strengthScore = getPasswordStrength(staffPassword);
   const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][strengthScore];
   const strengthColor = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'][strengthScore];
 
@@ -345,38 +358,29 @@ export default function SettingsPage() {
     if (/[^A-Za-z0-9]/.test(pwd)) score++;
     return score;
   };
-  const newPwdScore = getPwdStrength(pwdForm.newPassword);
+  const newPasswordValue = watchPwd('newPassword') || '';
+  const newPwdScore = getPwdStrength(newPasswordValue);
   const newPwdLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][newPwdScore];
   const newPwdColor = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'][newPwdScore];
 
-  const handleChangeEmail = async (e) => {
-    e.preventDefault();
+  const handleChangeEmail = async (data) => {
     setEmailError(''); setEmailSuccess('');
-    if (!emailForm.newEmail.trim()) { setEmailError('Please enter a new email.'); return; }
-    if (emailForm.newEmail.trim() === currentUser?.email) { setEmailError('New email is the same as current.'); return; }
-    setEmailLoading(true);
-    const result = await updateEmail(emailForm.newEmail.trim());
-    setEmailLoading(false);
+    if (data.newEmail.trim() === currentUser?.email) { setEmailError('New email is the same as current.'); return; }
+    const result = await updateEmail(data.newEmail.trim());
     if (result.success) {
       setEmailSuccess('Email updated successfully!');
-      setEmailForm({ newEmail: '' });
+      resetEmail();
     } else {
       setEmailError(result.error || 'Failed to update email.');
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
+  const handleChangePassword = async (data) => {
     setPwdError(''); setPwdSuccess('');
-    if (!pwdForm.newPassword) { setPwdError('Please enter a new password.'); return; }
-    if (pwdForm.newPassword.length < 8) { setPwdError('Password must be at least 8 characters.'); return; }
-    if (pwdForm.newPassword !== pwdForm.confirmPassword) { setPwdError('Passwords do not match.'); return; }
-    setPwdLoading(true);
-    const result = await updatePassword(pwdForm.newPassword);
-    setPwdLoading(false);
+    const result = await updatePassword(data.newPassword);
     if (result.success) {
       setPwdSuccess('Password changed successfully!');
-      setPwdForm({ newPassword: '', confirmPassword: '' });
+      resetPwd();
     } else {
       setPwdError(result.error || 'Failed to update password.');
     }
@@ -439,7 +443,7 @@ export default function SettingsPage() {
               </div>
             </Card.Header>
 
-            <form onSubmit={handleCreate} id="create-staff-form">
+            <form onSubmit={handleSubmitStaff(handleCreate)} id="create-staff-form">
               <Card.Content className="flex flex-col gap-6 px-4 py-4">
                 {formError && (
                   <div className="bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm border border-red-100">
@@ -457,43 +461,71 @@ export default function SettingsPage() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextField isRequired name="name" value={form.name} onChange={(value) => setForm(f => ({ ...f, name: value }))}>
-                    <Label className="text-slate-700"><User size={14} className="inline mr-1" /> Full Name</Label>
-                    <Input placeholder="e.g. Raj Sharma" />
-                  </TextField>
-
-                  <TextField isRequired type="email" name="email" value={form.email} onChange={(value) => setForm(f => ({ ...f, email: value }))}>
-                    <Label className="text-slate-700"><Mail size={14} className="inline mr-1" /> Email Address</Label>
-                    <Input placeholder="staff@company.com" />
-                  </TextField>
-
-                  <TextField isRequired name="staffId" value={form.staffId} onChange={(value) => setForm(f => ({ ...f, staffId: value.toUpperCase() }))}>
-                    <Label className="text-slate-700"><Hash size={14} className="inline mr-1" /> Staff ID</Label>
-                    <Input placeholder="e.g. STF-001" pattern="[A-Za-z0-9_-]+" />
-                    <Description>Unique identifier for backend</Description>
-                  </TextField>
-
-                  <TextField isRequired type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={(value) => setForm(f => ({ ...f, password: value }))}>
-                    <Label className="text-slate-700">Initial Password</Label>
-                    <Input 
-                      placeholder="Min. 8 characters" 
-                      endContent={
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      }
-                    />
-                    {form.password && (
-                      <div className="mt-1 flex flex-col gap-1">
-                        <div className="flex gap-1 h-1 w-full max-w-[100px]">
-                          {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="flex-1 rounded-full" style={{ background: i <= strengthScore ? strengthColor : '#e2e8f0' }} />
-                          ))}
-                        </div>
-                        <span className="text-[11px] font-medium" style={{ color: strengthColor }}>{strengthLabel}</span>
-                      </div>
+                  <Controller
+                    control={controlStaff}
+                    name="name"
+                    render={({ field }) => (
+                      <TextField isRequired name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsStaff.name}>
+                        <Label className="text-slate-700"><User size={14} className="inline mr-1" /> Full Name</Label>
+                        <Input placeholder="e.g. Raj Sharma" />
+                        <FieldError>{errorsStaff.name?.message}</FieldError>
+                      </TextField>
                     )}
-                  </TextField>
+                  />
+
+                  <Controller
+                    control={controlStaff}
+                    name="email"
+                    render={({ field }) => (
+                      <TextField isRequired type="email" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsStaff.email}>
+                        <Label className="text-slate-700"><Mail size={14} className="inline mr-1" /> Email Address</Label>
+                        <Input placeholder="staff@company.com" />
+                        <FieldError>{errorsStaff.email?.message}</FieldError>
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    control={controlStaff}
+                    name="staffId"
+                    render={({ field }) => (
+                      <TextField isRequired name={field.name} value={field.value} onChange={(v) => field.onChange(v.toUpperCase())} isInvalid={!!errorsStaff.staffId}>
+                        <Label className="text-slate-700"><Hash size={14} className="inline mr-1" /> Staff ID</Label>
+                        <Input placeholder="e.g. STF-001" pattern="[A-Za-z0-9_-]+" />
+                        <Description>Unique identifier for backend</Description>
+                        <FieldError>{errorsStaff.staffId?.message}</FieldError>
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    control={controlStaff}
+                    name="password"
+                    render={({ field }) => (
+                      <TextField isRequired type={showPassword ? 'text' : 'password'} name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsStaff.password}>
+                        <Label className="text-slate-700">Initial Password</Label>
+                        <Input 
+                          placeholder="Min. 8 characters" 
+                          endContent={
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
+                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          }
+                        />
+                        <FieldError>{errorsStaff.password?.message}</FieldError>
+                        {field.value && !errorsStaff.password && (
+                          <div className="mt-1 flex flex-col gap-1">
+                            <div className="flex gap-1 h-1 w-full max-w-[100px]">
+                              {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="flex-1 rounded-full" style={{ background: i <= strengthScore ? strengthColor : '#e2e8f0' }} />
+                              ))}
+                            </div>
+                            <span className="text-[11px] font-medium" style={{ color: strengthColor }}>{strengthLabel}</span>
+                          </div>
+                        )}
+                      </TextField>
+                    )}
+                  />
                 </div>
 
                 {/* Workspace Access Assignment */}
@@ -519,9 +551,9 @@ export default function SettingsPage() {
                   <Shield size={16} className="text-slate-400" />
                   <span>Created with <strong>staff</strong> role. Only admins can access Settings.</span>
                 </div>
-                <Button type="submit" isDisabled={isCreating} className="w-full sm:w-auto bg-emerald-600 text-white font-medium shadow-sm hover:bg-emerald-700">
-                  {isCreating ? <Spinner size="sm" color="current" /> : <UserPlus size={18} />}
-                  {isCreating ? 'Creating…' : 'Create Staff Account'}
+                <Button type="submit" isDisabled={isSubmittingStaff} className="w-full sm:w-auto bg-emerald-600 text-white font-medium shadow-sm hover:bg-emerald-700">
+                  {isSubmittingStaff ? <Spinner size="sm" color="current" /> : <UserPlus size={18} />}
+                  {isSubmittingStaff ? 'Creating…' : 'Create Staff Account'}
                 </Button>
               </Card.Footer>
             </form>
@@ -691,7 +723,7 @@ export default function SettingsPage() {
                 </div>
               </Card.Header>
 
-              <form onSubmit={handleChangeEmail} id="change-email-form">
+              <form onSubmit={handleSubmitEmail(handleChangeEmail)} id="change-email-form">
                 <Card.Content className="flex flex-col gap-6 px-4 py-4">
                   {emailError && (
                     <div className="bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm border border-red-100">
@@ -714,10 +746,17 @@ export default function SettingsPage() {
                       <Input variant="faded" />
                     </TextField>
 
-                    <TextField isRequired type="email" name="new-email" value={emailForm.newEmail} onChange={(value) => setEmailForm({ newEmail: value })}>
-                      <Label className="text-slate-700"><Mail size={14} className="inline mr-1" /> New Email</Label>
-                      <Input placeholder="new@example.com" />
-                    </TextField>
+                    <Controller
+                      control={controlEmail}
+                      name="newEmail"
+                      render={({ field }) => (
+                        <TextField isRequired type="email" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsEmail.newEmail}>
+                          <Label className="text-slate-700"><Mail size={14} className="inline mr-1" /> New Email</Label>
+                          <Input placeholder="new@example.com" />
+                          <FieldError>{errorsEmail.newEmail?.message}</FieldError>
+                        </TextField>
+                      )}
+                    />
                   </div>
                 </Card.Content>
                 <Card.Footer className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 pb-4 pt-4 border-t border-slate-100">
@@ -725,9 +764,9 @@ export default function SettingsPage() {
                     <Shield size={16} className="text-slate-400" />
                     <span>A confirmation may be sent to both old and new email addresses.</span>
                   </div>
-                  <Button type="submit" isDisabled={emailLoading} className="w-full sm:w-auto bg-slate-900 text-white font-medium shadow-sm hover:bg-slate-800">
-                    {emailLoading ? <Spinner size="sm" color="current" /> : <Mail size={18} />}
-                    {emailLoading ? 'Updating…' : 'Update Email'}
+                  <Button type="submit" isDisabled={isSubmittingEmail} className="w-full sm:w-auto bg-slate-900 text-white font-medium shadow-sm hover:bg-slate-800">
+                    {isSubmittingEmail ? <Spinner size="sm" color="current" /> : <Mail size={18} />}
+                    {isSubmittingEmail ? 'Updating…' : 'Update Email'}
                   </Button>
                 </Card.Footer>
               </form>
@@ -745,7 +784,7 @@ export default function SettingsPage() {
                 </div>
               </Card.Header>
 
-              <form onSubmit={handleChangePassword} id="change-password-form">
+              <form onSubmit={handleSubmitPwd(handleChangePassword)} id="change-password-form">
                 <Card.Content className="flex flex-col gap-6 px-4 py-4">
                   {pwdError && (
                     <div className="bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm border border-red-100">
@@ -763,45 +802,56 @@ export default function SettingsPage() {
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <TextField isRequired type={showNewPwd ? 'text' : 'password'} name="new-password" value={pwdForm.newPassword} onChange={(value) => setPwdForm(f => ({ ...f, newPassword: value }))}>
-                      <Label className="text-slate-700"><Lock size={14} className="inline mr-1" /> New Password</Label>
-                      <Input 
-                        placeholder="Min. 8 characters" 
-                        endContent={
-                          <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
-                            {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        }
-                      />
-                      {pwdForm.newPassword && (
-                        <div className="mt-1 flex flex-col gap-1">
-                          <div className="flex gap-1 h-1 w-full max-w-[100px]">
-                            {[1, 2, 3, 4].map(i => (
-                              <div key={i} className="flex-1 rounded-full" style={{ background: i <= newPwdScore ? newPwdColor : '#e2e8f0' }} />
-                            ))}
-                          </div>
-                          <span className="text-[11px] font-medium" style={{ color: newPwdColor }}>{newPwdLabel}</span>
-                        </div>
+                    <Controller
+                      control={controlPwd}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <TextField isRequired type={showNewPwd ? 'text' : 'password'} name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsPwd.newPassword}>
+                          <Label className="text-slate-700"><Lock size={14} className="inline mr-1" /> New Password</Label>
+                          <Input 
+                            placeholder="Min. 8 characters" 
+                            endContent={
+                              <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
+                                {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+                            }
+                          />
+                          <FieldError>{errorsPwd.newPassword?.message}</FieldError>
+                          {field.value && !errorsPwd.newPassword && (
+                            <div className="mt-1 flex flex-col gap-1">
+                              <div className="flex gap-1 h-1 w-full max-w-[100px]">
+                                {[1, 2, 3, 4].map(i => (
+                                  <div key={i} className="flex-1 rounded-full" style={{ background: i <= newPwdScore ? newPwdColor : '#e2e8f0' }} />
+                                ))}
+                              </div>
+                              <span className="text-[11px] font-medium" style={{ color: newPwdColor }}>{newPwdLabel}</span>
+                            </div>
+                          )}
+                        </TextField>
                       )}
-                    </TextField>
+                    />
 
-                    <TextField isRequired type={showConfirmPwd ? 'text' : 'password'} name="confirm-password" value={pwdForm.confirmPassword} onChange={(value) => setPwdForm(f => ({ ...f, confirmPassword: value }))}>
-                      <Label className="text-slate-700"><Lock size={14} className="inline mr-1" /> Confirm Password</Label>
-                      <Input 
-                        placeholder="Re-enter new password" 
-                        endContent={
-                          <button type="button" onClick={() => setShowConfirmPwd(!showConfirmPwd)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
-                            {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        }
-                      />
-                      {pwdForm.confirmPassword && pwdForm.newPassword !== pwdForm.confirmPassword && (
-                        <p className="text-[11px] font-medium text-red-500 mt-1">Passwords do not match</p>
+                    <Controller
+                      control={controlPwd}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <TextField isRequired type={showConfirmPwd ? 'text' : 'password'} name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!errorsPwd.confirmPassword}>
+                          <Label className="text-slate-700"><Lock size={14} className="inline mr-1" /> Confirm Password</Label>
+                          <Input 
+                            placeholder="Re-enter new password" 
+                            endContent={
+                              <button type="button" onClick={() => setShowConfirmPwd(!showConfirmPwd)} className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center h-full pr-2" tabIndex={-1}>
+                                {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+                            }
+                          />
+                          <FieldError>{errorsPwd.confirmPassword?.message}</FieldError>
+                          {field.value && watchPwd('newPassword') === field.value && (
+                            <p className="text-[11px] font-medium text-emerald-500 mt-1">✓ Passwords match</p>
+                          )}
+                        </TextField>
                       )}
-                      {pwdForm.confirmPassword && pwdForm.newPassword === pwdForm.confirmPassword && (
-                        <p className="text-[11px] font-medium text-emerald-500 mt-1">✓ Passwords match</p>
-                      )}
-                    </TextField>
+                    />
                   </div>
                 </Card.Content>
 
@@ -810,9 +860,9 @@ export default function SettingsPage() {
                     <Shield size={16} className="text-slate-400" />
                     <span>Use a strong password with uppercase, numbers, and special characters.</span>
                   </div>
-                  <Button type="submit" isDisabled={pwdLoading} className="w-full sm:w-auto bg-slate-900 text-white font-medium shadow-sm hover:bg-slate-800">
-                    {pwdLoading ? <Spinner size="sm" color="current" /> : <KeyRound size={18} />}
-                    {pwdLoading ? 'Saving…' : 'Change Password'}
+                  <Button type="submit" isDisabled={isSubmittingPwd} className="w-full sm:w-auto bg-slate-900 text-white font-medium shadow-sm hover:bg-slate-800">
+                    {isSubmittingPwd ? <Spinner size="sm" color="current" /> : <KeyRound size={18} />}
+                    {isSubmittingPwd ? 'Saving…' : 'Change Password'}
                   </Button>
                 </Card.Footer>
               </form>

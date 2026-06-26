@@ -1,19 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, Factory, ShieldCheck } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 
+const resetSchema = z.object({
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"]
+});
+
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
-  const [localError, setLocalError] = useState('');
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const { resetPassword, isLoading, authError, clearError } = useAuthStore();
   const navigate = useNavigate();
+  
+  const { register, handleSubmit: hookFormSubmit, watch, formState: { errors } } = useForm({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { password: '', confirmPassword: '' }
+  });
 
   useEffect(() => {
     // Supabase puts the recovery token into the URL hash.
@@ -41,22 +54,13 @@ export default function ResetPasswordPage() {
     return score;
   };
 
-  const strengthScore = getPasswordStrength(password);
+  const passwordValue = watch('password') || '';
+  const strengthScore = getPasswordStrength(passwordValue);
   const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][strengthScore];
   const strengthColor = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'][strengthScore];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLocalError('');
-    if (password !== confirmPassword) {
-      setLocalError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 8) {
-      setLocalError('Password must be at least 8 characters.');
-      return;
-    }
-    const ok = await resetPassword(password);
+  const onSubmit = async (data) => {
+    const ok = await resetPassword(data.password);
     if (ok) {
       setDone(true);
       setTimeout(() => navigate('/'), 3000);
@@ -122,14 +126,14 @@ export default function ResetPasswordPage() {
               <h2 className="auth-card-title">Create new password</h2>
               <p className="auth-card-subtitle">Choose a strong password for your account.</p>
 
-              {(authError || localError) && (
-                <div className="auth-error" onClick={() => { clearError(); setLocalError(''); }} role="alert">
+              {authError && (
+                <div className="auth-error" onClick={() => clearError()} role="alert">
                   <span>⚠️</span>
-                  <span>{localError || authError}</span>
+                  <span>{authError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="login-form" id="reset-password-form">
+              <form onSubmit={hookFormSubmit(onSubmit)} className="login-form" id="reset-password-form">
                 <div className="form-group">
                   <label className="form-label" htmlFor="new-password">New password</label>
                   <div className="input-wrapper">
@@ -137,18 +141,21 @@ export default function ResetPasswordPage() {
                     <input
                       id="new-password"
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="Min. 8 characters"
-                      className="login-input"
-                      required
+                      className={`login-input ${errors.password ? 'border-red-400 focus:border-red-500' : ''}`}
                       autoFocus
+                      {...register('password', {
+                        onChange: () => {
+                          if (authError) clearError();
+                        }
+                      })}
                     />
                     <button type="button" onClick={() => setShowPassword(v => !v)} className="password-toggle" tabIndex={-1}>
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
-                  {password && (
+                  {errors.password && <span className="text-xs font-medium text-red-500 mt-1.5 block">{errors.password.message}</span>}
+                  {passwordValue && !errors.password && (
                     <div className="password-strength">
                       <div className="strength-bars">
                         {[1, 2, 3, 4].map(i => (
@@ -171,16 +178,19 @@ export default function ResetPasswordPage() {
                     <input
                       id="confirm-password"
                       type={showConfirm ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
-                      className="login-input"
-                      required
+                      className={`login-input ${errors.confirmPassword ? 'border-red-400 focus:border-red-500' : ''}`}
+                      {...register('confirmPassword', {
+                        onChange: () => {
+                          if (authError) clearError();
+                        }
+                      })}
                     />
                     <button type="button" onClick={() => setShowConfirm(v => !v)} className="password-toggle" tabIndex={-1}>
                       {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
+                  {errors.confirmPassword && <span className="text-xs font-medium text-red-500 mt-1.5 block">{errors.confirmPassword.message}</span>}
                 </div>
 
                 <button

@@ -1,33 +1,34 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import SaleOrdersPage from './pages/SaleOrdersPage';
-import InventoryPage from './pages/InventoryPage';
-import ItemMasterPage from './pages/ItemMasterPage';
-import HsnSacMasterPage from './pages/HsnSacMasterPage';
-import MachineMasterPage from './pages/MachineMasterPage';
-import PartyMasterPage from './pages/PartyMasterPage';
-import TransportMasterPage from './pages/TransportMasterPage';
-import EmployeeMasterPage from './pages/EmployeeMasterPage';
-import InwardPage from './pages/InwardPage';
-import MixingMoldingPlanPage from './pages/MixingMoldingPlanPage';
-import DailyFinishingOutputReportPage from './pages/DailyFinishingOutputReportPage';
-import DispatchPage from './pages/DispatchPage';
-import RequisitionSlipPage from './pages/RequisitionSlipPage';
-import EnquiryRegisterPage from './pages/EnquiryRegisterPage';
-import InternalComplainRegisterPage from './pages/InternalComplainRegisterPage';
-import ProcessControlStandardPage from './pages/ProcessControlStandardPage';
-import LotDetailsRegisterPage from './pages/LotDetailsRegisterPage';
-import WeeklyMouldingPlanPage from './pages/WeeklyMouldingPlanPage';
-import WorkOrderSheetPage from './pages/WorkOrderSheetPage';
-import WorkOrderDetailsPage from './pages/WorkOrderDetailsPage';
-import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import OrgSelectPage from './pages/OrgSelectPage';
 import { useAuthStore } from './store/authStore';
+
+const SaleOrdersPage = lazy(() => import('./pages/SaleOrdersPage'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const ItemMasterPage = lazy(() => import('./pages/ItemMasterPage'));
+const HsnSacMasterPage = lazy(() => import('./pages/HsnSacMasterPage'));
+const MachineMasterPage = lazy(() => import('./pages/MachineMasterPage'));
+const PartyMasterPage = lazy(() => import('./pages/PartyMasterPage'));
+const TransportMasterPage = lazy(() => import('./pages/TransportMasterPage'));
+const EmployeeMasterPage = lazy(() => import('./pages/EmployeeMasterPage'));
+const InwardPage = lazy(() => import('./pages/InwardPage'));
+const MixingMoldingPlanPage = lazy(() => import('./pages/MixingMoldingPlanPage'));
+const DailyFinishingOutputReportPage = lazy(() => import('./pages/DailyFinishingOutputReportPage'));
+const DispatchPage = lazy(() => import('./pages/DispatchPage'));
+const RequisitionSlipPage = lazy(() => import('./pages/RequisitionSlipPage'));
+const EnquiryRegisterPage = lazy(() => import('./pages/EnquiryRegisterPage'));
+const InternalComplainRegisterPage = lazy(() => import('./pages/InternalComplainRegisterPage'));
+const ProcessControlStandardPage = lazy(() => import('./pages/ProcessControlStandardPage'));
+const LotDetailsRegisterPage = lazy(() => import('./pages/LotDetailsRegisterPage'));
+const WeeklyMouldingPlanPage = lazy(() => import('./pages/WeeklyMouldingPlanPage'));
+const WorkOrderSheetPage = lazy(() => import('./pages/WorkOrderSheetPage'));
+const WorkOrderDetailsPage = lazy(() => import('./pages/WorkOrderDetailsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const OrgSelectPage = lazy(() => import('./pages/OrgSelectPage'));
 
 // ─── ERP Shell (authenticated, org selected) ────────────────────────────────
 function ERPApp() {
@@ -46,30 +47,32 @@ function ERPApp() {
         className="transition-all duration-300 ease-in-out ml-[230px] min-h-screen pt-16"
       >
         <div className="px-1">
-          <Routes>
-            <Route path="/" element={<Navigate to={defaultPath} replace />} />
-            {canAccess('/orders') && <Route path="/orders" element={<SaleOrdersPage />} />}
-            {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
-            {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
-            {canAccess('/hsn-sac-master') && <Route path="/hsn-sac-master" element={<HsnSacMasterPage />} />}
-            {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}
-            {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
-            {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
-            {canAccess('/employee-master') && <Route path="/employee-master" element={<EmployeeMasterPage />} />}
-            {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
-            {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
-            {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}
-            {canAccess('/dispatch') && <Route path="/dispatch" element={<DispatchPage />} />}
-            {canAccess('/requisition-slip') && <Route path="/requisition-slip" element={<RequisitionSlipPage />} />}
-            {canAccess('/enquiry-register') && <Route path="/enquiry-register" element={<EnquiryRegisterPage />} />}
-            {canAccess('/internal-complain-register') && <Route path="/internal-complain-register" element={<InternalComplainRegisterPage />} />}
-            {canAccess('/process-control-standard') && <Route path="/process-control-standard" element={<ProcessControlStandardPage />} />}
-            {canAccess('/lot-details-register') && <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />}
-            {canAccess('/weekly-moulding-plan') && <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />}
-            {canAccess('/work-order-sheet') && <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />}
-            {canAccess('/work-order-details') && <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />}
-            <Route path="*" element={<Navigate to={defaultPath} replace />} />
-          </Routes>
+          <Suspense fallback={<AppLoader />}>
+            <Routes>
+              <Route path="/" element={<Navigate to={defaultPath} replace />} />
+              {canAccess('/orders') && <Route path="/orders" element={<SaleOrdersPage />} />}
+              {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
+              {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
+              {canAccess('/hsn-sac-master') && <Route path="/hsn-sac-master" element={<HsnSacMasterPage />} />}
+              {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}
+              {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
+              {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
+              {canAccess('/employee-master') && <Route path="/employee-master" element={<EmployeeMasterPage />} />}
+              {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
+              {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
+              {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}
+              {canAccess('/dispatch') && <Route path="/dispatch" element={<DispatchPage />} />}
+              {canAccess('/requisition-slip') && <Route path="/requisition-slip" element={<RequisitionSlipPage />} />}
+              {canAccess('/enquiry-register') && <Route path="/enquiry-register" element={<EnquiryRegisterPage />} />}
+              {canAccess('/internal-complain-register') && <Route path="/internal-complain-register" element={<InternalComplainRegisterPage />} />}
+              {canAccess('/process-control-standard') && <Route path="/process-control-standard" element={<ProcessControlStandardPage />} />}
+              {canAccess('/lot-details-register') && <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />}
+              {canAccess('/weekly-moulding-plan') && <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />}
+              {canAccess('/work-order-sheet') && <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />}
+              {canAccess('/work-order-details') && <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />}
+              <Route path="*" element={<Navigate to={defaultPath} replace />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
     </div>
@@ -92,7 +95,7 @@ function AppLoader() {
 export default function App() {
   const { isAuthenticated, isInitialized, currentUser, currentOrg, initialize } = useAuthStore();
 
-  useEffect(() => { initialize(); }, []);
+  useEffect(() => { initialize(); }, [initialize]);
 
   if (!isInitialized) return <AppLoader />;
 
@@ -100,6 +103,7 @@ export default function App() {
 
   return (
     <Router>
+      <Suspense fallback={<AppLoader />}>
       <Routes>
         {/* Always-public routes */}
         <Route path="/forgot-password" element={
@@ -132,6 +136,7 @@ export default function App() {
               : <ERPApp />                 // Staff OR admin with org → ERP
         } />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

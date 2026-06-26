@@ -1,16 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, CheckCircle, Factory } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
 
+const forgotPasswordSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Invalid email address')
+});
+
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const { forgotPassword, isLoading, authError, clearError } = useAuthStore();
+  
+  const { register, handleSubmit: hookFormSubmit, formState: { errors }, getValues } = useForm({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: '' }
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const ok = await forgotPassword(email);
+  const onSubmit = async (data) => {
+    const ok = await forgotPassword(data.email);
     if (ok) setSent(true);
   };
 
@@ -43,7 +53,7 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="auth-card-title">Check your email</h2>
               <p className="auth-card-subtitle">
-                We sent a password reset link to <strong>{email}</strong>. 
+                We sent a password reset link to <strong>{getValues('email')}</strong>. 
                 Check your inbox and follow the link to reset your password.
               </p>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
@@ -75,7 +85,7 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="login-form" id="forgot-password-form">
+              <form onSubmit={hookFormSubmit(onSubmit)} className="login-form" id="forgot-password-form">
                 <div className="form-group">
                   <label className="form-label" htmlFor="forgot-email">Email address</label>
                   <div className="input-wrapper">
@@ -83,14 +93,17 @@ export default function ForgotPasswordPage() {
                     <input
                       id="forgot-email"
                       type="email"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); clearError(); }}
                       placeholder="you@company.com"
-                      className="login-input"
-                      required
+                      className={`login-input ${errors.email ? 'border-red-400 focus:border-red-500' : ''}`}
                       autoFocus
+                      {...register('email', {
+                        onChange: () => {
+                          if (authError) clearError();
+                        }
+                      })}
                     />
                   </div>
+                  {errors.email && <span className="text-xs font-medium text-red-500 mt-1.5 block">{errors.email.message}</span>}
                 </div>
 
                 <button
