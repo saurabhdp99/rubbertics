@@ -52,24 +52,72 @@ export const useMachineMasterStore = create((set, get) => ({
   },
 
   addMachine: async (machineData, orgId, userId) => {
-    const payload = mapToDb(machineData, orgId, userId);
-    const { data, error } = await supabase
+    // Insert without attachments first to get the ID
+    const payload = { ...mapToDb(machineData, orgId, userId), attachments: [] };
+    const { data: insertedData, error: insertError } = await supabase
       .from('machine_master')
       .insert([payload])
       .select()
       .single();
 
-    if (error) {
-      get().addNotification(`Failed to create machine: ${error.message}`, 'error');
+    if (insertError) {
+      get().addNotification(`Failed to create machine: ${insertError.message}`, 'error');
       return false;
     }
-    set(state => ({ machines: [mapFromDb(data), ...state.machines], currentPage: 1 }));
+
+    let finalAttachments = [];
+    if (machineData.attachments && machineData.attachments.length > 0) {
+      finalAttachments = await Promise.all(machineData.attachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${orgId}/machine_master/${insertedData.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from('machine_master')
+        .update({ attachments: finalAttachments })
+        .eq('id', insertedData.id)
+        .select()
+        .single();
+
+      if (!updateError) {
+        set(state => ({ machines: [mapFromDb(updatedData), ...state.machines], currentPage: 1 }));
+        get().addNotification('Machine master created successfully!', 'success');
+        return true;
+      }
+    }
+
+    set(state => ({ machines: [mapFromDb(insertedData), ...state.machines], currentPage: 1 }));
     get().addNotification('Machine master created successfully!', 'success');
     return true;
   },
 
   updateMachine: async (id, machineData, userId) => {
-    const payload = { ...mapToDb(machineData), updated_by: userId };
+    const existingMachine = get().machines.find(m => m.id === id);
+    const machineOrgId = existingMachine?.orgId;
+
+    let finalAttachments = machineData.attachments || [];
+    if (machineOrgId && finalAttachments.length > 0) {
+      finalAttachments = await Promise.all(finalAttachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${machineOrgId}/machine_master/${id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+    }
+
+    const payload = { ...mapToDb({ ...machineData, attachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('machine_master')
       .update(payload)
@@ -201,6 +249,7 @@ function mapFromDb(row) {
     remarks: row.remarks,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    attachments: row.attachments || [],
   };
 }
 
@@ -229,6 +278,7 @@ function mapToDb(data, orgId, userId) {
     responsible_person: data.responsiblePerson,
     status: data.status || 'Active',
     remarks: data.remarks,
+    attachments: data.attachments || [],
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;

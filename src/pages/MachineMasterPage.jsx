@@ -66,15 +66,12 @@ function AttachmentsField({ value, onChange, disabled, fieldKey }) {
   const handleFileChange = (id, e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        handleUpdate(id, {
-          fileData: event.target.result,
-          fileName: file.name,
-          fileType: file.type
-        });
-      };
-      reader.readAsDataURL(file);
+      handleUpdate(id, {
+        fileObject: file,
+        fileData: URL.createObjectURL(file), // temporary local URL for preview
+        fileName: file.name,
+        fileType: file.type
+      });
     }
     e.target.value = null;
   };
@@ -88,8 +85,13 @@ function AttachmentsField({ value, onChange, disabled, fieldKey }) {
 
   const openFile = (fileData) => {
     if (!fileData) return;
-    const newTab = window.open();
-    newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    if (fileData.startsWith('blob:') || fileData.startsWith('http')) {
+      window.open(fileData, '_blank');
+    } else {
+      // Legacy base64 support just in case
+      const newTab = window.open();
+      newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    }
   };
 
   return (

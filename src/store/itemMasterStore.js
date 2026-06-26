@@ -46,24 +46,72 @@ export const useItemMasterStore = create((set, get) => ({
   },
 
   addItem: async (itemData, orgId, userId) => {
-    const payload = mapToDb(itemData, orgId, userId);
-    const { data, error } = await supabase
+    // Insert without attachments first to get the ID
+    const payload = { ...mapToDb(itemData), org_id: orgId, created_by: userId, attachments: [] };
+    const { data: insertedData, error: insertError } = await supabase
       .from('item_master')
       .insert([payload])
       .select()
       .single();
 
-    if (error) {
-      get().addNotification(`Failed to create item: ${error.message}`, 'error');
+    if (insertError) {
+      get().addNotification(`Failed to create item: ${insertError.message}`, 'error');
       return false;
     }
-    set(state => ({ items: [mapFromDb(data), ...state.items], currentPage: 1 }));
+
+    let finalAttachments = [];
+    if (itemData.attachments && itemData.attachments.length > 0) {
+      finalAttachments = await Promise.all(itemData.attachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${orgId}/item_master/${insertedData.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from('item_master')
+        .update({ attachments: finalAttachments })
+        .eq('id', insertedData.id)
+        .select()
+        .single();
+
+      if (!updateError) {
+        set(state => ({ items: [mapFromDb(updatedData), ...state.items], currentPage: 1 }));
+        get().addNotification('Item master created successfully!', 'success');
+        return true;
+      }
+    }
+
+    set(state => ({ items: [mapFromDb(insertedData), ...state.items], currentPage: 1 }));
     get().addNotification('Item master created successfully!', 'success');
     return true;
   },
 
   updateItem: async (id, itemData, userId) => {
-    const payload = { ...mapToDb(itemData), updated_by: userId };
+    const existingItem = get().items.find(i => i.id === id);
+    const itemOrgId = existingItem?.orgId;
+
+    let finalAttachments = itemData.attachments || [];
+    if (itemOrgId && finalAttachments.length > 0) {
+      finalAttachments = await Promise.all(finalAttachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${itemOrgId}/item_master/${id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+    }
+
+    const payload = { ...mapToDb({ ...itemData, attachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('item_master')
       .update(payload)
@@ -175,6 +223,7 @@ function mapFromDb(row) {
     partNo: row.part_no,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    attachments: row.attachments || [],
   };
 }
 
@@ -223,6 +272,7 @@ function mapToDb(data, orgId, userId) {
     customer_name: data.customerName,
     part_name: data.partName,
     part_no: data.partNo,
+    attachments: data.attachments || [],
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;
