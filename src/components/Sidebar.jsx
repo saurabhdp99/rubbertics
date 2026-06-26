@@ -52,6 +52,7 @@ export default function Sidebar() {
   const handleSwitchOrg = (org) => {
     selectOrganization(org);
     setDropdownOpen(false);
+    navigate('/');
   };
 
   const handleManageOrgs = () => {
