@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Edit,
@@ -21,7 +21,9 @@ import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { ENQUIRY_FIELDS, ENQUIRY_SECTIONS } from '../data/enquiryTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useEnquiryStore } from '../store/enquiryStore';
+import { useAuthStore } from '../store/authStore';
+
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -316,14 +318,16 @@ function FormField({
 
 function EnquiryForm({ mode, enquiry, onBack }) {
   const {
-    enquiryItems,
+    enquiries: enquiryItems,
     addEnquiry,
     updateEnquiry,
-    enquiryLookups,
-    addEnquiryLookupOption,
-    renameEnquiryLookupOption,
-    deleteEnquiryLookupOption,
-  } = useERPStore();
+    lookups: enquiryLookups,
+    addLookupOption: addEnquiryLookupOption,
+    renameLookupOption: renameEnquiryLookupOption,
+    deleteLookupOption: deleteEnquiryLookupOption,
+  } = useEnquiryStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(() => createInitialEnquiryForm(enquiry));
   const [errors, setErrors] = useState({});
 
@@ -348,7 +352,7 @@ function EnquiryForm({ mode, enquiry, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
     
@@ -360,10 +364,11 @@ function EnquiryForm({ mode, enquiry, onBack }) {
       const enquiriesThisYear = enquiryItems.filter(e => e.enquiryNo?.startsWith(`${year}/`));
       const nextSequence = enquiriesThisYear.length + 1;
       finalForm.enquiryNo = `${year}/${String(nextSequence).padStart(4, '0')}`;
-      addEnquiry(finalForm);
+      await addEnquiry(finalForm, currentOrg?.id, currentUser?.id);
     } else {
-      updateEnquiry(enquiry.id, finalForm);
+      await updateEnquiry(enquiry.id, finalForm, currentUser?.id);
     }
+
     onBack();
   };
 
@@ -470,10 +475,18 @@ function EnquiryForm({ mode, enquiry, onBack }) {
 
 export default function EnquiryRegisterPage() {
   const {
-    enquiryItems,
-    enquirySearchQuery,
+    enquiries: enquiryItems,
+    searchQuery: enquirySearchQuery,
+    setSearchQuery: setEnquirySearchQuery,
     deleteEnquiry,
-  } = useERPStore();
+    fetchEnquiries, isLoading,
+  } = useEnquiryStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchEnquiries(currentOrg.id);
+  }, [currentOrg?.id]);
+
 
   const [activeForm, setActiveForm] = useState(null); // null, { mode: 'add' }, { mode: 'edit', enquiry }, { mode: 'view', enquiry }
   const [localSearch, setLocalSearch] = useState(enquirySearchQuery);

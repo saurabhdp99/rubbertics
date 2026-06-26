@@ -21,6 +21,10 @@ const PAGE_TITLES = {
   '/internal-complain-register':  'Internal Complain Register',
   '/process-control-standard':    'Process Control Standard',
   '/lot-details-register':        'Lot Details Register',
+  '/hsn-sac-master':              'HSN/SAC Master',
+  '/machine-master':              'Machine Master',
+  '/transport-master':            'Transport Master',
+  '/employee-master':             'Employee Master',
   '/settings':                    'Settings',
 };
 

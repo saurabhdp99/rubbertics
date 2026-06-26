@@ -20,7 +20,10 @@ import {
 } from 'lucide-react';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useItemMasterStore } from '../store/itemMasterStore';
+import { usePartyMasterStore } from '../store/partyMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 
@@ -342,7 +345,10 @@ function FormField({ field, value, onChange, disabled, error, options = [] }) {
 }
 
 function ItemMasterForm({ mode, item, onBack }) {
-  const { addItemMaster, updateItemMaster, itemMasterItems, partyMasterItems } = useERPStore();
+  const { addItem, updateItem, items: itemMasterItems } = useItemMasterStore();
+  const { parties: partyMasterItems } = usePartyMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(EMPTY_ITEM);
   const [errors, setErrors] = useState({});
 
@@ -391,13 +397,14 @@ function ItemMasterForm({ mode, item, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addItemMaster(form);
-    else updateItemMaster(item.id, form);
+    if (isAdd) await addItem(form, currentOrg?.id, currentUser?.id);
+    else await updateItem(item.id, form, currentUser?.id);
     onBack();
   };
+
 
   return (
     <div className="animate-slide-up">
@@ -507,20 +514,27 @@ function ItemMasterForm({ mode, item, onBack }) {
 
 export default function ItemMasterPage() {
   const {
-    itemMasterItems,
-    itemMasterSearchQuery,
-    itemMasterCategoryFilter,
-    itemMasterStatusFilter,
-    itemMasterCurrentPage,
-    itemMasterItemsPerPage,
-    setItemMasterSearchQuery,
-    setItemMasterCategoryFilter,
-    setItemMasterStatusFilter,
-    setItemMasterCurrentPage,
-    setItemMasterItemsPerPage,
-    deleteItemMaster,
-    getFilteredItemMasterItems,
-  } = useERPStore();
+    items: itemMasterItems,
+    searchQuery: itemMasterSearchQuery,
+    categoryFilter: itemMasterCategoryFilter,
+    statusFilter: itemMasterStatusFilter,
+    currentPage: itemMasterCurrentPage,
+    itemsPerPage: itemMasterItemsPerPage,
+    setSearchQuery: setItemMasterSearchQuery,
+    setCategoryFilter: setItemMasterCategoryFilter,
+    setStatusFilter: setItemMasterStatusFilter,
+    setCurrentPage: setItemMasterCurrentPage,
+    setItemsPerPage: setItemMasterItemsPerPage,
+    deleteItem: deleteItemMaster,
+    getFilteredItems: getFilteredItemMasterItems,
+    fetchItems, isLoading,
+  } = useItemMasterStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchItems(currentOrg.id);
+  }, [currentOrg?.id]);
+
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 

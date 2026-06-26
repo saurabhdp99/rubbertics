@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
@@ -8,7 +9,10 @@ import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroC
 import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
-import { useERPStore } from '../store/erpStore';
+import { useSaleOrderStore } from '../store/saleOrderStore';
+import { usePartyMasterStore } from '../store/partyMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -86,8 +90,10 @@ function SaleOrderForm({ mode, order, onBack }) {
   const {
     addOrder, updateOrder, saleOrderLookups,
     addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
-    partyMasterItems
-  } = useERPStore();
+  } = useSaleOrderStore();
+  const { parties: partyMasterItems } = usePartyMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(() => {
     if (order) {
       let items = order.items || [];
@@ -137,7 +143,7 @@ function SaleOrderForm({ mode, order, onBack }) {
     return Object.keys(e).length === 0;
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
     const finalForm = { ...form };
@@ -155,10 +161,12 @@ function SaleOrderForm({ mode, order, onBack }) {
     delete finalForm.orderQty;
     delete finalForm.deliveryDate;
 
-    if (isAdd) addOrder(finalForm);
-    else updateOrder(order.id, finalForm);
+
+    if (isAdd) await addOrder(finalForm, currentOrg?.id, currentUser?.id);
+    else await updateOrder(order.id, finalForm, currentUser?.id);
     onBack();
   };
+
 
   const inputCls = "w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none border-slate-200 focus:border-emerald-500/50 input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";
 
@@ -587,9 +595,16 @@ export default function SaleOrdersPage() {
     filterPriority, setFilterPriority,
     currentPage, setCurrentPage,
     itemsPerPage, setItemsPerPage,
-    sortField, sortDirection, setSortField, setSortDirection,
-    getFilteredOrders, deleteOrder, getStats, orders, saleOrderLookups
-  } = useERPStore();
+    sortField, sortDirection, setSortField,
+    getFilteredOrders, deleteOrder, getStats, orders, saleOrderLookups,
+    fetchOrders, isLoading,
+  } = useSaleOrderStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchOrders(currentOrg.id);
+  }, [currentOrg?.id]);
+
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);

@@ -26,7 +26,9 @@ import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { PARTY_MASTER_FIELDS, PARTY_MASTER_SECTIONS } from '../data/partyMasterTemplate';
-import { useERPStore } from '../store/erpStore';
+import { usePartyMasterStore } from '../store/partyMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -166,14 +168,16 @@ function FormField({
 
 function PartyMasterForm({ mode, party, onBack }) {
   const {
-    addPartyMaster,
-    updatePartyMaster,
+    addParty: addPartyMaster,
+    updateParty: updatePartyMaster,
     getNextPartyCode,
-    partyMasterLookups,
-    addPartyMasterLookupOption,
-    renamePartyMasterLookupOption,
-    deletePartyMasterLookupOption,
-  } = useERPStore();
+    lookups: partyMasterLookups,
+    addLookupOption: addPartyMasterLookupOption,
+    renameLookupOption: renamePartyMasterLookupOption,
+    deleteLookupOption: deletePartyMasterLookupOption,
+  } = usePartyMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(() => createInitialPartyForm(
     party,
     partyMasterLookups.partyCategory[0],
@@ -307,13 +311,14 @@ function PartyMasterForm({ mode, party, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addPartyMaster(form);
-    else updatePartyMaster(party.id, form);
+    if (isAdd) await addPartyMaster(form, currentOrg?.id, currentUser?.id);
+    else await updatePartyMaster(party.id, form, currentUser?.id);
     onBack();
   };
+
 
   return (
     <div className="animate-slide-up">
@@ -446,21 +451,28 @@ function PartyMasterForm({ mode, party, onBack }) {
 
 export default function PartyMasterPage() {
   const {
-    partyMasterItems,
-    partyMasterSearchQuery,
-    partyMasterTypeFilter,
-    partyMasterMsmeFilter,
-    partyMasterCurrentPage,
-    partyMasterItemsPerPage,
-    setPartyMasterSearchQuery,
-    setPartyMasterTypeFilter,
-    setPartyMasterMsmeFilter,
-    setPartyMasterCurrentPage,
-    setPartyMasterItemsPerPage,
-    deletePartyMaster,
-    getFilteredPartyMasterItems,
-    getPartyMasterStats,
-  } = useERPStore();
+    parties: partyMasterItems,
+    searchQuery: partyMasterSearchQuery,
+    typeFilter: partyMasterTypeFilter,
+    msmeFilter: partyMasterMsmeFilter,
+    currentPage: partyMasterCurrentPage,
+    itemsPerPage: partyMasterItemsPerPage,
+    setSearchQuery: setPartyMasterSearchQuery,
+    setTypeFilter: setPartyMasterTypeFilter,
+    setMsmeFilter: setPartyMasterMsmeFilter,
+    setCurrentPage: setPartyMasterCurrentPage,
+    setItemsPerPage: setPartyMasterItemsPerPage,
+    deleteParty: deletePartyMaster,
+    getFilteredParties: getFilteredPartyMasterItems,
+    getStats: getPartyMasterStats,
+    fetchParties, isLoading,
+  } = usePartyMasterStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchParties(currentOrg.id);
+  }, [currentOrg?.id]);
+
   const [viewState, setViewState] = useState({ type: 'table', mode: null, party: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 

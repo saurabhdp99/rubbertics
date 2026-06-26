@@ -1,5 +1,5 @@
 import React from 'react';
-import { useERPStore } from '../store/erpStore';
+import { useSaleOrderStore } from '../store/saleOrderStore';
 import StatsCard from './common/StatsCard';
 import {
   Package,
@@ -62,7 +62,7 @@ const STAT_CONFIGS = [
 ];
 
 export default function StatsBar() {
-  const getStats = useERPStore(s => s.getStats);
+  const getStats = useSaleOrderStore(s => s.getStats);
   const stats = getStats();
 
   return (

@@ -25,7 +25,9 @@ import {
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import StatsCard from '../components/common/StatsCard';
 import { MACHINE_MASTER_FIELDS } from '../data/machineMasterTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useMachineMasterStore } from '../store/machineMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 
@@ -423,13 +425,15 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
 
 function MachineMasterForm({ mode, machine, onBack }) {
   const {
-    addMachineMaster,
-    updateMachineMaster,
-    machineMasterLookups,
-    addMachineMasterLookupOption,
-    renameMachineMasterLookupOption,
-    deleteMachineMasterLookupOption,
-  } = useERPStore();
+    addMachine: addMachineMaster,
+    updateMachine: updateMachineMaster,
+    lookups: machineMasterLookups,
+    addLookupOption: addMachineMasterLookupOption,
+    renameLookupOption: renameMachineMasterLookupOption,
+    deleteLookupOption: deleteMachineMasterLookupOption,
+  } = useMachineMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(EMPTY_MACHINE);
   const [errors, setErrors] = useState({});
 
@@ -455,13 +459,14 @@ function MachineMasterForm({ mode, machine, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addMachineMaster(form);
-    else updateMachineMaster(machine.id, form);
+    if (isAdd) await addMachineMaster(form, currentOrg?.id, currentUser?.id);
+    else await updateMachineMaster(machine.id, form, currentUser?.id);
     onBack();
   };
+
 
   return (
     <div className="animate-slide-up">
@@ -567,27 +572,30 @@ function MachineMasterForm({ mode, machine, onBack }) {
 
 export default function MachineMasterPage() {
   const {
-    machineMasterItems,
-    machineMasterSearchQuery,
-    machineMasterDepartmentFilter,
-    machineMasterStatusFilter,
-    machineMasterCurrentPage,
-    machineMasterItemsPerPage,
-    deleteMachineMaster,
-    getFilteredMachineMasterItems,
-    getMachineMasterStats,
-  } = useERPStore();
+    machines: machineMasterItems,
+    searchQuery: machineMasterSearchQuery,
+    departmentFilter: machineMasterDepartmentFilter,
+    statusFilter: machineMasterStatusFilter,
+    currentPage: machineMasterCurrentPage,
+    itemsPerPage: machineMasterItemsPerPage,
+    setSearchQuery: setMachineMasterSearchQuery,
+    setDepartmentFilter: setMachineMasterDepartmentFilter,
+    setStatusFilter: setMachineMasterStatusFilter,
+    setCurrentPage: setMachineMasterCurrentPage,
+    setItemsPerPage: setMachineMasterItemsPerPage,
+    deleteMachine: deleteMachineMaster,
+    getFilteredMachines: getFilteredMachineMasterItems,
+    getStats: getMachineMasterStats,
+    fetchMachines, isLoading,
+  } = useMachineMasterStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchMachines(currentOrg.id);
+  }, [currentOrg?.id]);
+
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
-
-  // Directly access store setters since we just added the state to store, let's just use Zustand's set state here for simplicity
-  // or better yet, since we didn't add setters for search query to store, let's just add them now, or handle state locally.
-  // Wait, I should have added the setters to `useERPStore`.
-  // Let me just handle local state for filters if they aren't in the store, but standard is to put them in store.
-  // I will update the store to include the setters.
-
-  // Actually, I'll use Zustand's `setState` directly on `useERPStore`
-  const setStoreState = useERPStore.setState;
 
   const filtered = getFilteredMachineMasterItems();
   const stats = getMachineMasterStats();
@@ -609,12 +617,11 @@ export default function MachineMasterPage() {
   const backToTable = () => setViewState({ type: 'table', mode: null, item: null });
 
   const clearFilters = () => {
-    setStoreState({
-      machineMasterSearchQuery: '',
-      machineMasterDepartmentFilter: 'All',
-      machineMasterStatusFilter: 'All'
-    });
+    setMachineMasterSearchQuery('');
+    setMachineMasterDepartmentFilter('All');
+    setMachineMasterStatusFilter('All');
   };
+
 
   const exportCsv = () => {
     const headers = MACHINE_MASTER_FIELDS.map(field => field.label);

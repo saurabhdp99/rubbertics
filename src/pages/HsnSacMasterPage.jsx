@@ -15,7 +15,9 @@ import {
   X,
 } from 'lucide-react';
 import { HSN_SAC_MASTER_FIELDS } from '../data/hsnSacTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useHsnSacStore } from '../store/hsnSacStore';
+import { useAuthStore } from '../store/authStore';
+
 import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 
@@ -109,7 +111,9 @@ function FormField({ field, value, onChange, disabled, error }) {
 }
 
 function HsnSacMasterForm({ mode, item, onBack }) {
-  const { addHsnSacMaster, updateHsnSacMaster } = useERPStore();
+  const { addItem, updateItem } = useHsnSacStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(EMPTY_ITEM);
   const [errors, setErrors] = useState({});
 
@@ -130,11 +134,13 @@ function HsnSacMasterForm({ mode, item, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addHsnSacMaster(form);
-    else updateHsnSacMaster(item.id, form);
+    if (isAdd) await addItem(form, currentOrg?.id, currentUser?.id);
+    else await updateItem(item.id, form, currentUser?.id);
+
+
     onBack();
   };
 
@@ -223,17 +229,25 @@ function HsnSacMasterForm({ mode, item, onBack }) {
 
 export default function HsnSacMasterPage() {
   const {
-    hsnSacMasterItems,
-    hsnSacMasterSearchQuery,
-    hsnSacMasterCurrentPage,
-    hsnSacMasterItemsPerPage,
-    setHsnSacMasterSearchQuery,
-    setHsnSacMasterCurrentPage,
-    setHsnSacMasterItemsPerPage,
-    deleteHsnSacMaster,
-    getFilteredHsnSacMasterItems,
-    getHsnSacMasterStats,
-  } = useERPStore();
+    items: hsnSacMasterItems,
+    searchQuery: hsnSacMasterSearchQuery,
+    currentPage: hsnSacMasterCurrentPage,
+    itemsPerPage: hsnSacMasterItemsPerPage,
+    setSearchQuery: setHsnSacMasterSearchQuery,
+    setCurrentPage: setHsnSacMasterCurrentPage,
+    setItemsPerPage: setHsnSacMasterItemsPerPage,
+    deleteItem: deleteHsnSacMaster,
+    getFilteredItems: getFilteredHsnSacMasterItems,
+    getStats: getHsnSacMasterStats,
+    fetchItems,
+    isLoading,
+  } = useHsnSacStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchItems(currentOrg.id);
+  }, [currentOrg?.id]);
+
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 

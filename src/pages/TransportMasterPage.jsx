@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft,
   BadgeCheck,
@@ -25,7 +25,9 @@ import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { TRANSPORT_MASTER_FIELDS, TRANSPORT_MASTER_SECTIONS } from '../data/transportMasterTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useTransportMasterStore } from '../store/transportMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -255,14 +257,16 @@ function FormField({
 
 function TransportMasterForm({ mode, transporter, onBack }) {
   const {
-    addTransporterMaster,
-    updateTransporterMaster,
+    addTransporter: addTransporterMaster,
+    updateTransporter: updateTransporterMaster,
     getNextTransporterCode,
-    transportMasterLookups,
-    addTransportMasterLookupOption,
-    renameTransportMasterLookupOption,
-    deleteTransportMasterLookupOption,
-  } = useERPStore();
+    lookups: transportMasterLookups,
+    addLookupOption: addTransportMasterLookupOption,
+    renameLookupOption: renameTransportMasterLookupOption,
+    deleteLookupOption: deleteTransportMasterLookupOption,
+  } = useTransportMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(() => createInitialTransporterForm(transporter, getNextTransporterCode));
   const [errors, setErrors] = useState({});
 
@@ -282,13 +286,14 @@ function TransportMasterForm({ mode, transporter, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
-    if (isAdd) addTransporterMaster(form);
-    else updateTransporterMaster(transporter.id, form);
+    if (isAdd) await addTransporterMaster(form, currentOrg?.id, currentUser?.id);
+    else await updateTransporterMaster(transporter.id, form, currentUser?.id);
     onBack();
   };
+
 
   return (
     <div className="animate-slide-up">
@@ -394,21 +399,28 @@ function TransportMasterForm({ mode, transporter, onBack }) {
 
 export default function TransportMasterPage() {
   const {
-    transporterMasterItems,
-    transporterMasterSearchQuery,
-    transporterMasterTypeFilter,
-    transporterMasterStatusFilter,
-    transporterMasterCurrentPage,
-    transporterMasterItemsPerPage,
-    setTransporterMasterSearchQuery,
-    setTransporterMasterTypeFilter,
-    setTransporterMasterStatusFilter,
-    setTransporterMasterCurrentPage,
-    setTransporterMasterItemsPerPage,
-    deleteTransporterMaster,
-    getFilteredTransporterMasterItems,
-    getTransporterMasterStats,
-  } = useERPStore();
+    transporters: transporterMasterItems,
+    searchQuery: transporterMasterSearchQuery,
+    typeFilter: transporterMasterTypeFilter,
+    statusFilter: transporterMasterStatusFilter,
+    currentPage: transporterMasterCurrentPage,
+    itemsPerPage: transporterMasterItemsPerPage,
+    setSearchQuery: setTransporterMasterSearchQuery,
+    setTypeFilter: setTransporterMasterTypeFilter,
+    setStatusFilter: setTransporterMasterStatusFilter,
+    setCurrentPage: setTransporterMasterCurrentPage,
+    setItemsPerPage: setTransporterMasterItemsPerPage,
+    deleteTransporter: deleteTransporterMaster,
+    getFilteredTransporters: getFilteredTransporterMasterItems,
+    getStats: getTransporterMasterStats,
+    fetchTransporters, isLoading,
+  } = useTransportMasterStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchTransporters(currentOrg.id);
+  }, [currentOrg?.id]);
+
   const [viewState, setViewState] = useState({ type: 'table', mode: null, transporter: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 

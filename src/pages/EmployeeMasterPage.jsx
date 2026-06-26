@@ -26,7 +26,9 @@ import { parseDate } from '@internationalized/date';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { EMPLOYEE_MASTER_FIELDS, EMPLOYEE_MASTER_SECTIONS } from '../data/employeeMasterTemplate';
-import { useERPStore } from '../store/erpStore';
+import { useEmployeeMasterStore } from '../store/employeeMasterStore';
+import { useAuthStore } from '../store/authStore';
+
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -169,14 +171,16 @@ function FormField({
 
 function EmployeeMasterForm({ mode, employee, onBack }) {
   const {
-    employeeMasterItems,
-    addEmployeeMaster,
-    updateEmployeeMaster,
-    employeeMasterLookups,
-    addEmployeeMasterLookupOption,
-    renameEmployeeMasterLookupOption,
-    deleteEmployeeMasterLookupOption,
-  } = useERPStore();
+    employees: employeeMasterItems,
+    addEmployee: addEmployeeMaster,
+    updateEmployee: updateEmployeeMaster,
+    lookups: employeeMasterLookups,
+    addLookupOption: addEmployeeMasterLookupOption,
+    renameLookupOption: renameEmployeeMasterLookupOption,
+    deleteLookupOption: deleteEmployeeMasterLookupOption,
+  } = useEmployeeMasterStore();
+  const { currentOrg, currentUser } = useAuthStore();
+
   const [form, setForm] = useState(() => createInitialEmployeeForm(employee));
   const [errors, setErrors] = useState({});
 
@@ -226,7 +230,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
     
@@ -235,12 +239,13 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
       // Auto generate employee code based on max id
       const maxId = employeeMasterItems.reduce((max, item) => Math.max(max, item.id || 0), 0);
       finalForm.employeeCode = `EMP${String(maxId + 1).padStart(4, '0')}`;
-      addEmployeeMaster(finalForm);
+      await addEmployeeMaster(finalForm, currentOrg?.id, currentUser?.id);
     } else {
-      updateEmployeeMaster(employee.id, finalForm);
+      await updateEmployeeMaster(employee.id, finalForm, currentUser?.id);
     }
     onBack();
   };
+
 
   return (
     <div className="animate-slide-up">
@@ -346,19 +351,26 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
 
 export default function EmployeeMasterPage() {
   const {
-    employeeMasterItems,
-    employeeMasterSearchQuery,
-    employeeMasterDepartmentFilter,
-    employeeMasterCurrentPage,
-    employeeMasterItemsPerPage,
-    setEmployeeMasterSearchQuery,
-    setEmployeeMasterDepartmentFilter,
-    setEmployeeMasterCurrentPage,
-    setEmployeeMasterItemsPerPage,
-    deleteEmployeeMaster,
-    getFilteredEmployeeMasterItems,
-    getEmployeeMasterStats,
-  } = useERPStore();
+    employees: employeeMasterItems,
+    searchQuery: employeeMasterSearchQuery,
+    departmentFilter: employeeMasterDepartmentFilter,
+    currentPage: employeeMasterCurrentPage,
+    itemsPerPage: employeeMasterItemsPerPage,
+    setSearchQuery: setEmployeeMasterSearchQuery,
+    setDepartmentFilter: setEmployeeMasterDepartmentFilter,
+    setCurrentPage: setEmployeeMasterCurrentPage,
+    setItemsPerPage: setEmployeeMasterItemsPerPage,
+    deleteEmployee: deleteEmployeeMaster,
+    getFilteredEmployees: getFilteredEmployeeMasterItems,
+    getStats: getEmployeeMasterStats,
+    fetchEmployees, isLoading,
+  } = useEmployeeMasterStore();
+  const { currentOrg } = useAuthStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) fetchEmployees(currentOrg.id);
+  }, [currentOrg?.id]);
+
   
   const [viewState, setViewState] = useState({ type: 'table', mode: null, employee: null });
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
