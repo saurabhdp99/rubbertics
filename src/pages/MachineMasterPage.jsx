@@ -427,6 +427,7 @@ function FormField({ field, value, onChange, disabled, error, options, onAddOpti
 
 function MachineMasterForm({ mode, machine, onBack }) {
   const {
+    machines,
     addMachine: addMachineMaster,
     updateMachine: updateMachineMaster,
     lookups: machineMasterLookups,
@@ -440,9 +441,20 @@ function MachineMasterForm({ mode, machine, onBack }) {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    setForm(machine ? { ...EMPTY_MACHINE, ...machine } : { ...EMPTY_MACHINE });
+    const initialForm = machine ? { ...EMPTY_MACHINE, ...machine } : { ...EMPTY_MACHINE };
+    if (mode === 'add') {
+      const nextNumber = machines.reduce((max, m) => {
+        if (m.machineCode && m.machineCode.startsWith('M-')) {
+          const num = parseInt(m.machineCode.substring(2), 10);
+          return isNaN(num) ? max : Math.max(max, num);
+        }
+        return max;
+      }, 0) + 1;
+      initialForm.machineCode = `M-${String(nextNumber).padStart(3, '0')}`;
+    }
+    setForm(initialForm);
     setErrors({});
-  }, [machine, mode]);
+  }, [machine, mode, machines]);
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
@@ -455,7 +467,7 @@ function MachineMasterForm({ mode, machine, onBack }) {
 
   const validate = () => {
     const nextErrors = {};
-    if (!String(form.machineCode || '').trim()) nextErrors.machineCode = 'Machine code is required';
+    if (!isAdd && !String(form.machineCode || '').trim()) nextErrors.machineCode = 'Machine code is required';
     if (!String(form.machineName || '').trim()) nextErrors.machineName = 'Machine name is required';
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -534,7 +546,7 @@ function MachineMasterForm({ mode, machine, onBack }) {
                       field={field}
                       value={form[field.key]}
                       onChange={set}
-                      disabled={isView}
+                      disabled={isView || (isAdd && field.key === 'machineCode')}
                       error={errors[field.key]}
                       options={machineMasterLookups[field.key]}
                       onAddOption={(val) => addMachineMasterLookupOption(field.key, val)}
