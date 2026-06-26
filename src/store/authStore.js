@@ -216,15 +216,53 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // Create org (admin only)
-  createOrganization: async ({ name, industry, size }) => {
+  createOrganization: async (orgData) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id;
+    
+    // Separate attachments from other data
+    const { attachments, ...dbPayload } = orgData;
+    dbPayload.created_by = userId;
+
     const { data, error } = await supabase
       .from('organizations')
-      .insert({ name, industry, size, created_by: userId })
+      .insert(dbPayload)
       .select()
       .single();
+      
     if (error) return { success: false, error: error.message };
+
+    // Handle attachments upload
+    let finalAttachments = [];
+    if (attachments && attachments.length > 0) {
+      finalAttachments = await Promise.all(attachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${data.id}/organizations/${fileName}`; // Path inside attachments bucket
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+
+      // Update org with attachments
+      const { data: updatedData, error: updateError } = await supabase
+        .from('organizations')
+        .update({ attachments: finalAttachments })
+        .eq('id', data.id)
+        .select()
+        .single();
+        
+      if (!updateError && updatedData) {
+        // Refresh list
+        const orgs = get().organizations;
+        set({ organizations: [...orgs, updatedData] });
+        return { success: true, data: updatedData };
+      }
+    }
+
     // Refresh list
     const orgs = get().organizations;
     set({ organizations: [...orgs, data] });
@@ -232,16 +270,39 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // Update org (admin only)
-  updateOrganization: async (id, { name, industry, size }) => {
+  updateOrganization: async (id, orgData) => {
+    // Separate attachments from other data
+    const { attachments, ...dbPayload } = orgData;
+
+    let finalAttachments = attachments || [];
+    if (attachments && attachments.length > 0) {
+      finalAttachments = await Promise.all(attachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${id}/organizations/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+    }
+    
+    dbPayload.attachments = finalAttachments;
+
     const { data, error } = await supabase
       .from('organizations')
-      .update({ name, industry, size })
+      .update(dbPayload)
       .eq('id', id)
       .select()
       .single();
+      
     if (error) return { success: false, error: error.message };
+    
     const orgs = get().organizations.map(o => o.id === id ? data : o);
     set({ organizations: orgs });
+    
     // If we updated the currently selected org, update it too
     if (get().currentOrg?.id === id) {
       localStorage.setItem(CURRENT_ORG_KEY, JSON.stringify(data));

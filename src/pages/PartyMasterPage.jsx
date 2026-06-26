@@ -329,10 +329,10 @@ function PartyMasterForm({ mode, party, onBack }) {
             setValue('state', state);
             setValue('district', district);
             setValue('country', country);
-            
+
             const currentCity = getValues('city');
             setValue('city', areas.includes(currentCity) ? currentCity : areas[0]);
-            
+
             if (distanceVal !== '') {
               setValue('transportDistance', distanceVal);
             }
@@ -638,10 +638,8 @@ export default function PartyMasterPage() {
     <div className="p-3 max-w-[1920px] mx-auto animate-slide-up">
       {viewState.type !== 'form' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatsCard label="Total Parties" value={stats.total.toLocaleString()} icon={Building2} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
-          <StatsCard label="Party Types" value={stats.types.toLocaleString()} icon={BriefcaseBusiness} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
-          <StatsCard label="MSME Partys" value={stats.msme.toLocaleString()} icon={BadgeCheck} color="#f59e0b" bg="rgba(245,158,11,0.12)" border="rgba(245,158,11,0.25)" animationDelay={100} />
-          <StatsCard label="This Month" value={stats.enrolledThisMonth.toLocaleString()} icon={CalendarDays} color="#ef4444" bg="rgba(239,68,68,0.12)" border="rgba(239,68,68,0.25)" animationDelay={150} />
+          <StatsCard label="Total Customers" value={stats.totalCustomers?.toLocaleString() || '0'} icon={Building2} color="#10b981" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.25)" animationDelay={0} />
+          <StatsCard label="Total Vendors" value={stats.totalVendors?.toLocaleString() || '0'} icon={BriefcaseBusiness} color="#6366f1" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.25)" animationDelay={50} />
         </div>
       )}
 
@@ -685,27 +683,6 @@ export default function PartyMasterPage() {
                       {partyTypes.map(type => (
                         <ListBox.Item key={type} id={type} textValue={type === 'All' ? 'All Party Types' : type}>
                           {type === 'All' ? 'All Party Types' : type}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-                <Select
-                  value={partyMasterMsmeFilter}
-                  onChange={(val) => setPartyMasterMsmeFilter(val)}
-                  className="w-[160px]"
-                  aria-label="MSME Filter"
-                >
-                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {msmeTypes.map(type => (
-                        <ListBox.Item key={type} id={type} textValue={type === 'All' ? 'All MSME Types' : type}>
-                          {type === 'All' ? 'All MSME Types' : type}
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                       ))}

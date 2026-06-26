@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './authStore';
 
 export const useEnquiryStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
@@ -32,6 +33,13 @@ export const useEnquiryStore = create((set, get) => ({
   fetchEnquiries: async (orgId) => {
     if (!orgId) return;
     set({ isLoading: true, error: null });
+
+    // Fetch lookups
+    const { data: lookupsData } = await supabase
+      .from('app_lookups')
+      .select('*')
+      .eq('org_id', orgId);
+
     const { data, error } = await supabase
       .from('enquiry_register')
       .select('*')
@@ -43,7 +51,22 @@ export const useEnquiryStore = create((set, get) => ({
       get().addNotification('Failed to load enquiries.', 'error');
       return;
     }
-    set({ enquiries: (data || []).map(mapFromDb), isLoading: false });
+
+    set(state => {
+      const newLookups = { ...state.lookups };
+      if (lookupsData) {
+        lookupsData.forEach(item => {
+          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
+            newLookups[item.type] = [...newLookups[item.type], item.value];
+          }
+        });
+      }
+      return { 
+        enquiries: (data || []).map(mapFromDb), 
+        isLoading: false,
+        lookups: newLookups
+      };
+    });
   },
 
   addEnquiry: async (enquiryData, orgId, userId) => {
@@ -93,10 +116,26 @@ export const useEnquiryStore = create((set, get) => ({
   },
 
   // ── Lookup management (in-memory) ─────────────────────────────────────
-  addLookupOption: (fieldKey, value) => {
+  addLookupOption: async (fieldKey, value) => {
     const cleaned = String(value || '').trim();
     if (!cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
     let wasAdded = false;
+
+    const currentLocal = get().lookups[fieldKey] || [];
+    if (currentLocal.some(o => o.toLowerCase() === cleaned.toLowerCase())) return false;
+
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .insert([{ org_id: orgId, type: fieldKey, value: cleaned }]);
+      if (error) {
+        get().addNotification(`Failed to save: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => {
       const current = state.lookups[fieldKey] || [];
       if (current.some(o => o.toLowerCase() === cleaned.toLowerCase())) return state;
@@ -107,9 +146,24 @@ export const useEnquiryStore = create((set, get) => ({
     return wasAdded;
   },
 
-  renameLookupOption: (fieldKey, oldValue, newValue) => {
+  renameLookupOption: async (fieldKey, oldValue, newValue) => {
     const cleaned = String(newValue || '').trim();
     if (!fieldKey || !oldValue || !cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .update({ value: cleaned })
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', oldValue);
+      if (error) {
+        get().addNotification(`Failed to update: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     let renamed = false;
     set(state => {
       const current = state.lookups[fieldKey] || [];
@@ -124,13 +178,28 @@ export const useEnquiryStore = create((set, get) => ({
     return renamed;
   },
 
-  deleteLookupOption: (fieldKey, value) => {
+  deleteLookupOption: async (fieldKey, value) => {
     if (!fieldKey || !value) return false;
     const usedCount = get().enquiries.filter(e => e[fieldKey] === value).length;
     if (usedCount > 0) {
       get().addNotification(`Cannot delete "${value}"; used in ${usedCount} enquiry(s).`, 'error');
       return false;
     }
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', value);
+      if (error) {
+        get().addNotification(`Failed to delete: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => ({
       lookups: { ...state.lookups, [fieldKey]: (state.lookups[fieldKey] || []).filter(o => o !== value) },
     }));

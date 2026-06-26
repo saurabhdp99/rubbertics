@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './authStore';
 
 const getCategoryPrefix = (category) => {
   if (!category) return 'CU-';
@@ -41,6 +42,13 @@ export const usePartyMasterStore = create((set, get) => ({
   fetchParties: async (orgId) => {
     if (!orgId) return;
     set({ isLoading: true, error: null });
+
+    // Fetch lookups
+    const { data: lookupsData } = await supabase
+      .from('app_lookups')
+      .select('*')
+      .eq('org_id', orgId);
+
     const { data, error } = await supabase
       .from('party_master')
       .select('*')
@@ -52,7 +60,27 @@ export const usePartyMasterStore = create((set, get) => ({
       get().addNotification('Failed to load party master.', 'error');
       return;
     }
-    set({ parties: (data || []).map(mapFromDb), isLoading: false });
+    
+    set(state => {
+      const newLookups = { ...state.lookups };
+      let newPartyCategories = [...state.partyCategories];
+      if (lookupsData) {
+        lookupsData.forEach(item => {
+          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
+            newLookups[item.type] = [...newLookups[item.type], item.value];
+            if (item.type === 'partyCategory' && !newPartyCategories.includes(item.value)) {
+              newPartyCategories.push(item.value);
+            }
+          }
+        });
+      }
+      return { 
+        parties: (data || []).map(mapFromDb), 
+        isLoading: false,
+        lookups: newLookups,
+        partyCategories: newPartyCategories
+      };
+    });
   },
 
   /** Auto-generate next party code based on existing codes for the category */
@@ -114,11 +142,27 @@ export const usePartyMasterStore = create((set, get) => ({
     return true;
   },
 
-  // ── Lookup management (in-memory) ─────────────────────────────────────
-  addLookupOption: (fieldKey, value) => {
+  // ── Lookup management ─────────────────────────────────────
+  addLookupOption: async (fieldKey, value) => {
     const cleaned = String(value || '').trim();
     if (!cleaned) return false;
+
+    const orgId = useAuthStore.getState().currentOrg?.id;
     let wasAdded = false;
+
+    const currentLocal = get().lookups[fieldKey] || [];
+    if (currentLocal.some(o => o.toLowerCase() === cleaned.toLowerCase())) return false;
+
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .insert([{ org_id: orgId, type: fieldKey, value: cleaned }]);
+      if (error) {
+        get().addNotification(`Failed to save: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => {
       const current = state.lookups[fieldKey] || [];
       if (current.some(o => o.toLowerCase() === cleaned.toLowerCase())) return state;
@@ -132,9 +176,24 @@ export const usePartyMasterStore = create((set, get) => ({
     return wasAdded;
   },
 
-  renameLookupOption: (fieldKey, oldValue, newValue) => {
+  renameLookupOption: async (fieldKey, oldValue, newValue) => {
     const cleaned = String(newValue || '').trim();
     if (!fieldKey || !oldValue || !cleaned) return false;
+
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .update({ value: cleaned })
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', oldValue);
+      if (error) {
+        get().addNotification(`Failed to update: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     let renamed = false;
     set(state => {
       const current = state.lookups[fieldKey] || [];
@@ -152,13 +211,28 @@ export const usePartyMasterStore = create((set, get) => ({
     return renamed;
   },
 
-  deleteLookupOption: (fieldKey, value) => {
+  deleteLookupOption: async (fieldKey, value) => {
     if (!fieldKey || !value) return false;
     const usedCount = get().parties.filter(p => p[fieldKey] === value).length;
     if (usedCount > 0) {
       get().addNotification(`Cannot delete "${value}"; used in ${usedCount} part(ies).`, 'error');
       return false;
     }
+
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', value);
+      if (error) {
+        get().addNotification(`Failed to delete: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => ({
       lookups: { ...state.lookups, [fieldKey]: (state.lookups[fieldKey] || []).filter(o => o !== value) },
       ...(fieldKey === 'partyCategory'
@@ -189,15 +263,9 @@ export const usePartyMasterStore = create((set, get) => ({
 
   getStats: () => {
     const { parties } = get();
-    const types = new Set(parties.map(p => p.partyType).filter(Boolean));
-    const msme = parties.filter(p => p.msmeEnterpriseType && p.msmeEnterpriseType !== 'Not Applicable').length;
-    const today = new Date();
-    const enrolledThisMonth = parties.filter(p => {
-      if (!p.partyEnrollmentDate) return false;
-      const d = new Date(p.partyEnrollmentDate);
-      return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-    }).length;
-    return { total: parties.length, types: types.size, msme, enrolledThisMonth };
+    const totalCustomers = parties.filter(p => p.partyCategory === 'Customer').length;
+    const totalVendors = parties.filter(p => p.partyCategory === 'Vendor').length;
+    return { totalCustomers, totalVendors };
   },
 }));
 
