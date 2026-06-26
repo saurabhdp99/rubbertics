@@ -1,138 +1,580 @@
-import { useState } from 'react';
-import { Search, Plus, Trash2, Edit2, X, Save, SlidersHorizontal } from 'lucide-react';
-import { Table } from '@heroui/react';
+import { useMemo, useState, useRef } from 'react';
+import {
+  ArrowLeft,
+  Edit,
+  Eye,
+  FileDown,
+  FileText,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  Trash2,
+  UploadCloud,
+  X,
+  ClipboardList
+} from 'lucide-react';
+import { Table, Input, Select, Label, DatePicker, DateField, Calendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
+import StatsCard from '../components/common/StatsCard';
+import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
+import { ENQUIRY_FIELDS, ENQUIRY_SECTIONS } from '../data/enquiryTemplate';
+import { useERPStore } from '../store/erpStore';
 
-const initialEnquiries = [
-  {
-    id: 1,
-    name: 'Vidyansh',
-    companyName: 'Amardiu',
-    personName: 'Kundan Deepak',
-    designation: '',
-    mobileNo: '9021413200',
-    emailId: '',
-    requirement: 'Solution: Vir Singh',
-    remark: '',
-  },
-  {
-    id: 2,
-    name: 'Vidyansh',
-    companyName: 'S.P',
-    personName: 'Bajpai Singh',
-    designation: '',
-    mobileNo: '9839340959',
-    emailId: '',
-    requirement: '17 X2 oring, 25 X2.5 oring, 1,00,000 nos minimum',
-    remark: 'Simple',
-  },
-  {
-    id: 3,
-    name: 'Vidyansh',
-    companyName: '',
-    personName: 'Rahul Kumar',
-    designation: '',
-    mobileNo: '9811142426',
-    emailId: '',
-    requirement: 'Jacket hose, Minicase',
-    remark: '',
-  },
-];
+const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
-const emptyForm = {
-  name: '',
-  companyName: '',
-  personName: '',
-  designation: '',
-  mobileNo: '',
-  emailId: '',
-  requirement: '',
-  remark: '',
+const EMPTY_ENQUIRY = ENQUIRY_FIELDS.reduce((enq, field) => {
+  if (field.type === 'select') enq[field.key] = field.options?.[0] || '';
+  else if (field.type === 'creatable-select') enq[field.key] = '';
+  else if (field.type === 'attachments') enq[field.key] = [];
+  else if (field.key === 'systemDate') enq[field.key] = todayIsoDate();
+  else enq[field.key] = '';
+  return enq;
+}, {});
+
+const createInitialEnquiryForm = (enquiry) => {
+  if (enquiry) return { ...EMPTY_ENQUIRY, ...enquiry };
+  return {
+    ...EMPTY_ENQUIRY,
+    enquiryNo: 'Auto generated on create',
+    systemDate: todayIsoDate(),
+  };
 };
 
-export default function EnquiryRegisterPage() {
-  const [enquiries, setEnquiries] = useState(initialEnquiries);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+const TABLE_COLUMNS = ENQUIRY_FIELDS
+  .filter(field => !['enquiryAttachments', 'specification', 'remark', 'address'].includes(field.key))
+  .map(field => ({
+    ...field,
+    width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' || field.type === 'creatable-select' ? '170px' : '180px',
+    align: ['enquiryNo', 'priority'].includes(field.key) ? 'center' : 'left',
+  }));
 
-  const filtered = enquiries.filter((e) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      e.name.toLowerCase().includes(q) ||
-      e.companyName.toLowerCase().includes(q) ||
-      e.personName.toLowerCase().includes(q) ||
-      e.mobileNo.toLowerCase().includes(q) ||
-      e.requirement.toLowerCase().includes(q)
-    );
-  });
+function AttachmentsField({ value = [], onChange, disabled, fieldKey }) {
+  const fileInputRef = useRef(null);
 
-  const openAdd = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setModalOpen(true);
+  const handleAddClick = () => {
+    if (disabled) return;
+    fileInputRef.current?.click();
   };
 
-  const openEdit = (item) => {
-    setEditingId(item.id);
-    setForm({ ...item });
-    setModalOpen(true);
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    Promise.all(
+      files.map((file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve({
+              id: crypto.randomUUID(),
+              name: file.name,
+              dataUrl: e.target.result,
+              type: file.type,
+              size: file.size,
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      })
+    ).then((newAttachments) => {
+      onChange(fieldKey, [...(value || []), ...newAttachments]);
+    });
+
+    e.target.value = '';
   };
 
-  const handleDelete = (id) => {
-    if (confirm('Delete this enquiry?')) {
-      setEnquiries((prev) => prev.filter((e) => e.id !== id));
+  const handleRemove = (id) => {
+    onChange(fieldKey, (value || []).filter(a => a.id !== id));
+  };
+
+  const handleRename = (id, newName) => {
+    onChange(fieldKey, (value || []).map(a => a.id === id ? { ...a, name: newName } : a));
+  };
+
+  const handleView = (attachment) => {
+    const newTab = window.open();
+    if (newTab) {
+      if (attachment.type === 'application/pdf') {
+        newTab.document.write(`<iframe width="100%" height="100%" src="${attachment.dataUrl}"></iframe>`);
+      } else if (attachment.type.startsWith('image/')) {
+        newTab.document.write(`<img src="${attachment.dataUrl}" style="max-width: 100%;" />`);
+      } else {
+        newTab.document.write(`
+          <div style="padding: 20px; font-family: sans-serif;">
+            <h2>Cannot preview this file type natively in browser</h2>
+            <p>Type: ${attachment.type}</p>
+            <a href="${attachment.dataUrl}" download="${attachment.name}" style="padding: 10px 20px; background: #10b981; color: white; text-decoration: none; border-radius: 5px;">Download File</a>
+          </div>
+        `);
+      }
     }
   };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (editingId) {
-      setEnquiries((prev) =>
-        prev.map((item) => (item.id === editingId ? { ...item, ...form } : item))
-      );
-    } else {
-      const newId = enquiries.length ? Math.max(...enquiries.map((e) => e.id)) + 1 : 1;
-      setEnquiries((prev) => [...prev, { id: newId, ...form }]);
-    }
-    setModalOpen(false);
-    setForm(emptyForm);
-    setEditingId(null);
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const inputClass =
-    'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-800';
-  const labelClass = 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1';
 
   return (
-    <div className="p-3 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-4">
+      <input
+        type="file"
+        multiple
+        className="hidden"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        disabled={disabled}
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+      />
+
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {(!value || value.length === 0) ? 'Documents' : `Documents (${value.length})`}
+        </Label>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAddClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+          >
+            <UploadCloud size={14} /> Upload Files
+          </button>
+        )}
+      </div>
+
+      {(!value || value.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
+          <FileText size={32} className="mb-2 opacity-50" />
+          <p className="text-sm font-medium">No documents attached</p>
+          {!disabled && <p className="text-xs mt-1">Click "Upload Files" to add PDFs, Word, Excel, or Images</p>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {value.map((attachment) => (
+            <div key={attachment.id} className="flex flex-col gap-2 p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Input
+                    value={attachment.name}
+                    onChange={(e) => handleRename(attachment.id, e.target.value)}
+                    disabled={disabled}
+                    className="w-full text-sm font-medium text-slate-700 bg-transparent border-none p-0 focus:ring-0 h-6 truncate"
+                    title={attachment.name}
+                  />
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">
+                    {(attachment.size / 1024).toFixed(1)} KB • {attachment.type.split('/')[1] || 'FILE'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleView(attachment)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                >
+                  <Eye size={14} /> View
+                </button>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(attachment.id)}
+                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                    title="Remove"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormField({
+  field,
+  value,
+  onChange,
+  disabled,
+  error,
+  options,
+  onAddOption,
+  onRenameOption,
+  onDeleteOption,
+}) {
+  if (field.type === 'attachments') {
+    return (
+      <div className="col-span-1 md:col-span-2 xl:col-span-3">
+        <AttachmentsField value={value} onChange={onChange} disabled={disabled} fieldKey={field.key} />
+      </div>
+    );
+  }
+
+  const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
+    } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
+  const inputClass = `${baseInputClass} px-4 py-3`;
+  const isLocked = disabled || field.autoGenerated;
+
+  return (
+    <label className={`flex flex-col gap-1.5 ${field.wide ? 'col-span-1 md:col-span-2 xl:col-span-3' : ''}`}>
+      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1 flex items-center justify-between">
+        {field.label}
+        {field.required && <span className="text-red-400">*</span>}
+      </span>
+      {field.type === 'creatable-select' ? (
+        <EditableCreatableSelect
+          value={value}
+          onChange={(val) => onChange(field.key, val)}
+          options={options || []}
+          onAddOption={onAddOption}
+          onRenameOption={onRenameOption}
+          onDeleteOption={onDeleteOption}
+          placeholder={`Select or create ${field.label}`}
+          disabled={isLocked}
+        />
+      ) : field.type === 'select' ? (
+        <select
+          value={value || ''}
+          disabled={isLocked}
+          onChange={(event) => onChange(field.key, event.target.value)}
+          className={`${inputClass} appearance-none cursor-pointer`}
+          aria-label={field.label}
+        >
+          <option value="" disabled>Select {field.label}</option>
+          {(options || []).map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      ) : field.type === 'textarea' ? (
+        <textarea
+          value={value ?? ''}
+          disabled={isLocked}
+          onChange={(event) => onChange(field.key, event.target.value)}
+          className={`${inputClass} min-h-28 resize-y`}
+          placeholder={field.label}
+        />
+      ) : field.type === 'date' ? (
+        <DatePicker
+          value={value ? parseDate(value) : null}
+          isDisabled={isLocked}
+          onChange={(dateVal) => onChange(field.key, dateVal ? dateVal.toString() : '')}
+          className="w-full"
+          aria-label={field.label}
+        >
+          <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+            <DateField.Input className="flex-1 py-3 px-4 outline-none bg-transparent">
+              {(segment) => <DateField.Segment segment={segment} />}
+            </DateField.Input>
+            <DateField.Suffix className="pr-4">
+              <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                <DatePicker.TriggerIndicator />
+              </DatePicker.Trigger>
+            </DateField.Suffix>
+          </DateField.Group>
+          <DatePicker.Popover>
+            <Calendar aria-label={field.label}>
+              <Calendar.Header>
+                <Calendar.Heading />
+                <div className="flex items-center gap-1">
+                  <Calendar.PrevButton />
+                  <Calendar.NextButton />
+                </div>
+              </Calendar.Header>
+              <Calendar.Grid>
+                <Calendar.GridHeader>
+                  {(day) => <Calendar.GridHeaderCell>{day}</Calendar.GridHeaderCell>}
+                </Calendar.GridHeader>
+                <Calendar.GridBody>
+                  {(date) => <Calendar.GridBodyCell date={date} />}
+                </Calendar.GridBody>
+              </Calendar.Grid>
+            </Calendar>
+          </DatePicker.Popover>
+        </DatePicker>
+      ) : (
+        <Input
+          type={field.type || 'text'}
+          value={value ?? ''}
+          disabled={isLocked}
+          onChange={(event) => onChange(field.key, event.target.value)}
+          className={inputClass}
+          placeholder={field.autoGenerated ? 'Auto generated on create' : field.label}
+          aria-label={field.label}
+        />
+      )}
+      {field.autoGenerated && !disabled && (
+        <span className="text-[11px] font-semibold text-emerald-600">Auto generated and locked</span>
+      )}
+      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+    </label>
+  );
+}
+
+function EnquiryForm({ mode, enquiry, onBack }) {
+  const {
+    enquiryItems,
+    addEnquiry,
+    updateEnquiry,
+    enquiryLookups,
+    addEnquiryLookupOption,
+    renameEnquiryLookupOption,
+    deleteEnquiryLookupOption,
+  } = useERPStore();
+  const [form, setForm] = useState(() => createInitialEnquiryForm(enquiry));
+  const [errors, setErrors] = useState({});
+
+  const isView = mode === 'view';
+  const isAdd = mode === 'add';
+  const groupedFields = ENQUIRY_SECTIONS.map(section => ({
+    section,
+    fields: ENQUIRY_FIELDS.filter(field => field.section === section),
+  }));
+
+  const set = (key, value) => {
+    setForm(current => ({ ...current, [key]: value }));
+  };
+
+  const validate = () => {
+    const nextErrors = {};
+    if (!String(form.companyName || '').trim() && !String(form.personName || '').trim()) {
+      nextErrors.companyName = 'Company Name or Person Name is required';
+      nextErrors.personName = 'Company Name or Person Name is required';
+    }
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!validate()) return;
+    
+    const finalForm = { ...form };
+    if (isAdd) {
+      // Auto generate enquiry code based on year and existing items
+      const year = new Date().getFullYear();
+      // Count how many enquiries from this year
+      const enquiriesThisYear = enquiryItems.filter(e => e.enquiryNo?.startsWith(`${year}/`));
+      const nextSequence = enquiriesThisYear.length + 1;
+      finalForm.enquiryNo = `${year}/${String(nextSequence).padStart(4, '0')}`;
+      addEnquiry(finalForm);
+    } else {
+      updateEnquiry(enquiry.id, finalForm);
+    }
+    onBack();
+  };
+
+  return (
+    <div className="animate-slide-up">
+      <div className="glass-card rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/80">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="w-11 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-100 flex items-center justify-center transition-all"
+              title="Back to table"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-50 border border-emerald-200 shadow-lg shadow-emerald-500/10">
+              {isView ? <Eye size={24} className="text-emerald-600" /> : <ClipboardList size={24} className="text-emerald-600" />}
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                {isView ? 'View Enquiry' : isAdd ? 'Add Enquiry' : 'Edit Enquiry'}
+              </h2>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">
+                {isAdd ? 'Enquiry No will be generated automatically' : form.enquiryNo}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+            >
+              <X size={16} />
+              Back
+            </button>
+            {!isView && (
+              <button
+                type="submit"
+                form="enquiry-page-form"
+                className="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+              >
+                <Save size={16} />
+                {isAdd ? 'Create Enquiry' : 'Save Changes'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <form id="enquiry-page-form" onSubmit={submit} className="p-6">
+          <div className="flex flex-col gap-7">
+            {groupedFields.map(group => (
+              <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                    <Tag size={15} className="text-emerald-600" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {group.fields.map(field => (
+                    <FormField
+                      key={field.key}
+                      field={field}
+                      value={form[field.key]}
+                      onChange={set}
+                      disabled={isView}
+                      error={errors[field.key]}
+                      options={enquiryLookups[field.key] || field.options}
+                      onAddOption={(newOption) => addEnquiryLookupOption(field.key, newOption)}
+                      onRenameOption={(oldOption, newOption) => renameEnquiryLookupOption(field.key, oldOption, newOption)}
+                      onDeleteOption={(option) => deleteEnquiryLookupOption(field.key, option)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          {!isView && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+              >
+                <Save size={16} />
+                {isAdd ? 'Create Enquiry' : 'Save Changes'}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default function EnquiryRegisterPage() {
+  const {
+    enquiryItems,
+    enquirySearchQuery,
+    deleteEnquiry,
+  } = useERPStore();
+
+  const [activeForm, setActiveForm] = useState(null); // null, { mode: 'add' }, { mode: 'edit', enquiry }, { mode: 'view', enquiry }
+  const [localSearch, setLocalSearch] = useState(enquirySearchQuery);
+
+  // Derived state
+  const totalEnquiries = enquiryItems.length;
+  const highPriority = enquiryItems.filter(i => i.priority === 'High').length;
+  const newEnquiries = enquiryItems.filter(i => {
+    const today = new Date();
+    const enqDate = new Date(i.systemDate);
+    // Simple check: within last 7 days
+    return (today - enqDate) / (1000 * 60 * 60 * 24) <= 7;
+  }).length;
+
+  const filteredItems = useMemo(() => {
+    return enquiryItems.filter(item => {
+      const q = localSearch.toLowerCase();
+      if (q && !Object.values(item).some(val => String(val).toLowerCase().includes(q))) {
+        return false;
+      }
+      return true;
+    });
+  }, [enquiryItems, localSearch]);
+
+  const handleDelete = (id) => {
+    if (confirm('Are you sure you want to delete this enquiry?')) {
+      deleteEnquiry(id);
+    }
+  };
+
+  if (activeForm) {
+    return (
+      <div className="p-3 max-w-7xl mx-auto">
+        <EnquiryForm
+          mode={activeForm.mode}
+          enquiry={activeForm.enquiry}
+          onBack={() => setActiveForm(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 max-w-7xl mx-auto space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard
+          title="Total Enquiries"
+          value={totalEnquiries}
+          icon={ClipboardList}
+          trend="+12% from last month"
+          trendUp={true}
+          color="emerald"
+        />
+        <StatsCard
+          title="High Priority"
+          value={highPriority}
+          icon={Tag}
+          trend="Needs attention"
+          trendUp={false}
+          color="amber"
+        />
+        <StatsCard
+          title="New This Week"
+          value={newEnquiries}
+          icon={RefreshCw}
+          trend="+5% from last week"
+          trendUp={true}
+          color="blue"
+        />
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Enquiry Register</h1>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+        <div className="px-6 py-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+            <ClipboardList className="text-emerald-600" size={20} />
+            Enquiry Register
+          </h1>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative w-full sm:w-auto">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search enquiries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all w-64"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                className="w-full sm:w-64 pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
               />
             </div>
             <button
-              onClick={openAdd}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-500/20"
+              onClick={() => setActiveForm({ mode: 'add' })}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-500/20"
             >
               <Plus size={16} />
               Add Enquiry
+            </button>
+            <button
+              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              title="Export to Excel"
+            >
+              <FileDown size={18} />
             </button>
           </div>
         </div>
@@ -142,18 +584,18 @@ export default function EnquiryRegisterPage() {
           <Table.ScrollContainer>
             <Table.Content aria-label="Enquiry register table" className="min-w-[1200px]">
               <Table.Header>
-                <Table.Column isRowHeader className="w-16 whitespace-nowrap">Sr.</Table.Column>
-                <Table.Column className="whitespace-nowrap">Name</Table.Column>
-                <Table.Column className="whitespace-nowrap">Company Name</Table.Column>
-                <Table.Column className="whitespace-nowrap">Person Name</Table.Column>
-                <Table.Column className="whitespace-nowrap">Designation</Table.Column>
-                <Table.Column className="whitespace-nowrap">Mobile No</Table.Column>
-                <Table.Column className="whitespace-nowrap">Email ID</Table.Column>
-                <Table.Column className="whitespace-nowrap">Requirement</Table.Column>
-                <Table.Column className="whitespace-nowrap">Remark</Table.Column>
-                <Table.Column className="w-24 whitespace-nowrap">Actions</Table.Column>
+                {TABLE_COLUMNS.map(col => (
+                  <Table.Column
+                    key={col.key}
+                    className={`whitespace-nowrap ${col.align === 'center' ? 'text-center' : 'text-left'}`}
+                    style={{ width: col.width }}
+                  >
+                    {col.label}
+                  </Table.Column>
+                ))}
+                <Table.Column className="w-24 whitespace-nowrap text-center">Actions</Table.Column>
               </Table.Header>
-              <Table.Body items={filtered} renderEmptyState={() => (
+              <Table.Body items={filteredItems} renderEmptyState={() => (
                 <div className="py-20 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-4">
                     <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
@@ -163,125 +605,59 @@ export default function EnquiryRegisterPage() {
                   </div>
                 </div>
               )}>
-                {(item) => {
-                  const index = filtered.findIndex((entry) => entry.id === item.id);
-
-                  return (
-                    <Table.Row key={item.id} className="group">
-                      <Table.Cell className="text-slate-700 font-medium">{index + 1}</Table.Cell>
-                      <Table.Cell className="text-slate-700 font-semibold">{item.name}</Table.Cell>
-                      <Table.Cell className="text-slate-700">{item.companyName || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700">{item.personName || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700">{item.designation || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700 whitespace-nowrap">{item.mobileNo || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700 whitespace-nowrap">{item.emailId || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700 truncate max-w-xs" title={item.requirement}>{item.requirement || '-'}</Table.Cell>
-                      <Table.Cell className="text-slate-700">{item.remark || '-'}</Table.Cell>
-                      <Table.Cell>
-                        <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
-                          <button
-                            onClick={() => openEdit(item)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all"
-                            title="Edit"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                {(item) => (
+                  <Table.Row key={item.id} className="group">
+                    {TABLE_COLUMNS.map(col => (
+                      <Table.Cell
+                        key={col.key}
+                        className={`text-slate-700 ${col.align === 'center' ? 'text-center' : 'text-left'} truncate`}
+                        title={String(item[col.key] || '')}
+                      >
+                        {col.key === 'priority' ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${
+                            item[col.key] === 'High' ? 'bg-red-100 text-red-700' :
+                            item[col.key] === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {item[col.key] || '-'}
+                          </span>
+                        ) : (
+                          item[col.key] || '-'
+                        )}
                       </Table.Cell>
-                    </Table.Row>
-                  );
-                }}
+                    ))}
+                    <Table.Cell>
+                      <div className="flex items-center justify-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                        <button
+                          onClick={() => setActiveForm({ mode: 'view', enquiry: item })}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                          title="View"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => setActiveForm({ mode: 'edit', enquiry: item })}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
               </Table.Body>
             </Table.Content>
           </Table.ScrollContainer>
         </Table>
       </div>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between rounded-t-2xl z-10">
-              <h2 className="text-lg font-bold text-slate-800">
-                {editingId ? 'Edit Enquiry' : 'Add Enquiry'}
-              </h2>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mb-6">
-                <div>
-                  <label className={labelClass}>Name</label>
-                  <input name="name" value={form.name} onChange={handleChange} className={inputClass} required />
-                </div>
-                <div>
-                  <label className={labelClass}>Company Name</label>
-                  <input name="companyName" value={form.companyName} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Person Name</label>
-                  <input name="personName" value={form.personName} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Designation</label>
-                  <input name="designation" value={form.designation} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Mobile No</label>
-                  <input name="mobileNo" value={form.mobileNo} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Email ID</label>
-                  <input name="emailId" type="email" value={form.emailId} onChange={handleChange} className={inputClass} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Requirement</label>
-                  <textarea
-                    name="requirement"
-                    rows={3}
-                    value={form.requirement}
-                    onChange={handleChange}
-                    className={`${inputClass} resize-none`}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Remark</label>
-                  <input name="remark" value={form.remark} onChange={handleChange} className={inputClass} />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-500/20"
-                >
-                  <Save size={16} />
-                  {editingId ? 'Update' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

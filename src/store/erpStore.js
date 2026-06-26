@@ -994,6 +994,14 @@ const initialEmployeeMasterItems = [
 
 let nextEmployeeMasterId = initialEmployeeMasterItems.length + 1;
 
+const initialEnquiryLookups = {
+  enquirySource: ['Email', 'Phone', 'Website', 'Referral', 'Exhibition'],
+  salesPerson: ['Admin', 'Sales Executive 1', 'Sales Manager'],
+};
+
+const initialEnquiryItems = [];
+let nextEnquiryId = 1;
+
 export const useERPStore = create((set, get) => ({
   // Data
   orders: initialOrders,
@@ -1019,6 +1027,8 @@ export const useERPStore = create((set, get) => ({
     }
   ],
   employeeMasterLookups: initialEmployeeMasterLookups,
+  enquiryItems: initialEnquiryItems,
+  enquiryLookups: initialEnquiryLookups,
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
   // UI State
@@ -1058,6 +1068,9 @@ export const useERPStore = create((set, get) => ({
   employeeMasterDepartmentFilter: 'All',
   employeeMasterCurrentPage: 1,
   employeeMasterItemsPerPage: 10,
+  enquirySearchQuery: '',
+  enquiryCurrentPage: 1,
+  enquiryItemsPerPage: 10,
 
   // Modal State
   isModalOpen: false,
@@ -2015,6 +2028,85 @@ export const useERPStore = create((set, get) => ({
       employeeMasterLookups: {
         ...state.employeeMasterLookups,
         [fieldKey]: (state.employeeMasterLookups[fieldKey] || []).filter(o => o !== value),
+      },
+    }));
+    get().addNotification(`"${value}" deleted from dropdown`, 'error');
+    return true;
+  },
+
+  // Enquiry Actions
+  addEnquiry: (enquiryData) => {
+    set(state => ({
+      enquiryItems: [{ ...enquiryData, id: nextEnquiryId++ }, ...state.enquiryItems],
+    }));
+    get().addNotification('Enquiry created successfully!', 'success');
+  },
+
+  updateEnquiry: (id, enquiryData) => {
+    set(state => ({
+      enquiryItems: state.enquiryItems.map(item =>
+        item.id === id ? { ...item, ...enquiryData } : item
+      ),
+    }));
+    get().addNotification('Enquiry updated successfully!', 'success');
+  },
+
+  deleteEnquiry: (id) => {
+    set(state => ({
+      enquiryItems: state.enquiryItems.filter(item => item.id !== id),
+    }));
+    get().addNotification('Enquiry deleted successfully!', 'error');
+  },
+
+  addEnquiryLookupOption: (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+    let wasAdded = false;
+    set(state => {
+      const currentOptions = state.enquiryLookups[fieldKey] || [];
+      const exists = currentOptions.some(option => option.toLowerCase() === cleaned.toLowerCase());
+      if (exists) return state;
+      wasAdded = true;
+      return { enquiryLookups: { ...state.enquiryLookups, [fieldKey]: [...currentOptions, cleaned] } };
+    });
+    if (wasAdded) get().addNotification(`"${cleaned}" added to dropdown`, 'success');
+    return wasAdded;
+  },
+
+  renameEnquiryLookupOption: (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+    let renamed = false;
+    set(state => {
+      const currentOptions = state.enquiryLookups[fieldKey] || [];
+      const duplicate = currentOptions.some(o => o.toLowerCase() === cleaned.toLowerCase() && o !== oldValue);
+      if (duplicate) return state;
+      renamed = true;
+      return {
+        enquiryLookups: {
+          ...state.enquiryLookups,
+          [fieldKey]: currentOptions.map(o => o === oldValue ? cleaned : o),
+        },
+        enquiryItems: state.enquiryItems.map(item =>
+          item[fieldKey] === oldValue ? { ...item, [fieldKey]: cleaned } : item
+        ),
+      };
+    });
+    if (renamed) get().addNotification(`"${oldValue}" renamed to "${cleaned}"`, 'success');
+    return renamed;
+  },
+
+  deleteEnquiryLookupOption: (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().enquiryItems.filter(item => item[fieldKey] === value).length;
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete "${value}"; used in ${usedCount} enquiry(s).`, 'error');
+      return false;
+    }
+    set(state => ({
+      enquiryLookups: {
+        ...state.enquiryLookups,
+        [fieldKey]: (state.enquiryLookups[fieldKey] || []).filter(o => o !== value),
       },
     }));
     get().addNotification(`"${value}" deleted from dropdown`, 'error');
