@@ -23,6 +23,11 @@ const orgSchema = z.object({
   msme_number: z.string().optional(),
   msme_validity: z.string().optional(),
   banking_details: z.string().optional(),
+  bank_name: z.string().optional(),
+  bank_branch: z.string().optional(),
+  bank_account_name: z.string().optional(),
+  bank_account_number: z.string().optional(),
+  bank_ifsc: z.string().optional(),
   iso_certificate_number: z.string().optional(),
   iso_validity: z.string().optional(),
   pf_number: z.string().optional(),
@@ -144,7 +149,7 @@ function AttachmentsField({ value, onChange, disabled }) {
                 >
                   <span className="truncate">{att.fileName || 'Choose File...'}</span>
                 </button>
-                {att.fileData && (
+                {(att.url || att.fileData) && (
                   <button
                     type="button"
                     onClick={() => openFile(att.url || att.fileData)}
@@ -193,6 +198,11 @@ function OrgFormInline({ onCancel, onSaved, editOrg = null }) {
       msme_number: editOrg?.msme_number || '',
       msme_validity: editOrg?.msme_validity || '',
       banking_details: editOrg?.banking_details || '',
+      bank_name: editOrg?.bank_name || '',
+      bank_branch: editOrg?.bank_branch || '',
+      bank_account_name: editOrg?.bank_account_name || '',
+      bank_account_number: editOrg?.bank_account_number || '',
+      bank_ifsc: editOrg?.bank_ifsc || '',
       iso_certificate_number: editOrg?.iso_certificate_number || '',
       iso_validity: editOrg?.iso_validity || '',
       pf_number: editOrg?.pf_number || '',
@@ -315,9 +325,27 @@ function OrgFormInline({ onCancel, onSaved, editOrg = null }) {
           {/* SECTION: Banking */}
           <div>
             <h4 className="text-sm font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100">Banking Details</h4>
-            <div className="form-group">
-              <label className="form-label" htmlFor="org-bank">Bank Information (Account No, IFSC, Branch, etc.)</label>
-              <textarea id="org-bank" rows="3" placeholder="e.g. HDFC Bank, A/C: 1234567890, IFSC: HDFC000123" className="login-input py-3 resize-y" {...register('banking_details')} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="form-group">
+                <label className="form-label" htmlFor="org-bank-name">Bank Name</label>
+                <input id="org-bank-name" type="text" placeholder="e.g. HDFC Bank" className="login-input" {...register('bank_name')} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="org-bank-branch">Branch Name</label>
+                <input id="org-bank-branch" type="text" placeholder="e.g. Andheri East" className="login-input" {...register('bank_branch')} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="org-bank-acc-name">Account Name</label>
+                <input id="org-bank-acc-name" type="text" placeholder="e.g. Nisarg Polymers Pvt Ltd" className="login-input" {...register('bank_account_name')} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="org-bank-acc-no">Account Number</label>
+                <input id="org-bank-acc-no" type="text" className="login-input" {...register('bank_account_number')} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="org-bank-ifsc">IFSC Code</label>
+                <input id="org-bank-ifsc" type="text" className="login-input uppercase" {...register('bank_ifsc')} />
+              </div>
             </div>
           </div>
 
