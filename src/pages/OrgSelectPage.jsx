@@ -217,6 +217,12 @@ function OrgFormInline({ onCancel, onSaved, editOrg = null }) {
   const onSubmit = async (data) => {
     setError('');
     const payload = { ...data, attachments };
+    
+    // Convert empty strings to null for date fields to prevent backend errors
+    if (payload.date_of_incorporation === '') payload.date_of_incorporation = null;
+    if (payload.msme_validity === '') payload.msme_validity = null;
+    if (payload.iso_validity === '') payload.iso_validity = null;
+
     const result = isEdit
       ? await updateOrganization(editOrg.id, payload)
       : await createOrganization(payload);
