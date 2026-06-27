@@ -15,6 +15,8 @@ import EditableCreatableSelect from '../components/common/EditableCreatableSelec
 import { useSaleOrderStore } from '../store/saleOrderStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { useItemMasterStore } from '../store/itemMasterStore';
+import { supabase } from '../lib/supabase';
 
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -119,7 +121,25 @@ function SaleOrderForm({ mode, order, onBack }) {
     addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
   } = useSaleOrderStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
+  const { items: itemMasterItems } = useItemMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
+
+  const [freshItems, setFreshItems] = useState([]);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      if (currentOrg?.id) {
+        const { data, error } = await supabase
+          .from('item_master')
+          .select('item_code, item_name')
+          .eq('org_id', currentOrg.id);
+        if (!error && data) {
+          setFreshItems(data);
+        }
+      }
+    };
+    fetchItems();
+  }, [currentOrg]);
 
   const getInitialValues = () => {
     if (order) {
@@ -354,11 +374,27 @@ function SaleOrderForm({ mode, order, onBack }) {
                     <Field label="Party Name" required error={errors.partyName?.message}>
                       <Select
                         selectedKeys={value ? [value] : []}
-                        onSelectionChange={v => {
+                        onSelectionChange={async v => {
                           const partyName = Array.from(v)[0];
+                          if (!partyName) return;
                           onChange(partyName);
-                          const party = customerParties.find(p => p.partyName === partyName);
-                          setValue('partyAddress', party?.address || '');
+                          if (currentOrg?.id) {
+                            const { data, error } = await supabase
+                              .from('party_master')
+                              .select('address')
+                              .eq('party_name', partyName)
+                              .eq('org_id', currentOrg.id)
+                              .single();
+                            if (!error && data) {
+                              setValue('partyAddress', data.address || '');
+                            } else {
+                              const party = customerParties.find(p => p.partyName === partyName);
+                              setValue('partyAddress', party?.address || '');
+                            }
+                          } else {
+                            const party = customerParties.find(p => p.partyName === partyName);
+                            setValue('partyAddress', party?.address || '');
+                          }
                         }}
                         isDisabled={isView}
                         className="w-full"
@@ -487,18 +523,39 @@ function SaleOrderForm({ mode, order, onBack }) {
                           <Controller
                             control={control}
                             name={`items.${index}.partNo`}
-                            render={({ field: { onChange, value, ref } }) => (
+                            render={({ field: { onChange, value } }) => (
                               <Field label="Part Number">
-                                <Input
-                                  type="text"
-                                  value={value || ''}
-                                  disabled={isView}
-                                  placeholder="Part Number"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
+                                <Select
+                                  selectedKeys={value ? [value] : []}
+                                  onSelectionChange={(v) => {
+                                    const partNo = v instanceof Set ? Array.from(v)[0] : String(v);
+                                    if (!partNo) return;
+                                    onChange(partNo);
+                                    
+                                    const matchedItem = freshItems.find(i => i.item_code === partNo);
+                                    if (matchedItem) {
+                                      setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
+                                    }
+                                  }}
+                                  isDisabled={isView}
+                                  className="w-full"
                                   aria-label="Part Number"
-                                />
+                                >
+                                  <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                                    <Select.Value placeholder="Select Part Number" />
+                                  </Select.Trigger>
+                                  <Select.Popover>
+                                    <ListBox>
+                                      {freshItems.filter(itm => itm.item_code).map(itm => (
+                                        <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
+                                          <div className="flex flex-col gap-0.5 py-0.5">
+                                            <span className="font-bold text-slate-800">{itm.item_code}</span>
+                                          </div>
+                                        </ListBox.Item>
+                                      ))}
+                                    </ListBox>
+                                  </Select.Popover>
+                                </Select>
                               </Field>
                             )}
                           />
@@ -506,16 +563,15 @@ function SaleOrderForm({ mode, order, onBack }) {
                           <Controller
                             control={control}
                             name={`items.${index}.productName`}
-                            render={({ field: { onChange, value, ref } }) => (
+                            render={({ field: { value } }) => (
                               <Field label="Product Name" wide>
                                 <Input
                                   type="text"
                                   value={value || ''}
-                                  disabled={isView}
-                                  placeholder="Product Name"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
+                                  disabled
+                                  readOnly
+                                  placeholder="Auto-filled from Part Number"
+                                  className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
                                   aria-label="Product Name"
                                 />
                               </Field>
@@ -722,9 +778,15 @@ export default function SaleOrdersPage() {
     fetchOrders, isLoading,
   } = useSaleOrderStore();
   const { currentOrg } = useAuthStore();
+  const { fetchParties } = usePartyMasterStore();
+  const { fetchItems } = useItemMasterStore();
 
   useEffect(() => {
-    if (currentOrg?.id) fetchOrders(currentOrg.id);
+    if (currentOrg?.id) {
+      fetchOrders(currentOrg.id);
+      fetchParties(currentOrg.id);
+      fetchItems(currentOrg.id);
+    }
   }, [currentOrg?.id]);
 
 
