@@ -114,8 +114,8 @@ export const useItemMasterStore = create((set, get) => ({
     }
 
     let finalAttachments = [];
-    if (itemData.attachments && itemData.attachments.length > 0) {
-      finalAttachments = await Promise.all(itemData.attachments.map(async (att) => {
+    if (itemData.qualityAttachments && itemData.qualityAttachments.length > 0) {
+      finalAttachments = await Promise.all(itemData.qualityAttachments.map(async (att) => {
         if (att.fileObject) {
           const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
           const filePath = `${orgId}/item_master/${insertedData.id}/${fileName}`;
@@ -165,7 +165,7 @@ export const useItemMasterStore = create((set, get) => ({
       }));
     }
 
-    const payload = { ...mapToDb({ ...itemData, attachments: finalAttachments }), updated_by: userId };
+    const payload = { ...mapToDb({ ...itemData, qualityAttachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('item_master')
       .update(payload)
@@ -377,7 +377,7 @@ function mapFromDb(row) {
     partNo: row.part_no || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    attachments: row.attachments || [],
+    qualityAttachments: row.attachments || [],
     aliasName: row.alias_name || '',
     standardPacking: Number(row.standard_packing || 0),
     uom: row.uom || '',
@@ -431,7 +431,7 @@ function mapToDb(data, orgId, userId) {
     customer_name: data.customerName,
     part_name: data.partName,
     part_no: data.partNo,
-    attachments: data.attachments || [],
+    attachments: data.qualityAttachments || [],
     sub_category: data.subCategory,
     alias_name: data.aliasName,
     standard_packing: Number(data.standardPacking || 0),
