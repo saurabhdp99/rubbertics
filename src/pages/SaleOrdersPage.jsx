@@ -297,8 +297,14 @@ function SaleOrderForm({ mode, order, onBack }) {
                           <DatePicker.Popover>
                             <HeroCalendar aria-label="Created Date Calendar">
                               <HeroCalendar.Header>
-                                <HeroCalendar.NavButton slot="previous" />
-                                <HeroCalendar.NavButton slot="next" />
+                                <HeroCalendar.YearPickerTrigger>
+                                  <HeroCalendar.YearPickerTriggerHeading />
+                                  <HeroCalendar.YearPickerTriggerIndicator />
+                                </HeroCalendar.YearPickerTrigger>
+                                <div className="flex items-center gap-1">
+                                  <HeroCalendar.NavButton slot="previous" />
+                                  <HeroCalendar.NavButton slot="next" />
+                                </div>
                               </HeroCalendar.Header>
                               <HeroCalendar.Grid>
                                 <HeroCalendar.GridHeader>
@@ -306,6 +312,11 @@ function SaleOrderForm({ mode, order, onBack }) {
                                 </HeroCalendar.GridHeader>
                                 <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
                               </HeroCalendar.Grid>
+                              <HeroCalendar.YearPickerGrid>
+                                <HeroCalendar.YearPickerGridBody>
+                                  {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                                </HeroCalendar.YearPickerGridBody>
+                              </HeroCalendar.YearPickerGrid>
                             </HeroCalendar>
                           </DatePicker.Popover>
                         </DatePicker>
@@ -339,8 +350,14 @@ function SaleOrderForm({ mode, order, onBack }) {
                         <DatePicker.Popover>
                           <HeroCalendar aria-label="Purchase Date Calendar">
                             <HeroCalendar.Header>
-                              <HeroCalendar.NavButton slot="previous" />
-                              <HeroCalendar.NavButton slot="next" />
+                              <HeroCalendar.YearPickerTrigger>
+                                <HeroCalendar.YearPickerTriggerHeading />
+                                <HeroCalendar.YearPickerTriggerIndicator />
+                              </HeroCalendar.YearPickerTrigger>
+                              <div className="flex items-center gap-1">
+                                <HeroCalendar.NavButton slot="previous" />
+                                <HeroCalendar.NavButton slot="next" />
+                              </div>
                             </HeroCalendar.Header>
                             <HeroCalendar.Grid>
                               <HeroCalendar.GridHeader>
@@ -348,6 +365,11 @@ function SaleOrderForm({ mode, order, onBack }) {
                               </HeroCalendar.GridHeader>
                               <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
                             </HeroCalendar.Grid>
+                            <HeroCalendar.YearPickerGrid>
+                              <HeroCalendar.YearPickerGridBody>
+                                {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                              </HeroCalendar.YearPickerGridBody>
+                            </HeroCalendar.YearPickerGrid>
                           </HeroCalendar>
                         </DatePicker.Popover>
                       </DatePicker>
@@ -696,17 +718,30 @@ function SaleOrderForm({ mode, order, onBack }) {
                                     </DateField.Suffix>
                                   </DateField.Group>
                                   <DatePicker.Popover>
-                                    <HeroCalendar aria-label="Schedule Date Calendar">
+                                    <HeroCalendar aria-label="Order Date">
                                       <HeroCalendar.Header>
-                                        <HeroCalendar.NavButton slot="previous" />
-                                        <HeroCalendar.NavButton slot="next" />
+                                        <HeroCalendar.YearPickerTrigger>
+                                          <HeroCalendar.YearPickerTriggerHeading />
+                                          <HeroCalendar.YearPickerTriggerIndicator />
+                                        </HeroCalendar.YearPickerTrigger>
+                                        <div className="flex items-center gap-1">
+                                          <HeroCalendar.NavButton slot="previous" />
+                                          <HeroCalendar.NavButton slot="next" />
+                                        </div>
                                       </HeroCalendar.Header>
                                       <HeroCalendar.Grid>
                                         <HeroCalendar.GridHeader>
                                           {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
                                         </HeroCalendar.GridHeader>
-                                        <HeroCalendar.GridBody>{(date) => <HeroCalendar.Cell date={date} />}</HeroCalendar.GridBody>
+                                        <HeroCalendar.GridBody>
+                                          {(date) => <HeroCalendar.Cell date={date} />}
+                                        </HeroCalendar.GridBody>
                                       </HeroCalendar.Grid>
+                                      <HeroCalendar.YearPickerGrid>
+                                        <HeroCalendar.YearPickerGridBody>
+                                          {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                                        </HeroCalendar.YearPickerGridBody>
+                                      </HeroCalendar.YearPickerGrid>
                                     </HeroCalendar>
                                   </DatePicker.Popover>
                                 </DatePicker>
@@ -1023,10 +1058,11 @@ export default function SaleOrdersPage() {
                     <Table.Column isRowHeader className="w-28 whitespace-nowrap">
                       Actions
                     </Table.Column>
-                    {COLUMNS.map((col) => (
+                    {COLUMNS.map((col, index) => (
                       <Table.Column
                         key={col.key}
                         id={col.key}
+                        isRowHeader={index === 0}
                         allowsSorting
                         className="whitespace-nowrap"
                         style={{ minWidth: col.width, textAlign: col.align || 'left' }}

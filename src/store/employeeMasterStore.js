@@ -2,6 +2,21 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 
+const DEFAULT_LOOKUPS = {
+  employeeType: ['Permanent', 'Contract', 'Temporary', 'Trainee'],
+  gender: ['Male', 'Female', 'Other'],
+  bloodGroup: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
+  maritalStatus: ['Single', 'Married', 'Divorced', 'Widowed'],
+  department: ['Production', 'Mixing', 'Quality Control', 'Maintenance', 'Dispatch', 'Admin'],
+  designation: ['Operator', 'Helper', 'QC Inspector', 'Supervisor', 'Manager'],
+  addressType: ['Current', 'Permanent'],
+  salaryType: ['Monthly', 'Daily Wages'],
+  paymentMode: ['Bank Transfer', 'Cash', 'Cheque'],
+  skillCategory: ['Machine Operator', 'Helper', 'Supervisor', 'Technician'],
+  skillLevel: ['Skilled', 'Semi Skilled', 'Unskilled', 'Highly Skilled'],
+  machineTypeKnown: ['Hydraulic Press', 'Mixing Mill', 'Extruder', 'Kneader', 'None'],
+};
+
 export const useEmployeeMasterStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
   employees: [],
@@ -13,20 +28,7 @@ export const useEmployeeMasterStore = create((set, get) => ({
   currentPage: 1,
   itemsPerPage: 10,
 
-  lookups: {
-    employeeType: ['Permanent', 'Contract', 'Temporary', 'Trainee'],
-    gender: ['Male', 'Female', 'Other'],
-    bloodGroup: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
-    maritalStatus: ['Single', 'Married', 'Divorced', 'Widowed'],
-    department: ['Production', 'Mixing', 'Quality Control', 'Maintenance', 'Dispatch', 'Admin'],
-    designation: ['Operator', 'Helper', 'QC Inspector', 'Supervisor', 'Manager'],
-    addressType: ['Current', 'Permanent'],
-    salaryType: ['Monthly', 'Daily Wages'],
-    paymentMode: ['Bank Transfer', 'Cash', 'Cheque'],
-    skillCategory: ['Machine Operator', 'Helper', 'Supervisor', 'Technician'],
-    skillLevel: ['Skilled', 'Semi Skilled', 'Unskilled', 'Highly Skilled'],
-    machineTypeKnown: ['Hydraulic Press', 'Mixing Mill', 'Extruder', 'Kneader', 'None'],
-  },
+  lookups: {},
 
   notifications: [],
 
@@ -63,18 +65,41 @@ export const useEmployeeMasterStore = create((set, get) => ({
     }
     
     set(state => {
-      const newLookups = { ...state.lookups };
-      if (lookupsData) {
+      let finalLookups = {};
+      if (lookupsData && lookupsData.length > 0) {
         lookupsData.forEach(item => {
-          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
-            newLookups[item.type] = [...newLookups[item.type], item.value];
+          if (!finalLookups[item.type]) {
+            finalLookups[item.type] = [];
+          }
+          if (!finalLookups[item.type].includes(item.value)) {
+            finalLookups[item.type].push(item.value);
           }
         });
       }
+
+      // Check for missing types from DEFAULT_LOOKUPS and seed them
+      const seedData = [];
+      Object.entries(DEFAULT_LOOKUPS).forEach(([type, values]) => {
+        // If the DB returned absolutely nothing for this type, seed the defaults
+        if (!finalLookups[type]) {
+          values.forEach(value => {
+            seedData.push({ org_id: orgId, type, value });
+          });
+          finalLookups[type] = [...values];
+        }
+      });
+
+      if (seedData.length > 0) {
+        // Insert missing defaults in background
+        supabase.from('app_lookups').insert(seedData).then(({ error }) => {
+          if (error) console.error("Failed to seed lookups:", error);
+        });
+      }
+
       return { 
         employees: (data || []).map(mapFromDb), 
         isLoading: false,
-        lookups: newLookups
+        lookups: finalLookups
       };
     });
   },
@@ -156,6 +181,7 @@ export const useEmployeeMasterStore = create((set, get) => ({
     });
     
     if (wasAdded) get().addNotification(`"${cleaned}" added`, 'success');
+    else get().addNotification(`Failed to save: Item already exists or save failed`, 'error');
     return wasAdded;
   },
 

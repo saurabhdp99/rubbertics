@@ -10,6 +10,13 @@ const getNextCode = (items) => {
   return `TRN${String(maxNum + 1).padStart(4, '0')}`;
 };
 
+const DEFAULT_LOOKUPS = {
+  transporterType: ['Road Transport', 'Courier', 'Tempo', 'Truck', 'Container', 'Local Transport'],
+  defaultPaymentTerms: ['Immediate', '7 Days', '15 Days', '30 Days', '45 Days', '60 Days'],
+  defaultFreightType: ['Fixed', 'Per Kg', 'Per Ton', 'Per Km', 'Per Box', 'Per Bag'],
+  status: ['Active', 'Inactive', 'Blacklisted', 'On Hold'],
+};
+
 export const useTransportMasterStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
   transporters: [],
@@ -22,12 +29,7 @@ export const useTransportMasterStore = create((set, get) => ({
   currentPage: 1,
   itemsPerPage: 10,
 
-  lookups: {
-    transporterType: ['Road Transport', 'Courier', 'Tempo', 'Truck', 'Container', 'Local Transport'],
-    defaultPaymentTerms: ['Immediate', '7 Days', '15 Days', '30 Days', '45 Days', '60 Days'],
-    defaultFreightType: ['Fixed', 'Per Kg', 'Per Ton', 'Per Km', 'Per Box', 'Per Bag'],
-    status: ['Active', 'Inactive', 'Blacklisted', 'On Hold'],
-  },
+  lookups: {},
 
   notifications: [],
 
@@ -64,18 +66,41 @@ export const useTransportMasterStore = create((set, get) => ({
     }
 
     set(state => {
-      const newLookups = { ...state.lookups };
-      if (lookupsData) {
+      let finalLookups = {};
+      if (lookupsData && lookupsData.length > 0) {
         lookupsData.forEach(item => {
-          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
-            newLookups[item.type] = [...newLookups[item.type], item.value];
+          if (!finalLookups[item.type]) {
+            finalLookups[item.type] = [];
+          }
+          if (!finalLookups[item.type].includes(item.value)) {
+            finalLookups[item.type].push(item.value);
           }
         });
       }
+
+      // Check for missing types from DEFAULT_LOOKUPS and seed them
+      const seedData = [];
+      Object.entries(DEFAULT_LOOKUPS).forEach(([type, values]) => {
+        // If the DB returned absolutely nothing for this type, seed the defaults
+        if (!finalLookups[type]) {
+          values.forEach(value => {
+            seedData.push({ org_id: orgId, type, value });
+          });
+          finalLookups[type] = [...values];
+        }
+      });
+
+      if (seedData.length > 0) {
+        // Insert missing defaults in background
+        supabase.from('app_lookups').insert(seedData).then(({ error }) => {
+          if (error) console.error("Failed to seed lookups:", error);
+        });
+      }
+
       return { 
         transporters: (data || []).map(mapFromDb), 
         isLoading: false,
-        lookups: newLookups
+        lookups: finalLookups
       };
     });
   },
@@ -156,7 +181,9 @@ export const useTransportMasterStore = create((set, get) => ({
       wasAdded = true;
       return { lookups: { ...state.lookups, [fieldKey]: [...current, cleaned] } };
     });
+    
     if (wasAdded) get().addNotification(`"${cleaned}" added`, 'success');
+    else get().addNotification(`Failed to save: Item already exists or save failed`, 'error');
     return wasAdded;
   },
 

@@ -8,6 +8,11 @@ const getCategoryPrefix = (category) => {
   return map[category] || category.substring(0, 2).toUpperCase() + '-';
 };
 
+const DEFAULT_LOOKUPS = {
+  partyCategory: ['Customer', 'Vendor', 'Job Work', 'Service'],
+  msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
+};
+
 export const usePartyMasterStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
   parties: [],
@@ -20,10 +25,7 @@ export const usePartyMasterStore = create((set, get) => ({
   currentPage: 1,
   itemsPerPage: 10,
 
-  lookups: {
-    partyCategory: ['Customer', 'Vendor', 'Job Work', 'Service'],
-    msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
-  },
+  lookups: {},
   partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
 
   notifications: [],
@@ -62,22 +64,50 @@ export const usePartyMasterStore = create((set, get) => ({
     }
     
     set(state => {
-      const newLookups = { ...state.lookups };
+      let finalLookups = {};
       let newPartyCategories = [...state.partyCategories];
-      if (lookupsData) {
+      if (lookupsData && lookupsData.length > 0) {
         lookupsData.forEach(item => {
-          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
-            newLookups[item.type] = [...newLookups[item.type], item.value];
+          if (!finalLookups[item.type]) {
+            finalLookups[item.type] = [];
+          }
+          if (!finalLookups[item.type].includes(item.value)) {
+            finalLookups[item.type].push(item.value);
             if (item.type === 'partyCategory' && !newPartyCategories.includes(item.value)) {
               newPartyCategories.push(item.value);
             }
           }
         });
       }
+
+      // Check for missing types from DEFAULT_LOOKUPS and seed them
+      const seedData = [];
+      Object.entries(DEFAULT_LOOKUPS).forEach(([type, values]) => {
+        // If the DB returned absolutely nothing for this type, seed the defaults
+        if (!finalLookups[type]) {
+          values.forEach(value => {
+            seedData.push({ org_id: orgId, type, value });
+          });
+          finalLookups[type] = [...values];
+          if (type === 'partyCategory') {
+            values.forEach(val => {
+              if (!newPartyCategories.includes(val)) newPartyCategories.push(val);
+            });
+          }
+        }
+      });
+
+      if (seedData.length > 0) {
+        // Insert missing defaults in background
+        supabase.from('app_lookups').insert(seedData).then(({ error }) => {
+          if (error) console.error("Failed to seed lookups:", error);
+        });
+      }
+
       return { 
         parties: (data || []).map(mapFromDb), 
         isLoading: false,
-        lookups: newLookups,
+        lookups: finalLookups,
         partyCategories: newPartyCategories
       };
     });
@@ -166,13 +196,20 @@ export const usePartyMasterStore = create((set, get) => ({
     set(state => {
       const current = state.lookups[fieldKey] || [];
       if (current.some(o => o.toLowerCase() === cleaned.toLowerCase())) return state;
+      
       wasAdded = true;
-      return {
+      let newCategories = state.partyCategories;
+      if (fieldKey === 'partyCategory' && !newCategories.includes(cleaned)) {
+        newCategories = [...newCategories, cleaned];
+      }
+      return { 
         lookups: { ...state.lookups, [fieldKey]: [...current, cleaned] },
-        ...(fieldKey === 'partyCategory' ? { partyCategories: [...state.partyCategories, cleaned] } : {}),
+        partyCategories: newCategories
       };
     });
+    
     if (wasAdded) get().addNotification(`"${cleaned}" added`, 'success');
+    else get().addNotification(`Failed to save: Item already exists or save failed`, 'error');
     return wasAdded;
   },
 

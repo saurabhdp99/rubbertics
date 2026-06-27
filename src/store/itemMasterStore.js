@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './authStore';
+
+const DEFAULT_LOOKUPS = {
+  itemCategory: ['Raw Material', 'Consumables', 'Finished Goods', 'Packaging', 'Capital Goods', 'Spares'],
+  subCategory: ['Rubber', 'Chemicals', 'Metals', 'Plastic', 'Oils', 'Others'],
+  uom: ['Kgs', 'Ltrs', 'Mtrs', 'Nos', 'Sets', 'Pcs', 'Bags', 'Rolls'],
+};
 
 export const useItemMasterStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
@@ -13,6 +20,9 @@ export const useItemMasterStore = create((set, get) => ({
   statusFilter: 'All',
   currentPage: 1,
   itemsPerPage: 10,
+
+  // Lookups
+  lookups: {},
 
   // Notifications
   notifications: [],
@@ -31,6 +41,12 @@ export const useItemMasterStore = create((set, get) => ({
   fetchItems: async (orgId) => {
     if (!orgId) return;
     set({ isLoading: true, error: null });
+    // Fetch lookups
+    const { data: lookupsData } = await supabase
+      .from('app_lookups')
+      .select('*')
+      .eq('org_id', orgId);
+
     const { data, error } = await supabase
       .from('item_master')
       .select('*')
@@ -42,7 +58,45 @@ export const useItemMasterStore = create((set, get) => ({
       get().addNotification('Failed to load item master.', 'error');
       return;
     }
-    set({ items: (data || []).map(mapFromDb), isLoading: false });
+
+    set(state => {
+      let finalLookups = {};
+      if (lookupsData && lookupsData.length > 0) {
+        lookupsData.forEach(item => {
+          if (!finalLookups[item.type]) {
+            finalLookups[item.type] = [];
+          }
+          if (!finalLookups[item.type].includes(item.value)) {
+            finalLookups[item.type].push(item.value);
+          }
+        });
+      }
+
+      // Check for missing types from DEFAULT_LOOKUPS and seed them
+      const seedData = [];
+      Object.entries(DEFAULT_LOOKUPS).forEach(([type, values]) => {
+        // If the DB returned absolutely nothing for this type, seed the defaults
+        if (!finalLookups[type]) {
+          values.forEach(value => {
+            seedData.push({ org_id: orgId, type, value });
+          });
+          finalLookups[type] = [...values];
+        }
+      });
+
+      if (seedData.length > 0) {
+        // Insert missing defaults in background
+        supabase.from('app_lookups').insert(seedData).then(({ error }) => {
+          if (error) console.error("Failed to seed lookups:", error);
+        });
+      }
+
+      return { 
+        items: (data || []).map(mapFromDb), 
+        isLoading: false,
+        lookups: finalLookups
+      };
+    });
   },
 
   addItem: async (itemData, orgId, userId) => {
@@ -135,11 +189,108 @@ export const useItemMasterStore = create((set, get) => ({
       return false;
     }
     set(state => ({ items: state.items.filter(i => i.id !== id) }));
-    get().addNotification('Item master deleted.', 'error');
+    get().addNotification('Item deleted.', 'error');
     return true;
   },
 
-  // ── UI Actions ─────────────────────────────────────────────────────────
+  // ── Lookup management ─────────────────────────────────────────────────
+  addLookupOption: async (fieldKey, value) => {
+    const cleaned = String(value || '').trim();
+    if (!cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    let wasAdded = false;
+
+    const currentLocal = get().lookups[fieldKey] || [];
+    if (currentLocal.some(o => o.toLowerCase() === cleaned.toLowerCase())) return false;
+
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .insert([{ org_id: orgId, type: fieldKey, value: cleaned }]);
+      if (error) {
+        get().addNotification(`Failed to save: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
+    set(state => {
+      const current = state.lookups[fieldKey] || [];
+      if (current.some(o => o.toLowerCase() === cleaned.toLowerCase())) return state;
+      wasAdded = true;
+      return { lookups: { ...state.lookups, [fieldKey]: [...current, cleaned] } };
+    });
+    
+    if (wasAdded) get().addNotification(`"${cleaned}" added`, 'success');
+    else get().addNotification(`Failed to save: Item already exists or save failed`, 'error');
+    return wasAdded;
+  },
+
+  renameLookupOption: async (fieldKey, oldValue, newValue) => {
+    const cleaned = String(newValue || '').trim();
+    if (!fieldKey || !oldValue || !cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .update({ value: cleaned })
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', oldValue);
+      if (error) {
+        get().addNotification(`Failed to update: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
+    let renamed = false;
+    set(state => {
+      const current = state.lookups[fieldKey] || [];
+      if (current.some(o => o.toLowerCase() === cleaned.toLowerCase() && o !== oldValue)) return state;
+      renamed = true;
+      return {
+        lookups: { ...state.lookups, [fieldKey]: current.map(o => (o === oldValue ? cleaned : o)) },
+        items: state.items.map(i => (i[fieldKey] === oldValue ? { ...i, [fieldKey]: cleaned } : i)),
+      };
+    });
+    if (renamed) get().addNotification(`"${oldValue}" renamed to "${cleaned}"`, 'success');
+    return renamed;
+  },
+
+  deleteLookupOption: async (fieldKey, value) => {
+    if (!fieldKey || !value) return false;
+    const usedCount = get().items.filter(i => i[fieldKey] === value).length;
+    if (usedCount > 0) {
+      get().addNotification(`Cannot delete "${value}"; used in ${usedCount} item(s).`, 'error');
+      return false;
+    }
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', value);
+      if (error) {
+        get().addNotification(`Failed to delete: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
+    set(state => ({
+      lookups: {
+        ...state.lookups,
+        [fieldKey]: (state.lookups[fieldKey] || []).filter(o => o !== value),
+      },
+    }));
+    get().addNotification(`"${value}" deleted`, 'error');
+    return true;
+  },
+
+  // ── Filters & Selectors ─────────────────────────────────────────────────────────
   setSearchQuery: (q) => set({ searchQuery: q, currentPage: 1 }),
   setCategoryFilter: (c) => set({ categoryFilter: c, currentPage: 1 }),
   setStatusFilter: (s) => set({ statusFilter: s, currentPage: 1 }),

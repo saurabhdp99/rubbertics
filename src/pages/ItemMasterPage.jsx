@@ -218,7 +218,7 @@ function AttachmentsField({ value, onChange, disabled }) {
   );
 }
 
-function FormField({ field, control, disabled, error, options = [] }) {
+function FormField({ field, control, disabled, error, options = [], onAddOption, onEditOption, onDeleteOption }) {
   if (field.type === 'attachments') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
@@ -255,6 +255,9 @@ function FormField({ field, control, disabled, error, options = [] }) {
                 onChange={onChange}
                 disabled={disabled}
                 placeholder={`Select or type ${field.label.toLowerCase()}`}
+                onAdd={(newVal) => onAddOption?.(field.key, newVal)}
+                onRename={(oldVal, newVal) => onEditOption?.(field.key, oldVal, newVal)}
+                onDelete={(val) => onDeleteOption?.(field.key, val)}
               />
               {error && <span className="text-xs font-medium text-red-500">{error}</span>}
             </div>
@@ -412,24 +415,16 @@ function FormField({ field, control, disabled, error, options = [] }) {
 }
 
 function ItemMasterForm({ mode, item, onBack }) {
-  const { addItem, updateItem, items: itemMasterItems } = useItemMasterStore();
+  const { addItem, updateItem, lookups, addLookupOption, renameLookupOption, deleteLookupOption } = useItemMasterStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
-  const uniqueCategories = useMemo(() => {
-    return Array.from(new Set(itemMasterItems.map(i => i.itemCategory).filter(Boolean))).sort();
-  }, [itemMasterItems]);
-
-  const uniqueSubCategories = useMemo(() => {
-    return Array.from(new Set(itemMasterItems.map(i => i.subCategory).filter(Boolean))).sort();
-  }, [itemMasterItems]);
-
-  const uniqueUoms = useMemo(() => {
-    return Array.from(new Set(itemMasterItems.map(i => i.uom).filter(Boolean))).sort();
-  }, [itemMasterItems]);
+  const uniqueCategories = lookups?.itemCategory || [];
+  const uniqueSubCategories = lookups?.subCategory || [];
+  const uniqueUoms = lookups?.uom || [];
 
   const vendorOptions = useMemo(() => {
     if (!partyMasterItems) return [];
@@ -536,6 +531,9 @@ function ItemMasterForm({ mode, item, onBack }) {
                                 field.key === 'alternateVendor' ? vendorOptions :
                                   []
                       }
+                      onAddOption={addLookupOption}
+                      onEditOption={renameLookupOption}
+                      onDeleteOption={deleteLookupOption}
                     />
                   ))}
                 </div>

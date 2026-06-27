@@ -288,9 +288,9 @@ function FormField({
               value={value}
               onChange={onChange}
               options={options || []}
-              onAddOption={onAddOption}
-              onRenameOption={onRenameOption}
-              onDeleteOption={onDeleteOption}
+              onAdd={onAddOption}
+              onRename={onRenameOption}
+              onDelete={onDeleteOption}
               placeholder={`Select or create ${field.label}`}
               disabled={isLocked}
             />
@@ -340,20 +340,28 @@ function FormField({
               <DatePicker.Popover>
                 <Calendar aria-label={field.label}>
                   <Calendar.Header>
-                    <Calendar.Heading />
+                    <Calendar.YearPickerTrigger>
+                      <Calendar.YearPickerTriggerHeading />
+                      <Calendar.YearPickerTriggerIndicator />
+                    </Calendar.YearPickerTrigger>
                     <div className="flex items-center gap-1">
-                      <Calendar.PrevButton />
-                      <Calendar.NextButton />
+                      <Calendar.NavButton slot="previous" />
+                      <Calendar.NavButton slot="next" />
                     </div>
                   </Calendar.Header>
                   <Calendar.Grid>
                     <Calendar.GridHeader>
-                      {(day) => <Calendar.GridHeaderCell>{day}</Calendar.GridHeaderCell>}
+                      {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
                     </Calendar.GridHeader>
                     <Calendar.GridBody>
-                      {(date) => <Calendar.GridBodyCell date={date} />}
+                      {(date) => <Calendar.Cell date={date} />}
                     </Calendar.GridBody>
                   </Calendar.Grid>
+                  <Calendar.YearPickerGrid>
+                    <Calendar.YearPickerGridBody>
+                      {({year}) => <Calendar.YearPickerCell year={year} />}
+                    </Calendar.YearPickerGridBody>
+                  </Calendar.YearPickerGrid>
                 </Calendar>
               </DatePicker.Popover>
             </DatePicker>
@@ -651,9 +659,10 @@ export default function EnquiryRegisterPage() {
           <Table.ScrollContainer>
             <Table.Content aria-label="Enquiry register table" className="min-w-[1200px]">
               <Table.Header>
-                {TABLE_COLUMNS.map(col => (
+                {TABLE_COLUMNS.map((col, index) => (
                   <Table.Column
                     key={col.key}
+                    isRowHeader={index === 0}
                     className={`whitespace-nowrap ${col.align === 'center' ? 'text-center' : 'text-left'}`}
                     style={{ width: col.width }}
                   >

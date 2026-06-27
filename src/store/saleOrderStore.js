@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 
+const DEFAULT_LOOKUPS = {
+  soType: ['Sale', 'Production'],
+  priority: ['Urgent', 'High', 'Medium', 'Normal', 'Low'],
+  finalStatus: ['Dispatched', 'Partial Dispatch', 'Pending Dispatch', 'In Progress'],
+};
+
 export const useSaleOrderStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
   orders: [],
@@ -26,12 +32,8 @@ export const useSaleOrderStore = create((set, get) => ({
   isDeleteConfirmOpen: false,
   orderToDelete: null,
 
-  // Lookups (kept in-memory, org-specific overrides possible later)
-  saleOrderLookups: {
-    soType: ['Sale', 'Production'],
-    priority: ['Urgent', 'High', 'Medium', 'Normal', 'Low'],
-    finalStatus: ['Dispatched', 'Partial Dispatch', 'Pending Dispatch', 'In Progress'],
-  },
+  // Lookups (database-driven)
+  saleOrderLookups: {},
 
   // Notifications
   notifications: [],
@@ -71,20 +73,41 @@ export const useSaleOrderStore = create((set, get) => ({
     }
     
     set(state => {
-      const newLookups = { ...state.saleOrderLookups };
-      if (lookupsData) {
+      let finalLookups = {};
+      if (lookupsData && lookupsData.length > 0) {
         lookupsData.forEach(item => {
-          if (newLookups[item.type] && !newLookups[item.type].includes(item.value)) {
-            newLookups[item.type] = [...newLookups[item.type], item.value];
-          } else if (!newLookups[item.type]) {
-            newLookups[item.type] = [item.value];
+          if (!finalLookups[item.type]) {
+            finalLookups[item.type] = [];
+          }
+          if (!finalLookups[item.type].includes(item.value)) {
+            finalLookups[item.type].push(item.value);
           }
         });
       }
+
+      // Check for missing types from DEFAULT_LOOKUPS and seed them
+      const seedData = [];
+      Object.entries(DEFAULT_LOOKUPS).forEach(([type, values]) => {
+        // If the DB returned absolutely nothing for this type, seed the defaults
+        if (!finalLookups[type]) {
+          values.forEach(value => {
+            seedData.push({ org_id: orgId, type, value });
+          });
+          finalLookups[type] = [...values];
+        }
+      });
+
+      if (seedData.length > 0) {
+        // Insert missing defaults in background
+        supabase.from('app_lookups').insert(seedData).then(({ error }) => {
+          if (error) console.error("Failed to seed lookups:", error);
+        });
+      }
+
       return { 
         orders: (data || []).map(mapFromDb), 
         isLoading: false,
-        saleOrderLookups: newLookups
+        saleOrderLookups: finalLookups
       };
     });
   },
@@ -155,11 +178,27 @@ export const useSaleOrderStore = create((set, get) => ({
     get().addNotification(`${selectedOrders.length} orders deleted!`, 'error');
   },
 
-  // ── Lookup management (in-memory, can be extended to Supabase later) ──
-  addSaleOrderLookupOption: (fieldKey, value) => {
+  // ── Lookup management ─────────────────────────────────────────────────
+  addSaleOrderLookupOption: async (fieldKey, value) => {
     const cleaned = String(value || '').trim();
     if (!cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
     let wasAdded = false;
+
+    const currentLocal = get().saleOrderLookups[fieldKey] || [];
+    if (currentLocal.some(o => o.toLowerCase() === cleaned.toLowerCase())) return false;
+
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .insert([{ org_id: orgId, type: fieldKey, value: cleaned }]);
+      if (error) {
+        get().addNotification(`Failed to save: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => {
       const current = state.saleOrderLookups[fieldKey] || [];
       if (current.some(o => o.toLowerCase() === cleaned.toLowerCase())) return state;
@@ -167,12 +206,28 @@ export const useSaleOrderStore = create((set, get) => ({
       return { saleOrderLookups: { ...state.saleOrderLookups, [fieldKey]: [...current, cleaned] } };
     });
     if (wasAdded) get().addNotification(`"${cleaned}" added`, 'success');
+    else get().addNotification(`Failed to save: Item already exists or save failed`, 'error');
     return wasAdded;
   },
 
-  renameSaleOrderLookupOption: (fieldKey, oldValue, newValue) => {
+  renameSaleOrderLookupOption: async (fieldKey, oldValue, newValue) => {
     const cleaned = String(newValue || '').trim();
     if (!fieldKey || !oldValue || !cleaned) return false;
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .update({ value: cleaned })
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', oldValue);
+      if (error) {
+        get().addNotification(`Failed to update: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     let renamed = false;
     set(state => {
       const current = state.saleOrderLookups[fieldKey] || [];
@@ -190,13 +245,28 @@ export const useSaleOrderStore = create((set, get) => ({
     return renamed;
   },
 
-  deleteSaleOrderLookupOption: (fieldKey, value) => {
+  deleteSaleOrderLookupOption: async (fieldKey, value) => {
     if (!fieldKey || !value) return false;
     const usedCount = get().orders.filter(o => o[fieldKey] === value).length;
     if (usedCount > 0) {
       get().addNotification(`Cannot delete "${value}"; used in ${usedCount} order(s).`, 'error');
       return false;
     }
+    
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) {
+      const { error } = await supabase
+        .from('app_lookups')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('type', fieldKey)
+        .eq('value', value);
+      if (error) {
+        get().addNotification(`Failed to delete: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
     set(state => ({
       saleOrderLookups: {
         ...state.saleOrderLookups,
