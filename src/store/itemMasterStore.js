@@ -135,13 +135,13 @@ export const useItemMasterStore = create((set, get) => ({
         .single();
 
       if (!updateError) {
-        set(state => ({ items: [mapFromDb(updatedData), ...state.items], currentPage: 1 }));
+        if (orgId) await get().fetchItems(orgId);
         get().addNotification('Item master created successfully!', 'success');
         return true;
       }
     }
 
-    set(state => ({ items: [mapFromDb(insertedData), ...state.items], currentPage: 1 }));
+    if (orgId) await get().fetchItems(orgId);
     get().addNotification('Item master created successfully!', 'success');
     return true;
   },
@@ -177,18 +177,20 @@ export const useItemMasterStore = create((set, get) => ({
       get().addNotification(`Failed to update item: ${error.message}`, 'error');
       return false;
     }
-    set(state => ({ items: state.items.map(i => (i.id === id ? mapFromDb(data) : i)) }));
+    if (itemOrgId) await get().fetchItems(itemOrgId);
     get().addNotification('Item master updated successfully!', 'success');
     return true;
   },
 
   deleteItem: async (id) => {
+    const existingItem = get().items.find(i => i.id === id);
+    const itemOrgId = existingItem?.orgId;
     const { error } = await supabase.from('item_master').delete().eq('id', id);
     if (error) {
       get().addNotification(`Failed to delete item: ${error.message}`, 'error');
       return false;
     }
-    set(state => ({ items: state.items.filter(i => i.id !== id) }));
+    if (itemOrgId) await get().fetchItems(itemOrgId);
     get().addNotification('Item deleted.', 'error');
     return true;
   },
@@ -329,27 +331,28 @@ function mapFromDb(row) {
   return {
     id: row.id,
     orgId: row.org_id,
-    itemCategory: row.item_category,
-    itemCode: row.item_code,
-    itemName: row.item_name,
-    description: row.description,
+    itemCategory: row.item_category || '',
+    subCategory: row.sub_category || '',
+    itemCode: row.item_code || '',
+    itemName: row.item_name || '',
+    description: row.description || '',
     itemPrice: Number(row.item_price || 0),
-    remarks: row.remarks,
-    itemHsn: row.item_hsn,
+    remarks: row.remarks || '',
+    itemHsn: row.item_hsn || '',
     hsnTax: Number(row.hsn_tax || 0),
-    itemAlloy: row.item_alloy,
-    isActive: row.is_active,
-    itemPurchaseMeasurement: row.item_purchase_measurement,
-    itemStockMeasurement: row.item_stock_measurement,
+    itemAlloy: row.item_alloy || '',
+    isActive: row.is_active || 'Yes',
+    itemPurchaseMeasurement: row.item_purchase_measurement || '',
+    itemStockMeasurement: row.item_stock_measurement || '',
     convFactorRate: Number(row.conv_factor_rate || 1),
-    itemWeightMeasurement: row.item_weight_measurement,
+    itemWeightMeasurement: row.item_weight_measurement || '',
     itemStdWeight: Number(row.item_std_weight || 0),
-    isProduct: row.is_product,
-    isNeedToInspect: row.is_need_to_inspect,
-    isQtyVerificationRequired: row.is_qty_verification_required,
-    batchNumberApplicable: row.batch_number_applicable,
-    warehouseName: row.warehouse_name,
-    departmentName: row.department_name,
+    isProduct: row.is_product || 'No',
+    isNeedToInspect: row.is_need_to_inspect || 'No',
+    isQtyVerificationRequired: row.is_qty_verification_required || 'No',
+    batchNumberApplicable: row.batch_number_applicable || 'No',
+    warehouseName: row.warehouse_name || '',
+    departmentName: row.department_name || '',
     moq: Number(row.moq || 0),
     leadTime: row.lead_time,
     batchQty: Number(row.batch_qty || 0),
@@ -358,23 +361,28 @@ function mapFromDb(row) {
     reorderLevelQty: Number(row.reorder_level_qty || 0),
     salesTolerance: Number(row.sales_tolerance || 0),
     purchaseTolerance: Number(row.purchase_tolerance || 0),
-    itemPurchaseLedger: row.item_purchase_ledger,
-    itemSaleLedger: row.item_sale_ledger,
-    itemServiceLedger: row.item_service_ledger,
-    className: row.class_name,
-    haveSelfLife: row.have_self_life,
+    itemPurchaseLedger: row.item_purchase_ledger || '',
+    itemSaleLedger: row.item_sale_ledger || '',
+    itemServiceLedger: row.item_service_ledger || '',
+    className: row.class_name || '',
+    haveSelfLife: row.have_self_life || 'No',
     selfLifeDays: row.self_life_days,
-    autoConsumptionIssueToDept: row.auto_consumption_issue_to_dept,
-    scrapItem: row.scrap_item,
+    autoConsumptionIssueToDept: row.auto_consumption_issue_to_dept || 'No',
+    scrapItem: row.scrap_item || '',
     mrpPrice: Number(row.mrp_price || 0),
-    drawingNo: row.drawing_no,
-    revisionNo: row.revision_no,
-    customerName: row.customer_name,
-    partName: row.part_name,
-    partNo: row.part_no,
+    drawingNo: row.drawing_no || '',
+    revisionNo: row.revision_no || '',
+    customerName: row.customer_name || '',
+    partName: row.part_name || '',
+    partNo: row.part_no || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     attachments: row.attachments || [],
+    aliasName: row.alias_name || '',
+    standardPacking: Number(row.standard_packing || 0),
+    uom: row.uom || '',
+    preferredVendor: row.preferred_vendor || '',
+    alternateVendor: row.alternate_vendor || '',
   };
 }
 
@@ -424,6 +432,12 @@ function mapToDb(data, orgId, userId) {
     part_name: data.partName,
     part_no: data.partNo,
     attachments: data.attachments || [],
+    sub_category: data.subCategory,
+    alias_name: data.aliasName,
+    standard_packing: Number(data.standardPacking || 0),
+    uom: data.uom,
+    preferred_vendor: data.preferredVendor,
+    alternate_vendor: data.alternateVendor,
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;

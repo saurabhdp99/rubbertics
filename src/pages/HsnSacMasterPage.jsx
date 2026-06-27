@@ -138,7 +138,7 @@ function FormField({ field, control, disabled, error }) {
 }
 
 function HsnSacMasterForm({ mode, item, onBack }) {
-  const { addItem, updateItem } = useHsnSacStore();
+  const { addItem, updateItem, deleteItem: deleteHsnSacMaster } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
   const isView = mode === 'view';
   const isAdd = mode === 'add';
@@ -216,23 +216,42 @@ function HsnSacMasterForm({ mode, item, onBack }) {
           </div>
 
           {!isView && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
-              >
-                <X size={16} />
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
-              >
-                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
-                {isAdd ? 'Create Entry' : 'Save Changes'}
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-8 pt-6 border-t border-slate-100">
+              <div>
+                {!isAdd && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm(`Are you sure you want to delete HSN/SAC code "${item?.hsnCode || ''}"? This action cannot be undone.`)) {
+                        const success = await deleteHsnSacMaster(item.id);
+                        if (success) onBack();
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all"
+                  >
+                    <Trash2 size={16} />
+                    Delete Entry
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+                >
+                  <X size={16} />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+                >
+                  {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
+                  {isAdd ? 'Create Entry' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           )}
         </form>
@@ -392,26 +411,6 @@ export default function HsnSacMasterPage() {
                   )}>
                     {(item) => (
                       <Table.Row key={item.id} className="group">
-                        <Table.Cell>
-                          {deleteCandidateId === item.id ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  deleteHsnSacMaster(item.id);
-                                  setDeleteCandidateId(null);
-                                }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={() => setDeleteCandidateId(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
                             <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
                               <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
                                 <Eye size={15} />
@@ -419,12 +418,7 @@ export default function HsnSacMasterPage() {
                               <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
                                 <Edit size={15} />
                               </button>
-                              <button onClick={() => setDeleteCandidateId(item.id)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-all" title="Delete">
-                                <Trash2 size={15} />
-                              </button>
                             </div>
-                          )}
-                        </Table.Cell>
                         {TABLE_COLUMNS.map(column => (
                           <Table.Cell key={column.key} className="text-[13px] text-slate-700" style={{ textAlign: column.align || 'left' }}>
                             {renderCellValue(item, column)}

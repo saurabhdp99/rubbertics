@@ -396,26 +396,25 @@ function SaleOrderForm({ mode, order, onBack }) {
                   render={({ field: { onChange, value } }) => (
                     <Field label="Party Name" required error={errors.partyName?.message}>
                       <Select
-                        selectedKeys={value ? [value] : []}
-                        onSelectionChange={async v => {
-                          const partyName = v instanceof Set ? Array.from(v)[0] : String(v);
-                          if (!partyName) return;
-                          onChange(partyName);
+                        value={value || null}
+                        onChange={async val => {
+                          if (!val) return;
+                          onChange(val);
                           if (currentOrg?.id) {
                             const { data, error } = await supabase
                               .from('party_master')
                               .select('address')
-                              .eq('party_name', partyName)
+                              .eq('party_name', val)
                               .eq('org_id', currentOrg.id)
                               .maybeSingle();
                             if (!error && data) {
                               setValue('partyAddress', data.address || '');
                             } else {
-                              const party = customerParties.find(p => p.partyName === partyName);
+                              const party = customerParties.find(p => p.partyName === val);
                               setValue('partyAddress', party?.address || '');
                             }
                           } else {
-                            const party = customerParties.find(p => p.partyName === partyName);
+                            const party = customerParties.find(p => p.partyName === val);
                             setValue('partyAddress', party?.address || '');
                           }
                         }}
@@ -559,13 +558,12 @@ function SaleOrderForm({ mode, order, onBack }) {
                                   />
                                 ) : (
                                   <Select
-                                    selectedKeys={value ? [value] : []}
-                                    onSelectionChange={(v) => {
-                                      const partNo = v instanceof Set ? Array.from(v)[0] : String(v);
-                                      if (!partNo) return;
-                                      onChange(partNo);
+                                    value={value || null}
+                                    onChange={(val) => {
+                                      if (!val) return;
+                                      onChange(val);
                                       
-                                      const matchedItem = freshItems.find(i => i.item_code === partNo);
+                                      const matchedItem = freshItems.find(i => i.item_code === val);
                                       if (matchedItem) {
                                         setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
                                       }
@@ -1011,8 +1009,8 @@ export default function SaleOrdersPage() {
 
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
                 <Select
-                  selectedKeys={[filterStatus]}
-                  onSelectionChange={v => setFilterStatus(v instanceof Set ? Array.from(v)[0] : String(v))}
+                  value={filterStatus}
+                  onChange={setFilterStatus}
                   className="w-[160px]"
                   aria-label="Status Filter"
                 >
@@ -1026,8 +1024,8 @@ export default function SaleOrdersPage() {
                   </Select.Popover>
                 </Select>
                 <Select
-                  selectedKeys={[filterPriority]}
-                  onSelectionChange={v => setFilterPriority(v instanceof Set ? Array.from(v)[0] : String(v))}
+                  value={filterPriority}
+                  onChange={setFilterPriority}
                   className="w-[150px]"
                   aria-label="Priority Filter"
                 >
@@ -1139,8 +1137,8 @@ export default function SaleOrdersPage() {
               <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
                 <span>Rows per page:</span>
                 <Select
-                  selectedKeys={[itemsPerPage.toString()]}
-                  onSelectionChange={(val) => setItemsPerPage(Number(Array.from(val)[0]))}
+                  value={itemsPerPage.toString()}
+                  onChange={(val) => val && setItemsPerPage(Number(val))}
                   className="w-[80px]"
                   aria-label="Rows per page"
                 >
