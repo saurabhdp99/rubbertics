@@ -150,7 +150,7 @@ export const useItemMasterStore = create((set, get) => ({
     const existingItem = get().items.find(i => i.id === id);
     const itemOrgId = existingItem?.orgId;
 
-    let finalAttachments = itemData.attachments || [];
+    let finalAttachments = itemData.qualityAttachments || [];
     if (itemOrgId && finalAttachments.length > 0) {
       finalAttachments = await Promise.all(finalAttachments.map(async (att) => {
         if (att.fileObject) {

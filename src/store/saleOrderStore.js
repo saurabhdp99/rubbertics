@@ -159,7 +159,7 @@ export const useSaleOrderStore = create((set, get) => ({
       orders: state.orders.filter(o => o.id !== id),
       selectedOrders: state.selectedOrders.filter(sid => sid !== id),
     }));
-    get().addNotification('Order deleted.', 'error');
+    get().addNotification('Order deleted.', 'success');
     set({ isDeleteConfirmOpen: false, orderToDelete: null });
   },
 
@@ -175,7 +175,7 @@ export const useSaleOrderStore = create((set, get) => ({
       orders: state.orders.filter(o => !selectedOrders.includes(o.id)),
       selectedOrders: [],
     }));
-    get().addNotification(`${selectedOrders.length} orders deleted!`, 'error');
+    get().addNotification(`${selectedOrders.length} orders deleted!`, 'success');
   },
 
   // ── Lookup management ─────────────────────────────────────────────────
@@ -458,6 +458,10 @@ function mapFromDb(row) {
     priority: row.priority,
     remark: row.remark,
     finalStatus: row.final_status,
+    partyAddress: row.party_address,
+    shippingAddress: row.shipping_address,
+    paymentTerms: row.payment_terms,
+    deliveryTerms: row.delivery_terms,
     orgId: row.org_id,
     items: row.items || [],
     createdAt: row.created_at,
@@ -468,7 +472,7 @@ function mapFromDb(row) {
 function mapToDb(data, orgId, userId) {
   const payload = {
     po_no: data.poNo,
-    po_type: data.poType,
+    po_type: data.poType || 'Sale',
     process_location: data.processLocation,
     party_name: data.partyName,
     part_no: data.partNo,
@@ -478,9 +482,13 @@ function mapToDb(data, orgId, userId) {
     dispatch_qty: Number(data.dispatchQty || 0),
     delivery_date: data.deliveryDate || null,
     days_left: data.daysLeft !== undefined ? Number(data.daysLeft) : null,
-    priority: data.priority,
+    priority: data.priority || 'Normal',
     remark: data.remark,
-    final_status: data.finalStatus,
+    final_status: data.finalStatus || 'Pending Dispatch',
+    party_address: data.partyAddress,
+    shipping_address: data.shippingAddress,
+    payment_terms: data.paymentTerms,
+    delivery_terms: data.deliveryTerms,
     items: data.items || [],
     date: data.date || new Date().toISOString().split('T')[0],
   };

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
-  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck
+  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2
 } from 'lucide-react';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
@@ -24,7 +24,7 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 const EMPTY_ORDER = {
   createdDate: todayIsoDate(),
   date: todayIsoDate(),
-  soNo: '',
+  poNo: '',
   partyName: '',
   partyAddress: '',
   shippingAddress: '',
@@ -67,7 +67,7 @@ function SortIcon({ sortDirection }) {
 
 const COLUMNS = [
   { key: 'date', label: 'Date', width: '100px' },
-  { key: 'soNo', label: 'PO No', width: '140px' },
+  { key: 'poNo', label: 'PO No', width: '140px' },
   { key: 'partyName', label: 'Party Name', width: '180px' },
   { key: 'items_partNo', label: 'Part No', width: '150px' },
   { key: 'items_productName', label: 'Product Name', width: '240px' },
@@ -91,7 +91,7 @@ const itemSchema = z.object({
 const saleOrderSchema = z.object({
   createdDate: z.string().optional(),
   date: z.string().optional(),
-  soNo: z.string().min(1, 'PO Number is required'),
+  poNo: z.string().min(1, 'PO Number is required'),
   partyName: z.string().min(1, 'Party name is required'),
   partyAddress: z.string().optional(),
   shippingAddress: z.string().optional(),
@@ -119,6 +119,7 @@ function SaleOrderForm({ mode, order, onBack }) {
   const {
     addOrder, updateOrder, saleOrderLookups,
     addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
+    openDeleteConfirm,
   } = useSaleOrderStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { items: itemMasterItems } = useItemMasterStore();
@@ -232,7 +233,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                 {isView ? 'View Sale Order' : isAdd ? 'Create Sale Order' : 'Edit Sale Order'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {watch('soNo') || 'Fill the details below'}
+                {watch('poNo') || 'Fill the details below'}
               </p>
             </div>
           </div>
@@ -379,9 +380,9 @@ function SaleOrderForm({ mode, order, onBack }) {
 
                 <Controller
                   control={control}
-                  name="soNo"
+                  name="poNo"
                   render={({ field: { onChange, value, ref } }) => (
-                    <Field label="PO Number" required error={errors.soNo?.message}>
+                    <Field label="PO Number" required error={errors.poNo?.message}>
                       <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
                     </Field>
                   )}
@@ -397,7 +398,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                       <Select
                         selectedKeys={value ? [value] : []}
                         onSelectionChange={async v => {
-                          const partyName = Array.from(v)[0];
+                          const partyName = v instanceof Set ? Array.from(v)[0] : String(v);
                           if (!partyName) return;
                           onChange(partyName);
                           if (currentOrg?.id) {
@@ -406,7 +407,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                               .select('address')
                               .eq('party_name', partyName)
                               .eq('org_id', currentOrg.id)
-                              .single();
+                              .maybeSingle();
                             if (!error && data) {
                               setValue('partyAddress', data.address || '');
                             } else {
@@ -547,37 +548,47 @@ function SaleOrderForm({ mode, order, onBack }) {
                             name={`items.${index}.partNo`}
                             render={({ field: { onChange, value } }) => (
                               <Field label="Part Number">
-                                <Select
-                                  selectedKeys={value ? [value] : []}
-                                  onSelectionChange={(v) => {
-                                    const partNo = v instanceof Set ? Array.from(v)[0] : String(v);
-                                    if (!partNo) return;
-                                    onChange(partNo);
-                                    
-                                    const matchedItem = freshItems.find(i => i.item_code === partNo);
-                                    if (matchedItem) {
-                                      setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
-                                    }
-                                  }}
-                                  isDisabled={isView}
-                                  className="w-full"
-                                  aria-label="Part Number"
-                                >
-                                  <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                                    <Select.Value placeholder="Select Part Number" />
-                                  </Select.Trigger>
-                                  <Select.Popover>
-                                    <ListBox>
-                                      {freshItems.filter(itm => itm.item_code).map(itm => (
-                                        <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
-                                          <div className="flex flex-col gap-0.5 py-0.5">
-                                            <span className="font-bold text-slate-800">{itm.item_code}</span>
-                                          </div>
-                                        </ListBox.Item>
-                                      ))}
-                                    </ListBox>
-                                  </Select.Popover>
-                                </Select>
+                                {isView ? (
+                                  <Input
+                                    type="text"
+                                    value={value || ''}
+                                    disabled
+                                    readOnly
+                                    className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                    aria-label="Part Number"
+                                  />
+                                ) : (
+                                  <Select
+                                    selectedKeys={value ? [value] : []}
+                                    onSelectionChange={(v) => {
+                                      const partNo = v instanceof Set ? Array.from(v)[0] : String(v);
+                                      if (!partNo) return;
+                                      onChange(partNo);
+                                      
+                                      const matchedItem = freshItems.find(i => i.item_code === partNo);
+                                      if (matchedItem) {
+                                        setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
+                                      }
+                                    }}
+                                    className="w-full"
+                                    aria-label="Part Number"
+                                  >
+                                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                                      <Select.Value placeholder="Select Part Number" />
+                                    </Select.Trigger>
+                                    <Select.Popover>
+                                      <ListBox>
+                                        {freshItems.filter(itm => itm.item_code).map(itm => (
+                                          <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
+                                            <div className="flex flex-col gap-0.5 py-0.5">
+                                              <span className="font-bold text-slate-800">{itm.item_code}</span>
+                                            </div>
+                                          </ListBox.Item>
+                                        ))}
+                                      </ListBox>
+                                    </Select.Popover>
+                                  </Select>
+                                )}
                               </Field>
                             )}
                           />
@@ -776,23 +787,37 @@ function SaleOrderForm({ mode, order, onBack }) {
           </div>
 
           {!isView && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
-              >
-                <X size={16} />
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
-              >
-                {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
-                {isAdd ? 'Create Order' : 'Save Changes'}
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-8 pt-6 border-t border-slate-100">
+              <div>
+                {!isAdd && (
+                  <button
+                    type="button"
+                    onClick={() => openDeleteConfirm(order)}
+                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all"
+                  >
+                    <Trash2 size={16} />
+                    Delete Order
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+                >
+                  <X size={16} />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/30"
+                >
+                  {isSubmitting ? <SlidersHorizontal size={16} className="spin" /> : <Save size={16} />}
+                  {isAdd ? 'Create Order' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           )}
         </form>
@@ -811,6 +836,7 @@ export default function SaleOrdersPage() {
     sortField, sortDirection, setSortField,
     getFilteredOrders, deleteOrder, getStats, orders, saleOrderLookups,
     fetchOrders, isLoading,
+    isDeleteConfirmOpen, orderToDelete, openDeleteConfirm, closeDeleteConfirm
   } = useSaleOrderStore();
   const { currentOrg } = useAuthStore();
   const { fetchParties } = usePartyMasterStore();
@@ -826,7 +852,7 @@ export default function SaleOrdersPage() {
 
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
-  const [deleteCandidateId, setDeleteCandidateId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   const allStatuses = ['All', ...(saleOrderLookups?.finalStatus || [])];
@@ -838,7 +864,6 @@ export default function SaleOrdersPage() {
   const pagedOrders = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const openForm = (mode, order = null) => {
-    setDeleteCandidateId(null);
     setViewState({ type: 'form', mode, order });
   };
 
@@ -866,7 +891,7 @@ export default function SaleOrdersPage() {
   const renderCellValue = (order, column) => {
     const value = order[column.key];
 
-    if (column.key === 'soNo') {
+    if (column.key === 'poNo') {
       return (
         <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 whitespace-nowrap">
           <Hash size={12} /> {value || '-'}
@@ -987,7 +1012,7 @@ export default function SaleOrdersPage() {
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
                 <Select
                   selectedKeys={[filterStatus]}
-                  onSelectionChange={v => setFilterStatus(Array.from(v)[0])}
+                  onSelectionChange={v => setFilterStatus(v instanceof Set ? Array.from(v)[0] : String(v))}
                   className="w-[160px]"
                   aria-label="Status Filter"
                 >
@@ -1002,7 +1027,7 @@ export default function SaleOrdersPage() {
                 </Select>
                 <Select
                   selectedKeys={[filterPriority]}
-                  onSelectionChange={v => setFilterPriority(Array.from(v)[0])}
+                  onSelectionChange={v => setFilterPriority(v instanceof Set ? Array.from(v)[0] : String(v))}
                   className="w-[150px]"
                   aria-label="Priority Filter"
                 >
@@ -1089,25 +1114,6 @@ export default function SaleOrdersPage() {
                     {(order) => (
                       <Table.Row key={order.id} className="group">
                         <Table.Cell>
-                          {deleteCandidateId === order.id ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  deleteOrder(order.id);
-                                  setDeleteCandidateId(null);
-                                }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={() => setDeleteCandidateId(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
                             <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
                               <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
                                 <Eye size={15} />
@@ -1115,11 +1121,7 @@ export default function SaleOrdersPage() {
                               <button onClick={() => openForm('edit', order)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
                                 <Edit size={15} />
                               </button>
-                              <button onClick={() => setDeleteCandidateId(order.id)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-all" title="Delete">
-                                <Trash2 size={15} />
-                              </button>
                             </div>
-                          )}
                         </Table.Cell>
                         {COLUMNS.map((col) => (
                           <Table.Cell key={col.key} className="text-[13px] text-slate-700" style={{ textAlign: col.align || 'left' }}>
@@ -1205,6 +1207,43 @@ export default function SaleOrdersPage() {
             </div>
           </div>
         </>
+      )}
+      {isDeleteConfirmOpen && orderToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
+                <AlertCircle size={32} className="text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Delete Sale Order?</h3>
+              <p className="text-slate-500 text-sm mb-6">
+                Are you sure you want to delete order <span className="font-bold text-slate-700">{orderToDelete.poNo || orderToDelete.id.split('-')[0]}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={closeDeleteConfirm}
+                  disabled={isDeleting}
+                  className="px-6 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    await deleteOrder(orderToDelete.id);
+                    setIsDeleting(false);
+                    setViewState({ type: 'table', mode: null, order: null });
+                  }}
+                  disabled={isDeleting}
+                  className="px-6 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30 transition-all flex items-center gap-2"
+                >
+                  {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  Yes, Delete It
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -402,7 +402,7 @@ export const useAuthStore = create((set, get) => ({
 
     if (hasAccess) {
       const { data } = await supabase.from('staff_org_access')
-        .select('id').match({ staff_id: staffId, org_id: orgId }).single();
+        .select('id').match({ staff_id: staffId, org_id: orgId }).maybeSingle();
       if (data) {
         const { error } = await supabase.from('staff_org_access')
           .update({ allowed_pages: allowedPages })
