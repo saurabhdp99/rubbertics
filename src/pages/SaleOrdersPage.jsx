@@ -5,7 +5,7 @@ import {
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
   Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2
 } from 'lucide-react';
-import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar } from '@heroui/react';
+import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,8 +35,7 @@ const EMPTY_ORDER = {
     orderQty: '',
     uom: '',
     price: '',
-    scheduleQty: '',
-    deliveryDate: ''
+    schedules: [{ scheduleQty: '', deliveryDate: '' }]
   }],
   paymentTerms: '',
   deliveryTerms: '',
@@ -77,6 +76,11 @@ const COLUMNS = [
   { key: 'remark', label: 'Remarks', width: '140px' },
 ];
 
+const scheduleSchema = z.object({
+  scheduleQty: z.coerce.number().min(1, 'Quantity required'),
+  deliveryDate: z.string().min(1, 'Date required'),
+});
+
 const itemSchema = z.object({
   partNo: z.string().optional(),
   productName: z.string().optional(),
@@ -84,8 +88,7 @@ const itemSchema = z.object({
   orderQty: z.coerce.number().min(1, 'Valid quantity required'),
   uom: z.string().optional(),
   price: z.coerce.number().optional().or(z.literal('')),
-  scheduleQty: z.coerce.number().optional().or(z.literal('')),
-  deliveryDate: z.string().min(1, 'Schedule date required'),
+  schedules: z.array(scheduleSchema).min(1, 'At least one schedule is required'),
 });
 
 const saleOrderSchema = z.object({
@@ -112,6 +115,122 @@ function Field({ label, children, required, error, wide }) {
       {children}
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
     </label>
+  );
+}
+
+function ItemSchedules({ control, itemIndex, isView, inputCls, errors }) {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: `items.${itemIndex}.schedules`
+  });
+
+  return (
+    <div className="col-span-1 md:col-span-2 xl:col-span-4 mt-2 bg-slate-50/50 rounded-lg p-4 border border-slate-100">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
+          <span className="text-emerald-500 mr-1.5 text-lg leading-none mb-0.5">•</span>
+          Delivery Schedules
+        </h4>
+        {!isView && (
+          <button
+            type="button"
+            onClick={() => append({ scheduleQty: '', deliveryDate: '' })}
+            className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-md transition-colors border border-emerald-200"
+          >
+            <Plus size={12} /> Add Schedule
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-3">
+        {fields.map((field, sIndex) => (
+          <div key={field.id} className="flex items-start gap-3 relative group">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Controller
+                control={control}
+                name={`items.${itemIndex}.schedules.${sIndex}.scheduleQty`}
+                render={({ field: { onChange, value, ref } }) => (
+                  <Field label="Schedule Qty" required error={errors?.items?.[itemIndex]?.schedules?.[sIndex]?.scheduleQty?.message}>
+                    <Input
+                      type="number"
+                      value={value || ''}
+                      disabled={isView}
+                      placeholder="0"
+                      onChange={onChange}
+                      ref={ref}
+                      className={`${inputCls} px-3 py-2 h-[42px]`}
+                      aria-label="Schedule Qty"
+                    />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={control}
+                name={`items.${itemIndex}.schedules.${sIndex}.deliveryDate`}
+                render={({ field: { onChange, value } }) => (
+                  <Field label="Schedule Date" required error={errors?.items?.[itemIndex]?.schedules?.[sIndex]?.deliveryDate?.message}>
+                    <DatePicker
+                      value={value ? parseDate(value) : null}
+                      isDisabled={isView}
+                      onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
+                      className="w-full"
+                      aria-label="Schedule Date"
+                    >
+                      <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[42px] !pr-2 !py-0`} fullWidth>
+                        <DateField.Input className="flex-1 px-3 py-2 outline-none bg-transparent">
+                          {(segment) => <DateField.Segment segment={segment} />}
+                        </DateField.Input>
+                        <DateField.Suffix className="pr-2">
+                          <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+                            <DatePicker.TriggerIndicator />
+                          </DatePicker.Trigger>
+                        </DateField.Suffix>
+                      </DateField.Group>
+                      <DatePicker.Popover>
+                        <HeroCalendar aria-label="Schedule Date">
+                          <HeroCalendar.Header>
+                            <HeroCalendar.YearPickerTrigger>
+                              <HeroCalendar.YearPickerTriggerHeading />
+                              <HeroCalendar.YearPickerTriggerIndicator />
+                            </HeroCalendar.YearPickerTrigger>
+                            <div className="flex items-center gap-1">
+                              <HeroCalendar.NavButton slot="previous" />
+                              <HeroCalendar.NavButton slot="next" />
+                            </div>
+                          </HeroCalendar.Header>
+                          <HeroCalendar.Grid>
+                            <HeroCalendar.GridHeader>
+                              {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
+                            </HeroCalendar.GridHeader>
+                            <HeroCalendar.GridBody>
+                              {(date) => <HeroCalendar.Cell date={date} />}
+                            </HeroCalendar.GridBody>
+                          </HeroCalendar.Grid>
+                          <HeroCalendar.YearPickerGrid>
+                            <HeroCalendar.YearPickerGridBody>
+                              {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                            </HeroCalendar.YearPickerGridBody>
+                          </HeroCalendar.YearPickerGrid>
+                        </HeroCalendar>
+                      </DatePicker.Popover>
+                    </DatePicker>
+                  </Field>
+                )}
+              />
+            </div>
+            {!isView && fields.length > 1 && (
+              <button
+                type="button"
+                onClick={() => remove(sIndex)}
+                className="mt-6 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100"
+                title="Remove schedule"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -155,9 +274,24 @@ function SaleOrderForm({ mode, order, onBack }) {
           orderQty: i === 0 ? (order.orderQty || '') : '',
           uom: '',
           price: '',
-          scheduleQty: '',
-          deliveryDate: i === 0 ? (order.deliveryDate || '') : ''
+          schedules: [{
+            scheduleQty: i === 0 ? (order.scheduleQty || order.orderQty || '') : '',
+            deliveryDate: i === 0 ? (order.deliveryDate || '') : ''
+          }]
         }));
+      } else {
+        items = items.map(item => {
+          if (!item.schedules || item.schedules.length === 0) {
+            return {
+              ...item,
+              schedules: [{
+                scheduleQty: item.scheduleQty || item.orderQty || '',
+                deliveryDate: item.deliveryDate || ''
+              }]
+            };
+          }
+          return item;
+        });
       }
       let partyAddress = order.partyAddress || '';
       if (!partyAddress && order.partyName) {
@@ -192,11 +326,14 @@ function SaleOrderForm({ mode, order, onBack }) {
     const finalForm = { ...data };
 
     finalForm.items = (finalForm.items || []).filter(item =>
-      item.partNo || item.productName || item.hsnCode || item.uom || item.price || item.orderQty || item.deliveryDate || item.scheduleQty
+      item.partNo || item.productName || item.hsnCode || item.uom || item.price || item.orderQty || (item.schedules && item.schedules.length > 0)
     );
     if (finalForm.items.length === 0) {
       finalForm.items = [{ ...EMPTY_ORDER.items[0] }];
     }
+    
+    // Ensure root orderQty is the sum of all item quantities
+    finalForm.orderQty = finalForm.items.reduce((sum, item) => sum + Number(item.orderQty || 0), 0);
 
     delete finalForm.partNos;
     delete finalForm.partNo;
@@ -685,77 +822,12 @@ function SaleOrderForm({ mode, order, onBack }) {
                             )}
                           />
 
-                          <Controller
-                            control={control}
-                            name={`items.${index}.scheduleQty`}
-                            render={({ field: { onChange, value, ref } }) => (
-                              <Field label="Schedule Qty">
-                                <Input
-                                  type="number"
-                                  value={value || ''}
-                                  disabled={isView}
-                                  placeholder="0"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
-                                  aria-label="Schedule Qty"
-                                />
-                              </Field>
-                            )}
-                          />
-
-                          <Controller
-                            control={control}
-                            name={`items.${index}.deliveryDate`}
-                            render={({ field: { onChange, value } }) => (
-                              <Field label="Schedule Date" required error={errors?.items?.[index]?.deliveryDate?.message}>
-                                <DatePicker
-                                  value={value ? parseDate(value) : null}
-                                  isDisabled={isView}
-                                  onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
-                                  className="w-full"
-                                  aria-label="Schedule Date"
-                                >
-                                  <DateField.Group className={`${inputCls} flex items-center overflow-hidden h-[46px] !pr-2 !py-0`} fullWidth>
-                                    <DateField.Input className="flex-1 px-4 py-3 outline-none bg-transparent">
-                                      {(segment) => <DateField.Segment segment={segment} />}
-                                    </DateField.Input>
-                                    <DateField.Suffix className="pr-2">
-                                      <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
-                                        <DatePicker.TriggerIndicator />
-                                      </DatePicker.Trigger>
-                                    </DateField.Suffix>
-                                  </DateField.Group>
-                                  <DatePicker.Popover>
-                                    <HeroCalendar aria-label="Order Date">
-                                      <HeroCalendar.Header>
-                                        <HeroCalendar.YearPickerTrigger>
-                                          <HeroCalendar.YearPickerTriggerHeading />
-                                          <HeroCalendar.YearPickerTriggerIndicator />
-                                        </HeroCalendar.YearPickerTrigger>
-                                        <div className="flex items-center gap-1">
-                                          <HeroCalendar.NavButton slot="previous" />
-                                          <HeroCalendar.NavButton slot="next" />
-                                        </div>
-                                      </HeroCalendar.Header>
-                                      <HeroCalendar.Grid>
-                                        <HeroCalendar.GridHeader>
-                                          {(day) => <HeroCalendar.HeaderCell>{day}</HeroCalendar.HeaderCell>}
-                                        </HeroCalendar.GridHeader>
-                                        <HeroCalendar.GridBody>
-                                          {(date) => <HeroCalendar.Cell date={date} />}
-                                        </HeroCalendar.GridBody>
-                                      </HeroCalendar.Grid>
-                                      <HeroCalendar.YearPickerGrid>
-                                        <HeroCalendar.YearPickerGridBody>
-                                          {({year}) => <HeroCalendar.YearPickerCell year={year} />}
-                                        </HeroCalendar.YearPickerGridBody>
-                                      </HeroCalendar.YearPickerGrid>
-                                    </HeroCalendar>
-                                  </DatePicker.Popover>
-                                </DatePicker>
-                              </Field>
-                            )}
+                          <ItemSchedules 
+                            control={control} 
+                            itemIndex={index} 
+                            isView={isView} 
+                            inputCls={inputCls} 
+                            errors={errors} 
                           />
                         </div>
                       </div>
@@ -918,12 +990,17 @@ export default function SaleOrdersPage() {
         return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
       }
       if (column.key === 'items_scheduleQty') {
-        const sum = items.reduce((s, i) => s + Number(i.scheduleQty || 0), 0);
+        const sum = items.reduce((s, i) => {
+          const schedSum = (i.schedules || []).reduce((ss, sched) => ss + Number(sched.scheduleQty || 0), 0);
+          return s + schedSum;
+        }, 0);
         return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
       }
       if (column.key === 'items_deliveryDate') {
-        const val = [...new Set(items.map(i => i.deliveryDate).filter(Boolean))].join(', ');
-        return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{val || '-'}</span>;
+        const allDates = items.flatMap(i => (i.schedules || []).map(s => s.deliveryDate).filter(Boolean));
+        const uniqueDates = [...new Set(allDates)];
+        const val = uniqueDates.join(', ');
+        return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{uniqueDates.length > 2 ? `${uniqueDates.length} Dates` : (val || '-')}</span>;
       }
     }
 
@@ -1099,15 +1176,17 @@ export default function SaleOrdersPage() {
                       </Table.Column>
                     ))}
                   </Table.Header>
-                  <Table.Body items={pagedOrders} renderEmptyState={() => (
-                    <div className="py-24 text-center text-slate-500">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
-                          <SlidersHorizontal size={32} className="text-slate-400" />
+                  <Table.Body items={pagedOrders} loadingState={isLoading ? 'loading' : 'idle'} loadingContent={<Spinner size="lg" color="primary" />} renderEmptyState={() => (
+                    isLoading ? null : (
+                      <div className="py-24 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                            <SlidersHorizontal size={32} className="text-slate-400" />
+                          </div>
+                          <p className="text-sm font-medium">No orders found. Try adjusting your filters.</p>
                         </div>
-                        <p className="text-sm font-medium">No orders found. Try adjusting your filters.</p>
                       </div>
-                    </div>
+                    )
                   )}>
                     {(order) => (
                       <Table.Row key={order.id} className="group">

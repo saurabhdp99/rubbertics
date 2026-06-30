@@ -21,7 +21,7 @@ import { HSN_SAC_MASTER_FIELDS } from '../data/hsnSacTemplate';
 import { useHsnSacStore } from '../store/hsnSacStore';
 import { useAuthStore } from '../store/authStore';
 
-import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox } from '@heroui/react';
+import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 
 const EMPTY_ITEM = HSN_SAC_MASTER_FIELDS.reduce((item, field) => {
@@ -399,26 +399,30 @@ export default function HsnSacMasterPage() {
                       </Table.Column>
                     ))}
                   </Table.Header>
-                  <Table.Body items={pagedItems} renderEmptyState={() => (
-                    <div className="py-24 text-center text-slate-500">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
-                          <SlidersHorizontal size={32} className="text-slate-400" />
+                  <Table.Body items={pagedItems} loadingState={isLoading ? 'loading' : 'idle'} loadingContent={<Spinner size="lg" color="primary" />} renderEmptyState={() => (
+                    isLoading ? null : (
+                      <div className="py-24 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                            <SlidersHorizontal size={32} className="text-slate-400" />
+                          </div>
+                          <p className="text-sm font-medium">No records found. Try adjusting your filters.</p>
                         </div>
-                        <p className="text-sm font-medium">No records found. Try adjusting your filters.</p>
                       </div>
-                    </div>
+                    )
                   )}>
                     {(item) => (
                       <Table.Row key={item.id} className="group">
-                            <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
-                              <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
-                                <Eye size={15} />
-                              </button>
-                              <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
-                                <Edit size={15} />
-                              </button>
-                            </div>
+                        <Table.Cell>
+                          <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                            <button onClick={() => openForm('view', item)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
+                              <Eye size={15} />
+                            </button>
+                            <button onClick={() => openForm('edit', item)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
+                              <Edit size={15} />
+                            </button>
+                          </div>
+                        </Table.Cell>
                         {TABLE_COLUMNS.map(column => (
                           <Table.Cell key={column.key} className="text-[13px] text-slate-700" style={{ textAlign: column.align || 'left' }}>
                             {renderCellValue(item, column)}

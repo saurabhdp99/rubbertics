@@ -82,10 +82,14 @@ function ERPApp() {
 // ─── Loading Spinner ─────────────────────────────────────────────────────────
 function AppLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f1117]">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center">
-        <div className="w-12 h-12 rounded-full border-[3px] border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
-        <div className="text-slate-400 text-[0.9rem]">Loading Rubbertics…</div>
+        <div className="flex items-center justify-center gap-2 mx-auto mb-4">
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+        <div className="text-slate-500 text-[0.9rem] font-medium tracking-wide">Loading Rubbertics…</div>
       </div>
     </div>
   );

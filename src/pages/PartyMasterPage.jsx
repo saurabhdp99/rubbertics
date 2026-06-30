@@ -21,7 +21,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar } from '@heroui/react';
+import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -757,15 +757,17 @@ export default function PartyMasterPage() {
                       </Table.Column>
                     ))}
                   </Table.Header>
-                  <Table.Body items={pagedPartys} renderEmptyState={() => (
-                    <div className="py-24 text-center text-slate-500">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
-                          <SlidersHorizontal size={32} className="text-slate-400" />
+                  <Table.Body items={pagedPartys} loadingState={isLoading ? 'loading' : 'idle'} loadingContent={<Spinner size="lg" color="primary" />} renderEmptyState={() => (
+                    isLoading ? null : (
+                      <div className="py-24 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                            <SlidersHorizontal size={32} className="text-slate-400" />
+                          </div>
+                          <p className="text-sm font-medium">No partys found. Try adjusting your filters.</p>
                         </div>
-                        <p className="text-sm font-medium">No partys found. Try adjusting your filters.</p>
                       </div>
-                    </div>
+                    )
                   )}>
                     {(party) => (
                       <Table.Row key={party.id} className="group">

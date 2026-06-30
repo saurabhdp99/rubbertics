@@ -16,7 +16,7 @@ import {
   X,
   ClipboardList
 } from 'lucide-react';
-import { Table, Input, Select, Label, DatePicker, DateField, Calendar } from '@heroui/react';
+import { Table, Input, Select, Label, DatePicker, DateField, Calendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -671,15 +671,17 @@ export default function EnquiryRegisterPage() {
                 ))}
                 <Table.Column className="w-24 whitespace-nowrap text-center">Actions</Table.Column>
               </Table.Header>
-              <Table.Body items={filteredItems} renderEmptyState={() => (
-                <div className="py-20 text-center text-slate-500">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
-                      <SlidersHorizontal size={32} className="text-slate-400" />
+              <Table.Body items={filteredItems} loadingState={isLoading ? 'loading' : 'idle'} loadingContent={<Spinner size="lg" color="primary" />} renderEmptyState={() => (
+                isLoading ? null : (
+                  <div className="py-20 text-center text-slate-500">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="p-4 rounded-full bg-slate-50 border border-slate-200">
+                        <SlidersHorizontal size={32} className="text-slate-400" />
+                      </div>
+                      <p className="text-sm font-medium">No enquiries found. Try adjusting your search.</p>
                     </div>
-                    <p className="text-sm font-medium">No enquiries found. Try adjusting your search.</p>
                   </div>
-                </div>
+                )
               )}>
                 {(item) => (
                   <Table.Row key={item.id} className="group">
