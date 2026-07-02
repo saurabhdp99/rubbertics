@@ -21,10 +21,22 @@ import {
   Tag,
   Trash2,
   UploadCloud,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
-import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar, Spinner } from '@heroui/react';
+import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar, Spinner, Modal } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+
+const safeParseDate = (val) => {
+  if (!val) return null;
+  try {
+    const cleanStr = String(val).split('T')[0].split(' ')[0];
+    return parseDate(cleanStr);
+  } catch (e) {
+    return null;
+  }
+};
+
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -378,7 +390,7 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
               />
             ) : field.type === 'date' ? (
               <DatePicker
-                value={value ? parseDate(value) : null}
+                value={safeParseDate(value)}
                 isDisabled={disabled}
                 onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
                 className="w-full"
@@ -662,183 +674,185 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
   const history = historyMap[compoundId] || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-w-[1100px] w-full max-h-[90vh] flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 py-4 px-6 bg-slate-50/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
-              <History size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-slate-800">Modified Revision History</h3>
-              <p className="text-xs font-medium text-slate-500">Audit trail & snapshots for <span className="font-bold text-slate-700">{compoundName}</span></p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {isHistoryLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
-              <Spinner size="lg" color="primary" />
-              <p className="text-sm font-medium">Loading historical revisions...</p>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="py-16 text-center text-slate-400">
-              <AlertCircle size={36} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm font-bold text-slate-600">No modification history recorded yet.</p>
-              <p className="text-xs mt-1">Revisions are automatically logged whenever a compound formulation or quality parameter is updated.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Timeline List */}
-              <div className="lg:col-span-5 flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2">
-                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                  Revisions ({history.length})
-                </Label>
-                {history.map((rev, index) => {
-                  const isSelected = selectedSnapshot?.id === rev.id || (!selectedSnapshot && index === 0);
-                  return (
-                    <div
-                      key={rev.id}
-                      onClick={() => setSelectedSnapshot(rev)}
-                      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 ${isSelected
-                        ? 'bg-indigo-50/70 border-indigo-300 shadow-md shadow-indigo-500/10'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-sm">
-                          Rev {rev.revisionNumber}
-                        </span>
-                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                          <Clock size={12} /> {new Date(rev.revisionDate || rev.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-
-                      <p className="text-xs font-bold text-slate-800 line-clamp-2">
-                        {rev.changeSummary}
-                      </p>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-medium text-slate-500 mt-1">
-                        <span>Modified by: <strong className="text-slate-700">{rev.modifiedBy}</strong></span>
-                        <span className="text-indigo-600 font-bold flex items-center gap-0.5">
-                          View Snapshot <ArrowRight size={12} />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Modal.Container>
+        <Modal.Dialog className="max-w-[1100px] w-full bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col p-0">
+          {/* Header */}
+          <Modal.Header className="flex items-center justify-between border-b border-slate-100 py-4 px-6 bg-slate-50/80 m-0 w-full">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
+                <History size={20} />
               </div>
+              <div>
+                <Modal.Heading className="text-lg font-black text-slate-800 m-0">Modified Revision History</Modal.Heading>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">Audit trail & snapshots for <span className="font-bold text-slate-700">{compoundName}</span></p>
+              </div>
+            </div>
+            <button onClick={onClose} type="button" className="p-2 rounded-xl hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={20} />
+            </button>
+          </Modal.Header>
 
-              {/* Snapshot Detail View */}
-              <div className="lg:col-span-7 bg-slate-50 rounded-2xl border border-slate-200 p-5 flex flex-col gap-5 max-h-[600px] overflow-y-auto">
-                {(() => {
-                  const activeRev = selectedSnapshot || history[0];
-                  if (!activeRev) return null;
-                  const snap = activeRev.snapshot || {};
-                  return (
-                    <>
-                      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                        <div>
-                          <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest block">Archived Snapshot</span>
-                          <h4 className="text-base font-black text-slate-800 mt-0.5">
-                            Revision {activeRev.revisionNumber} ({snap.compoundCode || 'N/A'})
-                          </h4>
+          {/* Body */}
+          <Modal.Body className="p-6 overflow-y-auto flex-1 m-0 w-full">
+            {isHistoryLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
+                <Spinner size="lg" color="primary" />
+                <p className="text-sm font-medium">Loading historical revisions...</p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="py-16 text-center text-slate-400">
+                <AlertCircle size={36} className="mx-auto mb-2 opacity-50" />
+                <p className="text-sm font-bold text-slate-600">No modification history recorded yet.</p>
+                <p className="text-xs mt-1">Revisions are automatically logged whenever a compound formulation or quality parameter is updated.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Timeline List */}
+                <div className="lg:col-span-5 flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2">
+                  <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Revisions ({history.length})
+                  </Label>
+                  {history.map((rev, index) => {
+                    const isSelected = selectedSnapshot?.id === rev.id || (!selectedSnapshot && index === 0);
+                    return (
+                      <div
+                        key={rev.id}
+                        onClick={() => setSelectedSnapshot(rev)}
+                        className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 ${isSelected
+                          ? 'bg-indigo-50/70 border-indigo-300 shadow-md shadow-indigo-500/10'
+                          : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-sm">
+                            Rev {rev.revisionNumber}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                            <Clock size={12} /> {new Date(rev.revisionDate || rev.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200">
-                          Status: <strong className="text-emerald-700">{snap.status || 'Active'}</strong>
-                        </span>
-                      </div>
 
-                      {/* Formulation table in snapshot */}
-                      <div>
-                        <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Beaker size={14} className="text-emerald-600" /> Formulation at this revision
-                        </h5>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden text-xs">
-                          <table className="w-full text-left">
-                            <thead className="bg-slate-100 text-[10px] font-bold text-slate-500 uppercase">
-                              <tr>
-                                <th className="py-2 px-3">Particular</th>
-                                <th className="py-2 px-3 text-right">Qty</th>
-                                <th className="py-2 px-3">UOM</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {(snap.formulation || []).length === 0 ? (
-                                <tr><td colSpan={3} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
-                              ) : (
-                                snap.formulation.map((fItem, i) => (
-                                  <tr key={fItem.id || i}>
-                                    <td className="py-2 px-3 font-semibold text-slate-800">{fItem.particular}</td>
-                                    <td className="py-2 px-3 text-right font-bold text-emerald-700">{Number(fItem.quantity || 0).toFixed(4)}</td>
-                                    <td className="py-2 px-3 text-slate-500">{fItem.uom}</td>
-                                  </tr>
-                                ))
-                              )}
-                              <tr className="bg-slate-50 font-black border-t border-slate-200">
-                                <td className="py-2 px-3 text-right">Total Output:</td>
-                                <td className="py-2 px-3 text-right text-emerald-800">{Number(snap.totalOutput || 0).toFixed(4)}</td>
-                                <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Quality parameters in snapshot */}
-                      <div>
-                        <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Activity size={14} className="text-indigo-600" /> Quality Parameters
-                        </h5>
-                        <div className="grid grid-cols-2 gap-2.5 text-xs">
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Hardness (Shore A)</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{snap.hardnessShoreA || '-'}</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Specific Gravity</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{snap.specificGravity || '-'}</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Mooney Viscosity</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{snap.mooneyViscosity || '-'}</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Tensile Strength</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{snap.tensileStrengthMpa || '-'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Storage in snapshot */}
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Storage Conditions & Life</span>
-                        <p className="font-medium text-slate-700 mt-1">
-                          Condition: <strong className="text-slate-900">{snap.storageCondition || 'Standard'}</strong> | Shelf Life: <strong className="text-slate-900">{snap.shelfLifeDays || 0} days</strong>
+                        <p className="text-xs font-bold text-slate-800 line-clamp-2">
+                          {rev.changeSummary}
                         </p>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="border-t border-slate-100 py-3 px-6 bg-slate-50/50 flex justify-end">
-          <button onClick={onClose} className="font-bold text-sm px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl transition-colors">
-            Close History
-          </button>
-        </div>
-      </div>
-    </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-medium text-slate-500 mt-1">
+                          <span>Modified by: <strong className="text-slate-700">{rev.modifiedBy}</strong></span>
+                          <span className="text-indigo-600 font-bold flex items-center gap-0.5">
+                            View Snapshot <ArrowRight size={12} />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Snapshot Detail View */}
+                <div className="lg:col-span-7 bg-slate-50 rounded-2xl border border-slate-200 p-5 flex flex-col gap-5 max-h-[600px] overflow-y-auto">
+                  {(() => {
+                    const activeRev = selectedSnapshot || history[0];
+                    if (!activeRev) return null;
+                    const snap = activeRev.snapshot || {};
+                    return (
+                      <>
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                          <div>
+                            <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest block">Archived Snapshot</span>
+                            <h4 className="text-base font-black text-slate-800 mt-0.5">
+                              Revision {activeRev.revisionNumber} ({snap.compoundCode || 'N/A'})
+                            </h4>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200">
+                            Status: <strong className="text-emerald-700">{snap.status || 'Active'}</strong>
+                          </span>
+                        </div>
+
+                        {/* Formulation table in snapshot */}
+                        <div>
+                          <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Beaker size={14} className="text-emerald-600" /> Formulation at this revision
+                          </h5>
+                          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden text-xs">
+                            <table className="w-full text-left">
+                              <thead className="bg-slate-100 text-[10px] font-bold text-slate-500 uppercase">
+                                <tr>
+                                  <th className="py-2 px-3">Particular</th>
+                                  <th className="py-2 px-3 text-right">Qty</th>
+                                  <th className="py-2 px-3">UOM</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {(snap.formulation || []).length === 0 ? (
+                                  <tr><td colSpan={3} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
+                                ) : (
+                                  snap.formulation.map((fItem, i) => (
+                                    <tr key={fItem.id || i}>
+                                      <td className="py-2 px-3 font-semibold text-slate-800">{fItem.particular}</td>
+                                      <td className="py-2 px-3 text-right font-bold text-emerald-700">{Number(fItem.quantity || 0).toFixed(4)}</td>
+                                      <td className="py-2 px-3 text-slate-500">{fItem.uom}</td>
+                                    </tr>
+                                  ))
+                                )}
+                                <tr className="bg-slate-50 font-black border-t border-slate-200">
+                                  <td className="py-2 px-3 text-right">Total Output:</td>
+                                  <td className="py-2 px-3 text-right text-emerald-800">{Number(snap.totalOutput || 0).toFixed(4)}</td>
+                                  <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Quality parameters in snapshot */}
+                        <div>
+                          <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Activity size={14} className="text-indigo-600" /> Quality Parameters
+                          </h5>
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Hardness (Shore A)</span>
+                              <span className="font-bold text-slate-800 mt-0.5 block">{snap.hardnessShoreA || '-'}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Specific Gravity</span>
+                              <span className="font-bold text-slate-800 mt-0.5 block">{snap.specificGravity || '-'}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Mooney Viscosity</span>
+                              <span className="font-bold text-slate-800 mt-0.5 block">{snap.mooneyViscosity || '-'}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Tensile Strength</span>
+                              <span className="font-bold text-slate-800 mt-0.5 block">{snap.tensileStrengthMpa || '-'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Storage in snapshot */}
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Storage Conditions & Life</span>
+                          <p className="font-medium text-slate-700 mt-1">
+                            Condition: <strong className="text-slate-900">{snap.storageCondition || 'Standard'}</strong> | Shelf Life: <strong className="text-slate-900">{snap.shelfLifeDays || 0} days</strong>
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </Modal.Body>
+
+          {/* Footer */}
+          <Modal.Footer className="border-t border-slate-100 py-3 px-6 bg-slate-50/50 flex justify-end m-0 w-full">
+            <button onClick={onClose} type="button" className="font-bold text-sm px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl transition-colors">
+              Close History
+            </button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

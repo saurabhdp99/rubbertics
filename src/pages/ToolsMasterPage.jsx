@@ -20,6 +20,17 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+
+const safeParseDate = (val) => {
+  if (!val) return null;
+  try {
+    const cleanStr = String(val).split('T')[0].split(' ')[0];
+    return parseDate(cleanStr);
+  } catch (e) {
+    return null;
+  }
+};
+
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -366,7 +377,7 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
               />
             ) : field.type === 'date' ? (
               <DatePicker
-                value={value ? parseDate(value) : null}
+                value={safeParseDate(value)}
                 isDisabled={disabled}
                 onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
                 className="w-full"
