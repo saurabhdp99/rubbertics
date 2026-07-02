@@ -9,6 +9,8 @@ const InventoryPage = lazy(() => import('./pages/InventoryPage'));
 const ItemMasterPage = lazy(() => import('./pages/ItemMasterPage'));
 const HsnSacMasterPage = lazy(() => import('./pages/HsnSacMasterPage'));
 const MachineMasterPage = lazy(() => import('./pages/MachineMasterPage'));
+const ToolsMasterPage = lazy(() => import('./pages/ToolsMasterPage'));
+const CompoundMasterPage = lazy(() => import('./pages/CompoundMasterPage'));
 const PartyMasterPage = lazy(() => import('./pages/PartyMasterPage'));
 const TransportMasterPage = lazy(() => import('./pages/TransportMasterPage'));
 const EmployeeMasterPage = lazy(() => import('./pages/EmployeeMasterPage'));
@@ -55,6 +57,8 @@ function ERPApp() {
               {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
               {canAccess('/hsn-sac-master') && <Route path="/hsn-sac-master" element={<HsnSacMasterPage />} />}
               {canAccess('/machine-master') && <Route path="/machine-master" element={<MachineMasterPage />} />}
+              {canAccess('/tools-master') && <Route path="/tools-master" element={<ToolsMasterPage />} />}
+              {canAccess('/compound-master') && <Route path="/compound-master" element={<CompoundMasterPage />} />}
               {canAccess('/party-master') && <Route path="/party-master" element={<PartyMasterPage />} />}
               {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
               {canAccess('/employee-master') && <Route path="/employee-master" element={<EmployeeMasterPage />} />}

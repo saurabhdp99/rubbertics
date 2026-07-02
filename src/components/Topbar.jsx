@@ -23,6 +23,8 @@ const PAGE_TITLES = {
   '/lot-details-register':        'Lot Details Register',
   '/hsn-sac-master':              'HSN/SAC Master',
   '/machine-master':              'Machine Master',
+  '/tools-master':                'Tools Master',
+  '/compound-master':             'Compound Master',
   '/transport-master':            'Transport Master',
   '/employee-master':             'Employee Master',
   '/settings':                    'Settings',

@@ -4,7 +4,7 @@ import {
   Building2, ChevronDown, Check, Plus,
   ShoppingBag, Package, Boxes, CalendarDays, CalendarRange,
   FileText, Layers, TrendingUp, Truck, ArrowDownLeft,
-  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users
+  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users, Wrench, Beaker
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,8 @@ export const navItems = [
   { label: 'Item Master', path: '/item-master', icon: Package },
   { label: 'HSN/SAC Master', path: '/hsn-sac-master', icon: Barcode },
   { label: 'Machine Master', path: '/machine-master', icon: Settings },
+  { label: 'Tools Master', path: '/tools-master', icon: Wrench },
+  { label: 'Compound Master', path: '/compound-master', icon: Beaker },
   { label: 'Party Master', path: '/party-master', icon: ContactRound },
   { label: 'Transport Master', path: '/transport-master', icon: Truck },
   { label: 'Employee Master', path: '/employee-master', icon: Users },
