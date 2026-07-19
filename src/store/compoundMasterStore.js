@@ -17,12 +17,7 @@ const DEFAULT_LOOKUPS = {
   ],
   uom: [
     'kg',
-    'g',
-    'ltrs',
-    'ml',
-    'phr',
-    '%',
-    'pcs',
+    'ltr',
   ],
   storageCondition: [
     'Store in a cool, dry place below 25°C away from direct sunlight',

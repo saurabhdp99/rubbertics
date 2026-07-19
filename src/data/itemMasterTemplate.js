@@ -13,13 +13,31 @@ export const ITEM_MASTER_FIELDS = [
   },
   {
     "key": "itemCode",
-    "label": "Item Code",
+    "label": "NPPL Item No. (Auto Generated)",
+    "type": "text",
+    "section": "Basic Details"
+  },
+  {
+    "key": "customerItemCode",
+    "label": "Customer Item Code",
     "type": "text",
     "section": "Basic Details"
   },
   {
     "key": "itemName",
     "label": "Item Name",
+    "type": "text",
+    "section": "Basic Details"
+  },
+  {
+    "key": "partName",
+    "label": "Part Name",
+    "type": "text",
+    "section": "Basic Details"
+  },
+  {
+    "key": "partNo",
+    "label": "Part Number",
     "type": "text",
     "section": "Basic Details"
   },
@@ -60,11 +78,18 @@ export const ITEM_MASTER_FIELDS = [
     "section": "Basic Details"
   },
   {
+    "key": "itemNetWeight",
+    "label": "Item Net Weight",
+    "type": "number",
+    "section": "Measurements"
+  },
+  {
     "key": "itemStdWeight",
     "label": "Item Std Weight",
     "type": "number",
     "section": "Measurements"
   },
+
   {
     "key": "standardPacking",
     "label": "Standard Packing",
@@ -97,7 +122,7 @@ export const ITEM_MASTER_FIELDS = [
   },
   {
     "key": "leadTime",
-    "label": "Lead Time",
+    "label": "Lead Time (days)",
     "type": "number",
     "section": "Planning & Stock"
   },
@@ -164,18 +189,6 @@ export const ITEM_MASTER_FIELDS = [
   {
     "key": "revisionNo",
     "label": "Revision No.",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "partName",
-    "label": "Part Name",
-    "type": "text",
-    "section": "Ledgers & References"
-  },
-  {
-    "key": "partNo",
-    "label": "Part No.",
     "type": "text",
     "section": "Ledgers & References"
   },

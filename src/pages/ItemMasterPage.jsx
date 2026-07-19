@@ -54,8 +54,11 @@ const attachmentSchema = z.object({
 const itemMasterSchema = z.object({
   itemCategory: z.string().nullable().optional(),
   subCategory: z.string().nullable().optional(),
-  itemCode: z.string().min(1, 'Item code is required'),
+  itemCode: z.string().min(1, 'NPPL Item No. is required'),
+  customerItemCode: z.string().nullable().optional(),
   itemName: z.string().min(1, 'Item name is required'),
+  partName: z.string().nullable().optional(),
+  partNo: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   itemPrice: z.coerce.number().optional().or(z.literal('')),
   itemHsn: z.string().nullable().optional(),
@@ -63,6 +66,7 @@ const itemMasterSchema = z.object({
   remarks: z.string().nullable().optional(),
   isActive: z.string().nullable().optional(),
   itemStdWeight: z.coerce.number().optional().or(z.literal('')),
+  itemNetWeight: z.coerce.number().optional().or(z.literal('')),
   standardPacking: z.coerce.number().optional().or(z.literal('')),
   uom: z.string().nullable().optional(),
   warehouseName: z.string().nullable().optional(),
@@ -218,7 +222,7 @@ function AttachmentsField({ value, onChange, disabled }) {
   );
 }
 
-function FormField({ field, control, disabled, error, options = [], onAddOption, onEditOption, onDeleteOption }) {
+function FormField({ field, control, disabled, error, options = [], onAddOption, onEditOption, onDeleteOption, onCategorySelect, onGenerateCode }) {
   if (field.type === 'attachments') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
@@ -242,6 +246,33 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
       control={control}
       name={field.key}
       render={({ field: { onChange, value, onBlur, ref } }) => {
+        if (field.key === 'itemCode') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label} <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3.5 text-emerald-600 pointer-events-none">
+                  <Hash size={16} />
+                </div>
+                <Input
+                  type="text"
+                  value={value ?? ''}
+                  disabled={disabled}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={`${inputClass} pl-10 font-bold text-emerald-900 bg-emerald-50/30 focus:bg-white`}
+                  placeholder="e.g. RM-0001"
+                  aria-label={field.label}
+                  ref={ref}
+                />
+              </div>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
         if (field.type === 'creatable-select') {
           return (
             <div className="flex flex-col gap-2">
@@ -252,10 +283,20 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
               <EditableCreatableSelect
                 value={value ?? ''}
                 options={options}
-                onChange={onChange}
+                onChange={(newVal) => {
+                  onChange(newVal);
+                  if (field.key === 'itemCategory') {
+                    onCategorySelect?.(newVal);
+                  }
+                }}
                 disabled={disabled}
                 placeholder={`Select or type ${field.label.toLowerCase()}`}
-                onAdd={(newVal) => onAddOption?.(field.key, newVal)}
+                onAdd={(newVal) => {
+                  onAddOption?.(field.key, newVal);
+                  if (field.key === 'itemCategory') {
+                    onCategorySelect?.(newVal);
+                  }
+                }}
                 onRename={(oldVal, newVal) => onEditOption?.(field.key, oldVal, newVal)}
                 onDelete={(val) => onDeleteOption?.(field.key, val)}
               />
@@ -415,7 +456,7 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
 }
 
 function ItemMasterForm({ mode, item, onBack }) {
-  const { addItem, updateItem, deleteItem: deleteItemMaster, lookups, addLookupOption, renameLookupOption, deleteLookupOption } = useItemMasterStore();
+  const { addItem, updateItem, deleteItem: deleteItemMaster, lookups, addLookupOption, renameLookupOption, deleteLookupOption, getNextItemCode } = useItemMasterStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
@@ -437,10 +478,31 @@ function ItemMasterForm({ mode, item, onBack }) {
     ).sort();
   }, [partyMasterItems]);
 
-  const { control, handleSubmit: hookFormSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+  const { control, handleSubmit: hookFormSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(itemMasterSchema),
     defaultValues: item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM }
   });
+
+  const handleCategorySelect = async (newVal) => {
+    if ((isAdd || !watch('itemCode')) && newVal) {
+      const generated = await getNextItemCode(newVal, currentOrg?.id);
+      if (generated) {
+        setValue('itemCode', generated, { shouldValidate: true, shouldDirty: true });
+      }
+    }
+  };
+
+  const handleGenerateCode = async () => {
+    const currentCategory = watch('itemCategory');
+    if (!currentCategory) {
+      alert('Please select an Item Category first to auto-generate the NPPL Item No.');
+      return;
+    }
+    const generated = await getNextItemCode(currentCategory, currentOrg?.id);
+    if (generated) {
+      setValue('itemCode', generated, { shouldValidate: true, shouldDirty: true });
+    }
+  };
 
   useEffect(() => {
     reset(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
@@ -478,7 +540,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                 {isView ? 'View Item Master' : isAdd ? 'Add Item Master' : 'Edit Item Master'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {watch('itemCode') || 'Manual entry from Sales Item Master template'}
+                {watch('itemCode') || 'Fill the item master details below'}
               </p>
             </div>
           </div>
@@ -534,6 +596,8 @@ function ItemMasterForm({ mode, item, onBack }) {
                       onAddOption={addLookupOption}
                       onEditOption={renameLookupOption}
                       onDeleteOption={deleteLookupOption}
+                      onCategorySelect={handleCategorySelect}
+                      onGenerateCode={handleGenerateCode}
                     />
                   ))}
                 </div>
@@ -699,7 +763,7 @@ export default function ItemMasterPage() {
 
                 <Input
                   type="text"
-                  placeholder="Search by item code, item name, part no, customer..."
+                  placeholder="Search by NPPL item no, item name, part no, customer..."
                   value={itemMasterSearchQuery}
                   onChange={event => setItemMasterSearchQuery(event.target.value)}
                   aria-label="Search items"

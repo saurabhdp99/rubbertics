@@ -158,12 +158,6 @@ export const TOOLS_MASTER_FIELDS = [
     section: 'Cost & Supplier',
   },
   {
-    key: 'supplierContact',
-    label: 'Supplier Contact',
-    type: 'text',
-    section: 'Cost & Supplier',
-  },
-  {
     key: 'toolCost',
     label: 'Tool Cost',
     type: 'number',

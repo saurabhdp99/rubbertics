@@ -8,6 +8,26 @@ const DEFAULT_LOOKUPS = {
   uom: ['Kgs', 'Ltrs', 'Mtrs', 'Nos', 'Sets', 'Pcs', 'Bags', 'Rolls'],
 };
 
+export function getCategoryPrefix(category) {
+  if (!category) return 'ITEM';
+  const cleaned = String(category).trim();
+  const map = {
+    'Raw Material': 'RM',
+    'Consumables': 'CN',
+    'Finished Goods': 'FG',
+    'Packaging': 'PKG',
+    'Capital Goods': 'CG',
+    'Spares': 'SP',
+  };
+  if (map[cleaned]) return map[cleaned];
+
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.map(w => w[0].toUpperCase()).join('').slice(0, 4);
+  }
+  return cleaned.substring(0, 3).toUpperCase();
+}
+
 export const useItemMasterStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
   items: [],
@@ -34,6 +54,49 @@ export const useItemMasterStore = create((set, get) => ({
     setTimeout(() => {
       set(state => ({ notifications: state.notifications.filter(n => n.id !== id) }));
     }, 3000);
+  },
+
+  getNextItemCode: async (category, orgId) => {
+    if (!category) return '';
+    const prefix = getCategoryPrefix(category);
+    const storeItems = get().items || [];
+    
+    const codes = new Set();
+    storeItems.forEach(i => {
+      if (i.itemCode) codes.add(String(i.itemCode).trim());
+    });
+
+    if (orgId) {
+      try {
+        const { data, error } = await supabase
+          .from('item_master')
+          .select('item_code')
+          .eq('org_id', orgId)
+          .ilike('item_code', `${prefix}-%`);
+        if (!error && data) {
+          data.forEach(row => {
+            if (row.item_code) codes.add(String(row.item_code).trim());
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching max sequence from Supabase:", err);
+      }
+    }
+
+    let maxNum = 0;
+    const regex = new RegExp(`^${prefix}[-\\s]*(\\d+)$`, 'i');
+    codes.forEach(code => {
+      const match = code.match(regex);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+
+    const nextNum = maxNum + 1;
+    return `${prefix}-${String(nextNum).padStart(4, '0')}`;
   },
 
   // ── Supabase CRUD ──────────────────────────────────────────────────────
@@ -100,8 +163,12 @@ export const useItemMasterStore = create((set, get) => ({
   },
 
   addItem: async (itemData, orgId, userId) => {
+    let finalItemCode = itemData.itemCode;
+    if (!finalItemCode && itemData.itemCategory) {
+      finalItemCode = await get().getNextItemCode(itemData.itemCategory, orgId);
+    }
     // Insert without attachments first to get the ID
-    const payload = { ...mapToDb(itemData), org_id: orgId, created_by: userId, attachments: [] };
+    const payload = { ...mapToDb({ ...itemData, itemCode: finalItemCode }), org_id: orgId, created_by: userId, attachments: [] };
     const { data: insertedData, error: insertError } = await supabase
       .from('item_master')
       .insert([payload])
@@ -165,7 +232,11 @@ export const useItemMasterStore = create((set, get) => ({
       }));
     }
 
-    const payload = { ...mapToDb({ ...itemData, qualityAttachments: finalAttachments }), updated_by: userId };
+    let finalItemCode = itemData.itemCode;
+    if (!finalItemCode && itemData.itemCategory) {
+      finalItemCode = await get().getNextItemCode(itemData.itemCategory, itemOrgId);
+    }
+    const payload = { ...mapToDb({ ...itemData, itemCode: finalItemCode, qualityAttachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('item_master')
       .update(payload)
@@ -334,6 +405,7 @@ function mapFromDb(row) {
     itemCategory: row.item_category || '',
     subCategory: row.sub_category || '',
     itemCode: row.item_code || '',
+    customerItemCode: row.customer_item_code || '',
     itemName: row.item_name || '',
     description: row.description || '',
     itemPrice: Number(row.item_price || 0),
@@ -347,6 +419,7 @@ function mapFromDb(row) {
     convFactorRate: Number(row.conv_factor_rate || 1),
     itemWeightMeasurement: row.item_weight_measurement || '',
     itemStdWeight: Number(row.item_std_weight || 0),
+    itemNetWeight: Number(row.item_net_weight || 0),
     isProduct: row.is_product || 'No',
     isNeedToInspect: row.is_need_to_inspect || 'No',
     isQtyVerificationRequired: row.is_qty_verification_required || 'No',
@@ -390,6 +463,7 @@ function mapToDb(data, orgId, userId) {
   const payload = {
     item_category: data.itemCategory,
     item_code: data.itemCode,
+    customer_item_code: data.customerItemCode,
     item_name: data.itemName,
     description: data.description,
     item_price: Number(data.itemPrice || 0),
@@ -403,6 +477,7 @@ function mapToDb(data, orgId, userId) {
     conv_factor_rate: Number(data.convFactorRate || 1),
     item_weight_measurement: data.itemWeightMeasurement,
     item_std_weight: Number(data.itemStdWeight || 0),
+    item_net_weight: Number(data.itemNetWeight || 0),
     is_product: data.isProduct || 'No',
     is_need_to_inspect: data.isNeedToInspect || 'No',
     is_qty_verification_required: data.isQtyVerificationRequired || 'No',

@@ -66,6 +66,7 @@ const partyMasterSchema = z.object({
   partyCategory: z.string().min(1, 'Party category is required'),
   partyName: z.string().min(1, 'Party name is required'),
   partyCode: z.string().optional(),
+  customerVendorCode: z.string().optional(),
   aliasName: z.string().optional(),
   natureOfBusiness: z.string().optional(),
   addressLine1: z.string().optional(),
@@ -75,6 +76,13 @@ const partyMasterSchema = z.object({
   state: z.string().optional(),
   pinCode: z.string().optional(),
   country: z.string().optional(),
+  shipToAddressLine1: z.string().optional(),
+  shipToAddressLine2: z.string().optional(),
+  shipToCity: z.string().optional(),
+  shipToDistrict: z.string().optional(),
+  shipToState: z.string().optional(),
+  shipToPinCode: z.string().optional(),
+  shipToCountry: z.string().optional(),
   procurementPersonName: z.string().optional(),
   procurementContactNo: z.string().optional(),
   procurementEmail: z.string().optional(),
@@ -260,8 +268,11 @@ function PartyMasterForm({ mode, party, onBack }) {
 
   const [cityOptions, setCityOptions] = useState([]);
   const [isLoadingPincode, setIsLoadingPincode] = useState(false);
+  const [shipToCityOptions, setShipToCityOptions] = useState([]);
+  const [isLoadingShipToPincode, setIsLoadingShipToPincode] = useState(false);
 
   const pinCode = watch('pinCode');
+  const shipToPinCode = watch('shipToPinCode');
   const partyCategory = watch('partyCategory');
 
   useEffect(() => {
@@ -366,6 +377,55 @@ function PartyMasterForm({ mode, party, onBack }) {
     return () => clearTimeout(timeoutId);
   }, [pinCode, mode, setValue, getValues]);
 
+  useEffect(() => {
+    const fetchShipToPincodeDetails = async () => {
+      if (mode === 'view') return;
+
+      if (shipToPinCode?.length === 6) {
+        setIsLoadingShipToPincode(true);
+        try {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${shipToPinCode}`);
+          const data = await res.json();
+          if (data && data[0]?.Status === 'Success') {
+            const postOffices = data[0].PostOffice;
+            const state = postOffices[0].State;
+            const district = postOffices[0].District;
+            const country = postOffices[0].Country || 'India';
+            const areas = [...new Set(postOffices.map(po => po.Name))];
+
+            setShipToCityOptions(areas);
+            setValue('shipToState', state);
+            setValue('shipToDistrict', district);
+            setValue('shipToCountry', country);
+
+            const currentCity = getValues('shipToCity');
+            setValue('shipToCity', areas.includes(currentCity) ? currentCity : areas[0]);
+          } else {
+            setShipToCityOptions([]);
+            setValue('shipToState', '');
+            setValue('shipToDistrict', '');
+            setValue('shipToCity', '');
+          }
+        } catch (error) {
+          console.error("Failed to fetch shipTo pincode details", error);
+        } finally {
+          setIsLoadingShipToPincode(false);
+        }
+      } else {
+        setShipToCityOptions([]);
+        const currentVals = getValues(['shipToState', 'shipToDistrict', 'shipToCity']);
+        if (currentVals.some(v => v)) {
+          setValue('shipToState', '');
+          setValue('shipToDistrict', '');
+          setValue('shipToCity', '');
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(fetchShipToPincodeDetails, 600);
+    return () => clearTimeout(timeoutId);
+  }, [shipToPinCode, mode, setValue, getValues]);
+
 
   const groupedFields = PARTY_MASTER_SECTIONS.map(section => ({
     section,
@@ -430,18 +490,44 @@ function PartyMasterForm({ mode, party, onBack }) {
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                    <Tag size={15} className="text-emerald-600" />
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                      <Tag size={15} className="text-emerald-600" />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
                   </div>
-                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
+                  {group.section === 'Ship To Address' && !isView && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValue('shipToAddressLine1', getValues('addressLine1') || '');
+                        setValue('shipToAddressLine2', getValues('addressLine2') || '');
+                        setValue('shipToCity', getValues('city') || '');
+                        setValue('shipToDistrict', getValues('district') || '');
+                        setValue('shipToState', getValues('state') || '');
+                        setValue('shipToPinCode', getValues('pinCode') || '');
+                        setValue('shipToCountry', getValues('country') || 'India');
+                      }}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      <span>Copy from Bill To Address</span>
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                   {group.fields.map(field => {
+                    if (field.showOnlyWhenCategory && watch('partyCategory') !== field.showOnlyWhenCategory) {
+                      return null;
+                    }
                     const isCityField = field.key === 'city';
+                    const isShipToCityField = field.key === 'shipToCity';
                     const fieldProps = { ...field };
 
                     if (isCityField && cityOptions.length > 0) {
+                      fieldProps.type = 'creatable-select';
+                    }
+                    if (isShipToCityField && shipToCityOptions.length > 0) {
                       fieldProps.type = 'creatable-select';
                     }
 
@@ -450,17 +536,21 @@ function PartyMasterForm({ mode, party, onBack }) {
                         key={field.key}
                         field={fieldProps}
                         control={control}
-                        disabled={isView || isSubmitting || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key))}
+                        disabled={isView || isSubmitting || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key)) || (isLoadingShipToPincode && ['shipToState', 'shipToDistrict', 'shipToCity', 'shipToCountry'].includes(field.key))}
                         error={errors[field.key]?.message}
-                        options={isCityField && cityOptions.length > 0 ? cityOptions : partyMasterLookups[field.key] || field.options}
+                        options={isCityField && cityOptions.length > 0 ? cityOptions : isShipToCityField && shipToCityOptions.length > 0 ? shipToCityOptions : partyMasterLookups[field.key] || field.options}
                         onAddOption={(newOption) => {
                           if (isCityField) setCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
+                          else if (isShipToCityField) setShipToCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
                           else addPartyMasterLookupOption(field.key, newOption);
                         }}
                         onRenameOption={(oldOption, newOption) => {
                           if (isCityField) {
                             setCityOptions(prev => prev.map(option => option === oldOption ? newOption : option));
                             if (watch('city') === oldOption) setValue('city', newOption);
+                          } else if (isShipToCityField) {
+                            setShipToCityOptions(prev => prev.map(option => option === oldOption ? newOption : option));
+                            if (watch('shipToCity') === oldOption) setValue('shipToCity', newOption);
                           } else {
                             renamePartyMasterLookupOption(field.key, oldOption, newOption);
                           }
@@ -470,10 +560,14 @@ function PartyMasterForm({ mode, party, onBack }) {
                             setCityOptions(prev => prev.filter(item => item !== option));
                             if (watch('city') === option) setValue('city', '');
                             return true;
+                          } else if (isShipToCityField) {
+                            setShipToCityOptions(prev => prev.filter(item => item !== option));
+                            if (watch('shipToCity') === option) setValue('shipToCity', '');
+                            return true;
                           }
                           return deletePartyMasterLookupOption(field.key, option);
                         }}
-                        isLoadingPincode={isLoadingPincode}
+                        isLoadingPincode={isLoadingPincode || isLoadingShipToPincode}
                       />
                     );
                   })}

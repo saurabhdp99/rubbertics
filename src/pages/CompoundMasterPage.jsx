@@ -478,7 +478,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
     setValue("netWeight", Number(netWeight.toFixed(4)));
   }, [totalOutput, netWeight, setValue]);
 
-  const uomOptions = ['kg', 'g', 'ltrs', 'ml', 'phr', '%', 'pcs'];
+  const uomOptions = ['kg', 'ltr'];
 
   return (
     <section className="border-b border-slate-100 pb-7">
