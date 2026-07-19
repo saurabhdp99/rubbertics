@@ -346,6 +346,22 @@ export const useToolsMasterStore = create((set, get) => ({
 
 // ── Mappers ────────────────────────────────────────────────────────────────────
 function mapFromDb(row) {
+  let rawCycleTime = String(row.cycle_time || '').trim();
+  let rawUnit = row.cycle_time_unit || 'Sec';
+  if (rawCycleTime && (rawCycleTime.toLowerCase().includes('sec') || rawCycleTime.toLowerCase().includes('min') || rawCycleTime.toLowerCase().includes('hr'))) {
+    const lower = rawCycleTime.toLowerCase();
+    if (lower.includes('sec')) {
+      rawUnit = 'Sec';
+      rawCycleTime = rawCycleTime.replace(/sec(onds?)?/i, '').trim();
+    } else if (lower.includes('min')) {
+      rawUnit = 'Min';
+      rawCycleTime = rawCycleTime.replace(/min(utes?)?/i, '').trim();
+    } else if (lower.includes('hr')) {
+      rawUnit = 'Hrs';
+      rawCycleTime = rawCycleTime.replace(/hrs?|hours?/i, '').trim();
+    }
+  }
+
   return {
     id: row.id,
     orgId: row.org_id,
@@ -355,7 +371,8 @@ function mapFromDb(row) {
     partRevision: row.part_revision,
     process: row.process,
     numberOfCavities: Number(row.number_of_cavities || 0),
-    cycleTime: row.cycle_time,
+    cycleTime: rawCycleTime,
+    cycleTimeUnit: rawUnit,
     pressTonnage: row.press_tonnage,
     toolMaterial: row.tool_material,
     weight: row.weight,
@@ -388,7 +405,8 @@ function mapToDb(data, orgId, userId) {
     part_revision: data.partRevision,
     process: data.process,
     number_of_cavities: Number(data.numberOfCavities || 1),
-    cycle_time: data.cycleTime,
+    cycle_time: String(data.cycleTime ?? '').trim(),
+    cycle_time_unit: data.cycleTimeUnit || 'Sec',
     press_tonnage: data.pressTonnage,
     tool_material: data.toolMaterial,
     weight: data.weight,

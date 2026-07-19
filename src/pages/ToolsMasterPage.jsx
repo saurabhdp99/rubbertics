@@ -43,12 +43,12 @@ import { useAuthStore } from '../store/authStore';
 const EMPTY_TOOL = TOOLS_MASTER_FIELDS.reduce((tool, field) => {
   tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
   return tool;
-}, {});
+}, { cycleTimeUnit: 'Sec' });
 
 const TABLE_COLUMNS = TOOLS_MASTER_FIELDS.filter(f => f.type !== 'attachments').map(field => ({
   ...field,
-  width: field.type === 'number' ? '120px' : field.type === 'select' || field.type === 'date' ? '130px' : '180px',
-  align: field.type === 'number' ? 'right' : field.type === 'select' || field.type === 'date' ? 'center' : 'left',
+  width: field.type === 'number' ? '120px' : field.type === 'select' || field.type === 'date' || field.type === 'value-unit' ? '135px' : '180px',
+  align: field.type === 'number' ? 'right' : field.type === 'select' || field.type === 'date' || field.type === 'value-unit' ? 'center' : 'left',
 }));
 
 const SECTION_ORDER = ['Basic Details', 'Technical', 'Maintenance', 'Cost & Supplier', 'Status & Remarks', 'Documents & Attachments'];
@@ -96,6 +96,7 @@ const toolsMasterSchema = z.object({
   process: z.string().min(1, 'Process is required'),
   numberOfCavities: z.coerce.number().min(1, 'Required'),
   cycleTime: z.string().optional(),
+  cycleTimeUnit: z.string().optional().default('Sec'),
   pressTonnage: z.string().optional(),
   toolMaterial: z.string().min(1, 'Tool material is required'),
   weight: z.string().optional(),
@@ -268,6 +269,75 @@ function AttachmentsField({ value, onChange, disabled }) {
 
 function FormField({ field, control, disabled, error, options, onAddOption, onRenameOption, onDeleteOption }) {
   const isRequired = REQUIRED_FIELDS.includes(field.key);
+
+  if (field.key === 'cycleTime' || field.type === 'value-unit') {
+    const unitOptions = field.options || ['Sec', 'Min', 'Hrs'];
+    return (
+      <div className="flex flex-col gap-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {field.label}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <Controller
+              name={field.key}
+              control={control}
+              render={({ field: { value, onChange, onBlur, ref } }) => (
+                <Input
+                  type="text"
+                  value={value ?? ''}
+                  disabled={disabled}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={`w-full h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  aria-label={field.label}
+                  ref={ref}
+                />
+              )}
+            />
+          </div>
+          <div className="w-[105px] shrink-0">
+            <Controller
+              name="cycleTimeUnit"
+              control={control}
+              defaultValue="Sec"
+              render={({ field: { value: unitVal, onChange: onUnitChange } }) => (
+                <Select
+                  isDisabled={disabled}
+                  value={unitVal || 'Sec'}
+                  onChange={(selected) => onUnitChange(selected || 'Sec')}
+                  aria-label={`${field.label} Unit`}
+                  className="w-full"
+                >
+                  <Select.Trigger className="h-[46px] px-3 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow border-slate-200 focus-within:border-emerald-500/50">
+                    <Select.Value>
+                      <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[11px]">
+                        {unitVal || 'Sec'}
+                      </span>
+                    </Select.Value>
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {unitOptions.map(opt => (
+                        <ListBox.Item key={opt} id={opt} textValue={opt}>
+                          <span className="font-bold text-slate-700 text-xs">{opt}</span>
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              )}
+            />
+          </div>
+        </div>
+        {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+      </div>
+    );
+  }
 
   if (field.type === 'attachments') {
     return (
@@ -456,7 +526,7 @@ function ToolsMasterForm({ mode, tool, onBack }) {
   const isAdd = mode === 'add';
 
   const getInitialValues = () => {
-    const initialForm = tool ? { ...EMPTY_TOOL, ...tool } : { ...EMPTY_TOOL };
+    const initialForm = tool ? { ...EMPTY_TOOL, ...tool, cycleTimeUnit: tool.cycleTimeUnit || 'Sec' } : { ...EMPTY_TOOL, cycleTimeUnit: 'Sec' };
     if (mode === 'add') {
       const nextNumber = tools.reduce((max, t) => {
         if (t.toolCode && t.toolCode.startsWith('T-')) {
@@ -666,7 +736,19 @@ export default function ToolsMasterPage() {
 
   const exportCsv = () => {
     const headers = TOOLS_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => TOOLS_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
+    const rows = filtered.map(item => TOOLS_MASTER_FIELDS.map(field => {
+      if (field.key === 'cycleTime' || field.type === 'value-unit') {
+        const val = item[field.key] ?? '';
+        if (!val && val !== 0 && val !== '0') return '';
+        const unit = item.cycleTimeUnit || 'Sec';
+        const strVal = String(val).trim();
+        const lower = strVal.toLowerCase();
+        return (lower.includes('sec') || lower.includes('min') || lower.includes('hr'))
+          ? strVal.replaceAll('"', '""')
+          : `${strVal} ${unit}`.replaceAll('"', '""');
+      }
+      return String(item[field.key] ?? '').replaceAll('"', '""');
+    }));
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -679,6 +761,24 @@ export default function ToolsMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+
+    if (column.key === 'cycleTime' || column.type === 'value-unit') {
+      if (!value && value !== 0 && value !== '0') return '-';
+      const unit = item.cycleTimeUnit || 'Sec';
+      const cleanVal = String(value).trim();
+      const lower = cleanVal.toLowerCase();
+      if (lower.includes('sec') || lower.includes('min') || lower.includes('hr')) {
+        return <span className="font-semibold text-slate-800">{cleanVal}</span>;
+      }
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
+          {cleanVal}
+          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+            {unit}
+          </span>
+        </span>
+      );
+    }
 
     if (column.key === 'toolCode') {
       return (

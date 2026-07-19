@@ -49,12 +49,13 @@ export const TOOLS_MASTER_FIELDS = [
   {
     key: 'cycleTime',
     label: 'Cycle Time',
-    type: 'text',
+    type: 'value-unit',
+    options: ['Sec', 'Min', 'Hrs'],
     section: 'Technical',
   },
   {
     key: 'pressTonnage',
-    label: 'Press Tonnage',
+    label: 'Machine Tonnage',
     type: 'text',
     section: 'Technical',
   },
@@ -76,7 +77,7 @@ export const TOOLS_MASTER_FIELDS = [
   },
   {
     key: 'weight',
-    label: 'Weight',
+    label: 'Weight (kg)',
     type: 'text',
     section: 'Technical',
   },
@@ -103,7 +104,7 @@ export const TOOLS_MASTER_FIELDS = [
   },
   {
     key: 'shrinkageFactor',
-    label: 'Shrinkage Factor',
+    label: 'Shrinkage Factor(%)',
     type: 'text',
     section: 'Technical',
   },
