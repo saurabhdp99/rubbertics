@@ -405,6 +405,7 @@ export const useSaleOrderStore = create((set, get) => ({
       const q = searchQuery.toLowerCase();
       const matchSearch = !q ||
         (o.poNo || '').toLowerCase().includes(q) ||
+        (o.npplSaleNo || '').toLowerCase().includes(q) ||
         (o.partyName || '').toLowerCase().includes(q) ||
         (o.productName || '').toLowerCase().includes(q) ||
         (o.partNo || '').toLowerCase().includes(q);
@@ -444,6 +445,7 @@ function mapFromDb(row) {
     id: row.id,
     date: row.date,
     poNo: row.po_no,
+    npplSaleNo: row.nppl_sale_no || '',
     poType: row.po_type,
     processLocation: row.process_location,
     partyName: row.party_name,
@@ -472,6 +474,7 @@ function mapFromDb(row) {
 function mapToDb(data, orgId, userId) {
   const payload = {
     po_no: data.poNo,
+    nppl_sale_no: data.npplSaleNo || null,
     po_type: data.poType || 'Sale',
     process_location: data.processLocation,
     party_name: data.partyName,

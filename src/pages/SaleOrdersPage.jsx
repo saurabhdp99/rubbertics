@@ -25,6 +25,7 @@ const EMPTY_ORDER = {
   createdDate: todayIsoDate(),
   date: todayIsoDate(),
   poNo: '',
+  npplSaleNo: '',
   partyName: '',
   partyAddress: '',
   shippingAddress: '',
@@ -67,6 +68,7 @@ function SortIcon({ sortDirection }) {
 const COLUMNS = [
   { key: 'date', label: 'Date', width: '100px' },
   { key: 'poNo', label: 'PO No', width: '140px' },
+  { key: 'npplSaleNo', label: 'NPPL Sale No.', width: '150px' },
   { key: 'partyName', label: 'Party Name', width: '180px' },
   { key: 'items_partNo', label: 'Part No', width: '150px' },
   { key: 'items_productName', label: 'Product Name', width: '240px' },
@@ -95,6 +97,7 @@ const saleOrderSchema = z.object({
   createdDate: z.string().optional(),
   date: z.string().optional(),
   poNo: z.string().min(1, 'PO Number is required'),
+  npplSaleNo: z.string().optional(),
   partyName: z.string().min(1, 'Party name is required'),
   partyAddress: z.string().optional(),
   shippingAddress: z.string().optional(),
@@ -207,7 +210,7 @@ function ItemSchedules({ control, itemIndex, isView, inputCls, errors }) {
                           </HeroCalendar.Grid>
                           <HeroCalendar.YearPickerGrid>
                             <HeroCalendar.YearPickerGridBody>
-                              {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                              {({ year }) => <HeroCalendar.YearPickerCell year={year} />}
                             </HeroCalendar.YearPickerGridBody>
                           </HeroCalendar.YearPickerGrid>
                         </HeroCalendar>
@@ -331,7 +334,7 @@ function SaleOrderForm({ mode, order, onBack }) {
     if (finalForm.items.length === 0) {
       finalForm.items = [{ ...EMPTY_ORDER.items[0] }];
     }
-    
+
     // Ensure root orderQty is the sum of all item quantities
     finalForm.orderQty = finalForm.items.reduce((sum, item) => sum + Number(item.orderQty || 0), 0);
 
@@ -370,7 +373,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                 {isView ? 'View Sale Order' : isAdd ? 'Create Sale Order' : 'Edit Sale Order'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {watch('poNo') || 'Fill the details below'}
+                {watch('poNo') ? `${watch('poNo')}${watch('npplSaleNo') ? ` • ${watch('npplSaleNo')}` : ''}` : 'Fill the details below'}
               </p>
             </div>
           </div>
@@ -452,7 +455,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                               </HeroCalendar.Grid>
                               <HeroCalendar.YearPickerGrid>
                                 <HeroCalendar.YearPickerGridBody>
-                                  {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                                  {({ year }) => <HeroCalendar.YearPickerCell year={year} />}
                                 </HeroCalendar.YearPickerGridBody>
                               </HeroCalendar.YearPickerGrid>
                             </HeroCalendar>
@@ -505,7 +508,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                             </HeroCalendar.Grid>
                             <HeroCalendar.YearPickerGrid>
                               <HeroCalendar.YearPickerGridBody>
-                                {({year}) => <HeroCalendar.YearPickerCell year={year} />}
+                                {({ year }) => <HeroCalendar.YearPickerCell year={year} />}
                               </HeroCalendar.YearPickerGridBody>
                             </HeroCalendar.YearPickerGrid>
                           </HeroCalendar>
@@ -519,13 +522,21 @@ function SaleOrderForm({ mode, order, onBack }) {
                   control={control}
                   name="poNo"
                   render={({ field: { onChange, value, ref } }) => (
-                    <Field label="PO Number" required error={errors.poNo?.message}>
+                    <Field label="Customer PO Number" required error={errors.poNo?.message}>
                       <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="SO2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
                     </Field>
                   )}
                 />
 
-
+                <Controller
+                  control={control}
+                  name="npplSaleNo"
+                  render={({ field: { onChange, value, ref } }) => (
+                    <Field label="NPPL Sale No." error={errors.npplSaleNo?.message}>
+                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="NPPL-XXXX" className={`${inputCls} px-4 py-3`} aria-label="NPPL Sale No." />
+                    </Field>
+                  )}
+                />
 
                 <Controller
                   control={control}
@@ -679,158 +690,158 @@ function SaleOrderForm({ mode, order, onBack }) {
                         )}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                          <Controller
-                            control={control}
-                            name={`items.${index}.partNo`}
-                            render={({ field: { onChange, value } }) => (
-                              <Field label="Part Number">
-                                {isView ? (
-                                  <Input
-                                    type="text"
-                                    value={value || ''}
-                                    disabled
-                                    readOnly
-                                    className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                    aria-label="Part Number"
-                                  />
-                                ) : (
-                                  <Select
-                                    value={value || null}
-                                    onChange={(val) => {
-                                      if (!val) return;
-                                      onChange(val);
-                                      
-                                      const matchedItem = freshItems.find(i => i.item_code === val);
-                                      if (matchedItem) {
-                                        setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
-                                      }
-                                    }}
-                                    className="w-full"
-                                    aria-label="Part Number"
-                                  >
-                                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                                      <Select.Value placeholder="Select Part Number" />
-                                    </Select.Trigger>
-                                    <Select.Popover>
-                                      <ListBox>
-                                        {freshItems.filter(itm => itm.item_code).map(itm => (
-                                          <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
-                                            <div className="flex flex-col gap-0.5 py-0.5">
-                                              <span className="font-bold text-slate-800">{itm.item_code}</span>
-                                            </div>
-                                          </ListBox.Item>
-                                        ))}
-                                      </ListBox>
-                                    </Select.Popover>
-                                  </Select>
-                                )}
-                              </Field>
-                            )}
-                          />
-
-                          <Controller
-                            control={control}
-                            name={`items.${index}.productName`}
-                            render={({ field: { value } }) => (
-                              <Field label="Product Name" wide>
+                        <Controller
+                          control={control}
+                          name={`items.${index}.partNo`}
+                          render={({ field: { onChange, value } }) => (
+                            <Field label="Part Number">
+                              {isView ? (
                                 <Input
                                   type="text"
                                   value={value || ''}
                                   disabled
                                   readOnly
-                                  placeholder="Auto-filled from Part Number"
                                   className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                  aria-label="Product Name"
+                                  aria-label="Part Number"
                                 />
-                              </Field>
-                            )}
-                          />
+                              ) : (
+                                <Select
+                                  value={value || null}
+                                  onChange={(val) => {
+                                    if (!val) return;
+                                    onChange(val);
 
-                          <Controller
-                            control={control}
-                            name={`items.${index}.hsnCode`}
-                            render={({ field: { onChange, value, ref } }) => (
-                              <Field label="HSN Code">
-                                <Input
-                                  type="text"
-                                  value={value || ''}
-                                  disabled={isView}
-                                  placeholder="HSN Code"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
-                                  aria-label="HSN Code"
-                                />
-                              </Field>
-                            )}
-                          />
-                          
-                          <Controller
-                            control={control}
-                            name={`items.${index}.orderQty`}
-                            render={({ field: { onChange, value, ref } }) => (
-                              <Field label="Order Qty" required error={errors?.items?.[index]?.orderQty?.message}>
-                                <Input
-                                  type="number"
-                                  value={value || ''}
-                                  disabled={isView}
-                                  placeholder="0"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
-                                  aria-label="Order Qty"
-                                />
-                              </Field>
-                            )}
-                          />
+                                    const matchedItem = freshItems.find(i => i.item_code === val);
+                                    if (matchedItem) {
+                                      setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
+                                    }
+                                  }}
+                                  className="w-full"
+                                  aria-label="Part Number"
+                                >
+                                  <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                                    <Select.Value placeholder="Select Part Number" />
+                                  </Select.Trigger>
+                                  <Select.Popover>
+                                    <ListBox>
+                                      {freshItems.filter(itm => itm.item_code).map(itm => (
+                                        <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
+                                          <div className="flex flex-col gap-0.5 py-0.5">
+                                            <span className="font-bold text-slate-800">{itm.item_code}</span>
+                                          </div>
+                                        </ListBox.Item>
+                                      ))}
+                                    </ListBox>
+                                  </Select.Popover>
+                                </Select>
+                              )}
+                            </Field>
+                          )}
+                        />
 
-                          <Controller
-                            control={control}
-                            name={`items.${index}.uom`}
-                            render={({ field: { onChange, value } }) => (
-                              <Field label="UOM">
-                                <EditableCreatableSelect
-                                  value={value || ''}
-                                  options={saleOrderLookups.uom || []}
-                                  disabled={isView}
-                                  placeholder="Select UOM"
-                                  onChange={onChange}
-                                  onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
-                                  onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
-                                  onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
-                                />
-                              </Field>
-                            )}
-                          />
+                        <Controller
+                          control={control}
+                          name={`items.${index}.productName`}
+                          render={({ field: { value } }) => (
+                            <Field label="Product Name" wide>
+                              <Input
+                                type="text"
+                                value={value || ''}
+                                disabled
+                                readOnly
+                                placeholder="Auto-filled from Part Number"
+                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                aria-label="Product Name"
+                              />
+                            </Field>
+                          )}
+                        />
 
-                          <Controller
-                            control={control}
-                            name={`items.${index}.price`}
-                            render={({ field: { onChange, value, ref } }) => (
-                              <Field label="Price">
-                                <Input
-                                  type="number"
-                                  value={value || ''}
-                                  disabled={isView}
-                                  placeholder="0.00"
-                                  onChange={onChange}
-                                  ref={ref}
-                                  className={`${inputCls} px-4 py-3`}
-                                  aria-label="Price"
-                                />
-                              </Field>
-                            )}
-                          />
+                        <Controller
+                          control={control}
+                          name={`items.${index}.hsnCode`}
+                          render={({ field: { onChange, value, ref } }) => (
+                            <Field label="HSN Code">
+                              <Input
+                                type="text"
+                                value={value || ''}
+                                disabled={isView}
+                                placeholder="HSN Code"
+                                onChange={onChange}
+                                ref={ref}
+                                className={`${inputCls} px-4 py-3`}
+                                aria-label="HSN Code"
+                              />
+                            </Field>
+                          )}
+                        />
 
-                          <ItemSchedules 
-                            control={control} 
-                            itemIndex={index} 
-                            isView={isView} 
-                            inputCls={inputCls} 
-                            errors={errors} 
-                          />
-                        </div>
+                        <Controller
+                          control={control}
+                          name={`items.${index}.orderQty`}
+                          render={({ field: { onChange, value, ref } }) => (
+                            <Field label="Order Qty" required error={errors?.items?.[index]?.orderQty?.message}>
+                              <Input
+                                type="number"
+                                value={value || ''}
+                                disabled={isView}
+                                placeholder="0"
+                                onChange={onChange}
+                                ref={ref}
+                                className={`${inputCls} px-4 py-3`}
+                                aria-label="Order Qty"
+                              />
+                            </Field>
+                          )}
+                        />
+
+                        <Controller
+                          control={control}
+                          name={`items.${index}.uom`}
+                          render={({ field: { onChange, value } }) => (
+                            <Field label="UOM">
+                              <EditableCreatableSelect
+                                value={value || ''}
+                                options={saleOrderLookups.uom || []}
+                                disabled={isView}
+                                placeholder="Select UOM"
+                                onChange={onChange}
+                                onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
+                                onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
+                                onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
+                              />
+                            </Field>
+                          )}
+                        />
+
+                        <Controller
+                          control={control}
+                          name={`items.${index}.price`}
+                          render={({ field: { onChange, value, ref } }) => (
+                            <Field label="Price">
+                              <Input
+                                type="number"
+                                value={value || ''}
+                                disabled={isView}
+                                placeholder="0.00"
+                                onChange={onChange}
+                                ref={ref}
+                                className={`${inputCls} px-4 py-3`}
+                                aria-label="Price"
+                              />
+                            </Field>
+                          )}
+                        />
+
+                        <ItemSchedules
+                          control={control}
+                          itemIndex={index}
+                          isView={isView}
+                          inputCls={inputCls}
+                          errors={errors}
+                        />
                       </div>
+                    </div>
                   ))}
                 </div>
 
@@ -969,7 +980,13 @@ export default function SaleOrdersPage() {
       );
     }
 
-
+    if (column.key === 'npplSaleNo') {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 whitespace-nowrap">
+          <Tag size={12} /> {value || '-'}
+        </span>
+      );
+    }
 
     if (column.key === 'partyName') {
       return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
@@ -1191,14 +1208,14 @@ export default function SaleOrdersPage() {
                     {(order) => (
                       <Table.Row key={order.id} className="group">
                         <Table.Cell>
-                            <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
-                              <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
-                                <Eye size={15} />
-                              </button>
-                              <button onClick={() => openForm('edit', order)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
-                                <Edit size={15} />
-                              </button>
-                            </div>
+                          <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                            <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
+                              <Eye size={15} />
+                            </button>
+                            <button onClick={() => openForm('edit', order)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
+                              <Edit size={15} />
+                            </button>
+                          </div>
                         </Table.Cell>
                         {COLUMNS.map((col) => (
                           <Table.Cell key={col.key} className="text-[13px] text-slate-700" style={{ textAlign: col.align || 'left' }}>
@@ -1294,7 +1311,7 @@ export default function SaleOrdersPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-2">Delete Sale Order?</h3>
               <p className="text-slate-500 text-sm mb-6">
-                Are you sure you want to delete order <span className="font-bold text-slate-700">{orderToDelete.poNo || orderToDelete.id.split('-')[0]}</span>? This action cannot be undone.
+                Are you sure you want to delete order <span className="font-bold text-slate-700">{orderToDelete.poNo || orderToDelete.npplSaleNo || orderToDelete.id.split('-')[0]}</span>? This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-center">
                 <button

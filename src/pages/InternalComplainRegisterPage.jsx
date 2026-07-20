@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Trash2, Edit2, X, Save, AlertCircle, SlidersHorizontal } from 'lucide-react';
 import { Table } from '@heroui/react';
+import { useEmployeeMasterStore } from '../store/employeeMasterStore';
+import { useAuthStore } from '../store/authStore';
 
 const initialComplaints = [
   {
@@ -39,6 +41,21 @@ export default function InternalComplainRegisterPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+
+  const { currentOrg } = useAuthStore();
+  const { employees, fetchEmployees } = useEmployeeMasterStore();
+
+  useEffect(() => {
+    if (currentOrg?.id) {
+      fetchEmployees(currentOrg.id);
+    }
+  }, [currentOrg?.id, fetchEmployees]);
+
+  const sortedEmployees = useMemo(() => {
+    return [...(employees || [])].sort((a, b) =>
+      (a.employeeName || '').localeCompare(b.employeeName || '')
+    );
+  }, [employees]);
 
   const filtered = complaints.filter((c) => {
     if (!searchQuery) return true;
@@ -239,11 +256,25 @@ export default function InternalComplainRegisterPage() {
                   </div>
                   <div>
                     <label className={labelClass}>Improvement Person</label>
-                    <input name="improvementPerson" value={form.improvementPerson} onChange={handleChange} className={inputClass} />
+                    <select name="improvementPerson" value={form.improvementPerson} onChange={handleChange} className={inputClass}>
+                      <option value="">Select Employee</option>
+                      {sortedEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.employeeName}>
+                          {emp.employeeName} {emp.department ? `(${emp.department})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className={labelClass}>Checked Person Name</label>
-                    <input name="checkedPersonName" value={form.checkedPersonName} onChange={handleChange} className={inputClass} />
+                    <select name="checkedPersonName" value={form.checkedPersonName} onChange={handleChange} className={inputClass}>
+                      <option value="">Select Employee</option>
+                      {sortedEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.employeeName}>
+                          {emp.employeeName} {emp.department ? `(${emp.department})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className={labelClass}>Department</label>
@@ -263,7 +294,14 @@ export default function InternalComplainRegisterPage() {
                   </div>
                   <div>
                     <label className={labelClass}>Responsibility</label>
-                    <input name="responsibility" value={form.responsibility} onChange={handleChange} className={inputClass} />
+                    <select name="responsibility" value={form.responsibility} onChange={handleChange} className={inputClass}>
+                      <option value="">Select Employee</option>
+                      {sortedEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.employeeName}>
+                          {emp.employeeName} {emp.department ? `(${emp.department})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="sm:col-span-3">
                     <label className={labelClass}>Issue</label>
