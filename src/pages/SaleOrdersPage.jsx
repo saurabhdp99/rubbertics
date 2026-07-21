@@ -13,7 +13,7 @@ import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { useSaleOrderStore } from '../store/saleOrderStore';
-import { usePartyMasterStore } from '../store/partyMasterStore';
+import { usePartyMasterStore, formatPartyAddress } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { supabase } from '../lib/supabase';
@@ -254,7 +254,7 @@ function SaleOrderForm({ mode, order, onBack }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name')
+          .select('item_code, item_name, part_no, part_name, item_hsn, uom, item_price')
           .eq('org_id', currentOrg.id);
         if (!error && data) {
           setFreshItems(data);
@@ -297,11 +297,15 @@ function SaleOrderForm({ mode, order, onBack }) {
         });
       }
       let partyAddress = order.partyAddress || '';
-      if (!partyAddress && order.partyName) {
+      let shippingAddress = order.shippingAddress || '';
+      if ((!partyAddress || !shippingAddress) && order.partyName) {
         const party = partyMasterItems?.find(p => p.partyName === order.partyName);
-        if (party) partyAddress = party.address || '';
+        if (party) {
+          if (!partyAddress) partyAddress = party.address || '';
+          if (!shippingAddress) shippingAddress = party.shippingAddress || party.address || '';
+        }
       }
-      return { ...EMPTY_ORDER, ...order, items, partyAddress };
+      return { ...EMPTY_ORDER, ...order, items, partyAddress, shippingAddress };
     }
     return { ...EMPTY_ORDER };
   };
@@ -548,23 +552,46 @@ function SaleOrderForm({ mode, order, onBack }) {
                         onChange={async val => {
                           if (!val) return;
                           onChange(val);
+                          let billAddr = '';
+                          let shipAddr = '';
                           if (currentOrg?.id) {
                             const { data, error } = await supabase
                               .from('party_master')
-                              .select('address')
+                              .select('*')
                               .eq('party_name', val)
                               .eq('org_id', currentOrg.id)
                               .maybeSingle();
                             if (!error && data) {
-                              setValue('partyAddress', data.address || '');
+                              billAddr = data.address || formatPartyAddress({
+                                line1: data.bill_to_address_line1 || data.address_line1,
+                                line2: data.bill_to_address_line2 || data.address_line2,
+                                city: data.bill_to_city || data.city,
+                                district: data.bill_to_district || data.district,
+                                state: data.bill_to_state || data.state,
+                                pinCode: data.bill_to_pin_code || data.pin_code,
+                                country: data.bill_to_country || data.country
+                              });
+                              shipAddr = formatPartyAddress({
+                                line1: data.ship_to_address_line1,
+                                line2: data.ship_to_address_line2,
+                                city: data.ship_to_city,
+                                district: data.ship_to_district,
+                                state: data.ship_to_state,
+                                pinCode: data.ship_to_pin_code,
+                                country: data.ship_to_country
+                              }) || billAddr;
                             } else {
                               const party = customerParties.find(p => p.partyName === val);
-                              setValue('partyAddress', party?.address || '');
+                              billAddr = party?.address || '';
+                              shipAddr = party?.shippingAddress || billAddr;
                             }
                           } else {
                             const party = customerParties.find(p => p.partyName === val);
-                            setValue('partyAddress', party?.address || '');
+                            billAddr = party?.address || '';
+                            shipAddr = party?.shippingAddress || billAddr;
                           }
+                          setValue('partyAddress', billAddr, { shouldValidate: true, shouldDirty: true });
+                          setValue('shippingAddress', shipAddr, { shouldValidate: true, shouldDirty: true });
                         }}
                         isDisabled={isView}
                         className="w-full"
@@ -588,17 +615,6 @@ function SaleOrderForm({ mode, order, onBack }) {
                     </Field>
                   )}
                 />
-
-                {watch('partyAddress') && (
-                  <Field label="Party Address" wide>
-                    <textarea
-                      value={watch('partyAddress')}
-                      disabled={true}
-                      className={`${inputCls} min-h-[60px] resize-y px-4 py-3 bg-slate-50 text-slate-600`}
-                      readOnly
-                    />
-                  </Field>
-                )}
 
                 <Controller
                   control={control}
@@ -711,9 +727,21 @@ function SaleOrderForm({ mode, order, onBack }) {
                                     if (!val) return;
                                     onChange(val);
 
-                                    const matchedItem = freshItems.find(i => i.item_code === val);
+                                    const matchedItem = freshItems.find(i => i.item_code === val || i.part_no === val);
                                     if (matchedItem) {
-                                      setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
+                                      const pName = matchedItem.item_name || matchedItem.part_name || '';
+                                      if (pName) {
+                                        setValue(`items.${index}.productName`, pName, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.item_hsn && !watch(`items.${index}.hsnCode`)) {
+                                        setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.uom && !watch(`items.${index}.uom`)) {
+                                        setValue(`items.${index}.uom`, matchedItem.uom, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.item_price !== undefined && matchedItem.item_price !== null && !watch(`items.${index}.price`)) {
+                                        setValue(`items.${index}.price`, Number(matchedItem.item_price || 0), { shouldValidate: true, shouldDirty: true });
+                                      }
                                     }
                                   }}
                                   className="w-full"

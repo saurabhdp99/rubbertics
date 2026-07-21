@@ -307,7 +307,55 @@ export const usePartyMasterStore = create((set, get) => ({
 }));
 
 // ── Mappers ────────────────────────────────────────────────────────────────────
+export function formatPartyAddress({ line1, line2, city, district, state, pinCode, country }) {
+  const parts = [
+    line1,
+    line2,
+    city,
+    district && district !== city ? district : '',
+    [state, pinCode].filter(Boolean).join(' - '),
+    country
+  ].filter(Boolean);
+  return parts.join(', ');
+}
+
 function mapFromDb(row) {
+  const billLine1 = row.bill_to_address_line1 || row.address_line1 || '';
+  const billLine2 = row.bill_to_address_line2 || row.address_line2 || '';
+  const billCity = row.bill_to_city || row.city || '';
+  const billDistrict = row.bill_to_district || row.district || '';
+  const billState = row.bill_to_state || row.state || '';
+  const billPin = row.bill_to_pin_code || row.pin_code || '';
+  const billCountry = row.bill_to_country || row.country || '';
+
+  const shipLine1 = row.ship_to_address_line1 || '';
+  const shipLine2 = row.ship_to_address_line2 || '';
+  const shipCity = row.ship_to_city || '';
+  const shipDistrict = row.ship_to_district || '';
+  const shipState = row.ship_to_state || '';
+  const shipPin = row.ship_to_pin_code || '';
+  const shipCountry = row.ship_to_country || '';
+
+  const computedBillAddr = row.address || formatPartyAddress({
+    line1: billLine1,
+    line2: billLine2,
+    city: billCity,
+    district: billDistrict,
+    state: billState,
+    pinCode: billPin,
+    country: billCountry
+  });
+
+  const computedShipAddr = formatPartyAddress({
+    line1: shipLine1,
+    line2: shipLine2,
+    city: shipCity,
+    district: shipDistrict,
+    state: shipState,
+    pinCode: shipPin,
+    country: shipCountry
+  }) || computedBillAddr;
+
   return {
     id: row.id,
     orgId: row.org_id,
@@ -317,21 +365,22 @@ function mapFromDb(row) {
     partyCategory: row.party_category,
     aliasName: row.alias_name,
     natureOfBusiness: row.nature_of_business,
-    address: row.address,
-    addressLine1: row.bill_to_address_line1 || row.address_line1 || '',
-    addressLine2: row.bill_to_address_line2 || row.address_line2 || '',
-    city: row.bill_to_city || row.city || '',
-    district: row.bill_to_district || row.district || '',
-    state: row.bill_to_state || row.state || '',
-    pinCode: row.bill_to_pin_code || row.pin_code || '',
-    country: row.bill_to_country || row.country || '',
-    shipToAddressLine1: row.ship_to_address_line1 || '',
-    shipToAddressLine2: row.ship_to_address_line2 || '',
-    shipToCity: row.ship_to_city || '',
-    shipToDistrict: row.ship_to_district || '',
-    shipToState: row.ship_to_state || '',
-    shipToPinCode: row.ship_to_pin_code || '',
-    shipToCountry: row.ship_to_country || '',
+    address: computedBillAddr,
+    shippingAddress: computedShipAddr,
+    addressLine1: billLine1,
+    addressLine2: billLine2,
+    city: billCity,
+    district: billDistrict,
+    state: billState,
+    pinCode: billPin,
+    country: billCountry,
+    shipToAddressLine1: shipLine1,
+    shipToAddressLine2: shipLine2,
+    shipToCity: shipCity,
+    shipToDistrict: shipDistrict,
+    shipToState: shipState,
+    shipToPinCode: shipPin,
+    shipToCountry: shipCountry,
     transportDistance: row.transport_distance,
     partyType: row.party_type,
     procurementPersonName: row.procurement_person_name,
@@ -361,6 +410,16 @@ function mapFromDb(row) {
 }
 
 function mapToDb(data, orgId, userId) {
+  const billAddr = data.address || formatPartyAddress({
+    line1: data.addressLine1,
+    line2: data.addressLine2,
+    city: data.city,
+    district: data.district,
+    state: data.state,
+    pinCode: data.pinCode,
+    country: data.country
+  });
+
   const payload = {
     party_name: data.partyName,
     party_code: data.partyCode,
@@ -368,7 +427,7 @@ function mapToDb(data, orgId, userId) {
     party_category: data.partyCategory,
     alias_name: data.aliasName,
     nature_of_business: data.natureOfBusiness,
-    address: data.address,
+    address: billAddr,
     address_line1: data.addressLine1,
     address_line2: data.addressLine2,
     city: data.city,
