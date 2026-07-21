@@ -5,6 +5,7 @@ import Topbar from './components/Topbar';
 import { useAuthStore } from './store/authStore';
 
 const SaleOrdersPage = lazy(() => import('./pages/SaleOrdersPage'));
+const PurchaseOrdersPage = lazy(() => import('./pages/PurchaseOrdersPage'));
 const InventoryPage = lazy(() => import('./pages/InventoryPage'));
 const ItemMasterPage = lazy(() => import('./pages/ItemMasterPage'));
 const HsnSacMasterPage = lazy(() => import('./pages/HsnSacMasterPage'));
@@ -53,6 +54,7 @@ function ERPApp() {
             <Routes>
               <Route path="/" element={<Navigate to={defaultPath} replace />} />
               {canAccess('/orders') && <Route path="/orders" element={<SaleOrdersPage />} />}
+              {canAccess('/purchase-orders') && <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />}
               {canAccess('/inventory') && <Route path="/inventory" element={<InventoryPage />} />}
               {canAccess('/item-master') && <Route path="/item-master" element={<ItemMasterPage />} />}
               {canAccess('/hsn-sac-master') && <Route path="/hsn-sac-master" element={<HsnSacMasterPage />} />}

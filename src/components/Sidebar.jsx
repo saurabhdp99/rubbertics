@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Building2, ChevronDown, Check, Plus,
-  ShoppingBag, Package, Boxes, CalendarDays, CalendarRange,
+  ShoppingBag, ShoppingCart, Package, Boxes, CalendarDays, CalendarRange,
   FileText, Layers, TrendingUp, Truck, ArrowDownLeft,
   ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users, Wrench, Beaker
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore';
 
 export const navItems = [
   { label: 'Sale Orders', path: '/orders', icon: ShoppingBag },
+  { label: 'Purchase Orders', path: '/purchase-orders', icon: ShoppingCart },
   { label: 'Item Master', path: '/item-master', icon: Package },
   { label: 'HSN/SAC Master', path: '/hsn-sac-master', icon: Barcode },
   { label: 'Machine Master', path: '/machine-master', icon: Settings },
