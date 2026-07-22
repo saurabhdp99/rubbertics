@@ -25,7 +25,7 @@ export const ITEM_MASTER_FIELDS = [
   },
   {
     "key": "itemName",
-    "label": "Item Name",
+    "label": "Customer Item Name",
     "type": "text",
     "section": "Basic Details"
   },
@@ -36,8 +36,8 @@ export const ITEM_MASTER_FIELDS = [
     "section": "Basic Details"
   },
   {
-    "key": "partNo",
-    "label": "Part Number",
+    "key": "aliasName",
+    "label": "Alias Name",
     "type": "text",
     "section": "Basic Details"
   },
@@ -56,12 +56,6 @@ export const ITEM_MASTER_FIELDS = [
   {
     "key": "itemHsn",
     "label": "Item HSN",
-    "type": "text",
-    "section": "Basic Details"
-  },
-  {
-    "key": "aliasName",
-    "label": "Alias Name",
     "type": "text",
     "section": "Basic Details"
   },

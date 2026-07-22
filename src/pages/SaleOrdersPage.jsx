@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import {
   ArrowLeft, BadgeCheck,
@@ -16,6 +16,7 @@ import { useSaleOrderStore } from '../store/saleOrderStore';
 import { usePartyMasterStore, formatPartyAddress } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
+import { useHsnSacStore } from '../store/hsnSacStore';
 import { supabase } from '../lib/supabase';
 
 
@@ -245,6 +246,7 @@ function SaleOrderForm({ mode, order, onBack }) {
   } = useSaleOrderStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
   const { items: itemMasterItems } = useItemMasterStore();
+  const { items: hsnSacItems, fetchItems: fetchHsnSacItems } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
 
   const [freshItems, setFreshItems] = useState([]);
@@ -259,10 +261,16 @@ function SaleOrderForm({ mode, order, onBack }) {
         if (!error && data) {
           setFreshItems(data);
         }
+        fetchHsnSacItems(currentOrg.id);
       }
     };
     fetchItems();
   }, [currentOrg]);
+
+  const hsnCodeOptions = useMemo(() => {
+    const codes = (hsnSacItems || []).map(item => item.hsnCode || item.hsn_code).filter(Boolean);
+    return Array.from(new Set(codes));
+  }, [hsnSacItems]);
 
   const getInitialValues = () => {
     if (order) {
@@ -298,14 +306,18 @@ function SaleOrderForm({ mode, order, onBack }) {
       }
       let partyAddress = order.partyAddress || '';
       let shippingAddress = order.shippingAddress || '';
-      if ((!partyAddress || !shippingAddress) && order.partyName) {
+      let paymentTerms = order.paymentTerms || '';
+      let deliveryTerms = order.deliveryTerms || '';
+      if ((!partyAddress || !shippingAddress || !paymentTerms || !deliveryTerms) && order.partyName) {
         const party = partyMasterItems?.find(p => p.partyName === order.partyName);
         if (party) {
           if (!partyAddress) partyAddress = party.address || '';
           if (!shippingAddress) shippingAddress = party.shippingAddress || party.address || '';
+          if (!paymentTerms && party.paymentTerms) paymentTerms = party.paymentTerms;
+          if (!deliveryTerms && party.deliveryTerms) deliveryTerms = party.deliveryTerms;
         }
       }
-      return { ...EMPTY_ORDER, ...order, items, partyAddress, shippingAddress };
+      return { ...EMPTY_ORDER, ...order, items, partyAddress, shippingAddress, paymentTerms, deliveryTerms };
     }
     return { ...EMPTY_ORDER };
   };
@@ -554,6 +566,8 @@ function SaleOrderForm({ mode, order, onBack }) {
                           onChange(val);
                           let billAddr = '';
                           let shipAddr = '';
+                          let payTerms = '';
+                          let delTerms = '';
                           if (currentOrg?.id) {
                             const { data, error } = await supabase
                               .from('party_master')
@@ -580,18 +594,30 @@ function SaleOrderForm({ mode, order, onBack }) {
                                 pinCode: data.ship_to_pin_code,
                                 country: data.ship_to_country
                               }) || billAddr;
+                              payTerms = data.payment_terms || '';
+                              delTerms = data.delivery_terms || '';
                             } else {
                               const party = customerParties.find(p => p.partyName === val);
                               billAddr = party?.address || '';
                               shipAddr = party?.shippingAddress || billAddr;
+                              payTerms = party?.paymentTerms || '';
+                              delTerms = party?.deliveryTerms || '';
                             }
                           } else {
                             const party = customerParties.find(p => p.partyName === val);
                             billAddr = party?.address || '';
                             shipAddr = party?.shippingAddress || billAddr;
+                            payTerms = party?.paymentTerms || '';
+                            delTerms = party?.deliveryTerms || '';
                           }
                           setValue('partyAddress', billAddr, { shouldValidate: true, shouldDirty: true });
                           setValue('shippingAddress', shipAddr, { shouldValidate: true, shouldDirty: true });
+                          if (payTerms) {
+                            setValue('paymentTerms', payTerms, { shouldValidate: true, shouldDirty: true });
+                          }
+                          if (delTerms) {
+                            setValue('deliveryTerms', delTerms, { shouldValidate: true, shouldDirty: true });
+                          }
                         }}
                         isDisabled={isView}
                         className="w-full"
@@ -636,17 +662,17 @@ function SaleOrderForm({ mode, order, onBack }) {
                 <Controller
                   control={control}
                   name="paymentTerms"
-                  render={({ field: { onChange, value } }) => (
+                  render={({ field: { onChange, value, ref } }) => (
                     <Field label="Payment Terms">
-                      <EditableCreatableSelect
-                        value={value}
-                        options={saleOrderLookups.paymentTerms || []}
+                      <Input
+                        type="text"
+                        value={value || ''}
                         disabled={isView}
-                        placeholder="Select or enter payment terms"
                         onChange={onChange}
-                        onAdd={(newOption) => addSaleOrderLookupOption('paymentTerms', newOption)}
-                        onRename={(oldOption, newOption) => renameSaleOrderLookupOption('paymentTerms', oldOption, newOption)}
-                        onDelete={(option) => deleteSaleOrderLookupOption('paymentTerms', option)}
+                        ref={ref}
+                        placeholder="Enter payment terms"
+                        className={`${inputCls} px-4 py-3`}
+                        aria-label="Payment Terms"
                       />
                     </Field>
                   )}
@@ -655,17 +681,17 @@ function SaleOrderForm({ mode, order, onBack }) {
                 <Controller
                   control={control}
                   name="deliveryTerms"
-                  render={({ field: { onChange, value } }) => (
+                  render={({ field: { onChange, value, ref } }) => (
                     <Field label="Delivery Terms">
-                      <EditableCreatableSelect
-                        value={value}
-                        options={saleOrderLookups.deliveryTerms || []}
+                      <Input
+                        type="text"
+                        value={value || ''}
                         disabled={isView}
-                        placeholder="Select or enter delivery terms"
                         onChange={onChange}
-                        onAdd={(newOption) => addSaleOrderLookupOption('deliveryTerms', newOption)}
-                        onRename={(oldOption, newOption) => renameSaleOrderLookupOption('deliveryTerms', oldOption, newOption)}
-                        onDelete={(option) => deleteSaleOrderLookupOption('deliveryTerms', option)}
+                        ref={ref}
+                        placeholder="Enter delivery terms"
+                        className={`${inputCls} px-4 py-3`}
+                        aria-label="Delivery Terms"
                       />
                     </Field>
                   )}
@@ -788,17 +814,14 @@ function SaleOrderForm({ mode, order, onBack }) {
                         <Controller
                           control={control}
                           name={`items.${index}.hsnCode`}
-                          render={({ field: { onChange, value, ref } }) => (
+                          render={({ field: { onChange, value } }) => (
                             <Field label="HSN Code">
-                              <Input
-                                type="text"
+                              <EditableCreatableSelect
                                 value={value || ''}
+                                options={hsnCodeOptions}
                                 disabled={isView}
-                                placeholder="HSN Code"
+                                placeholder="Select or enter HSN Code"
                                 onChange={onChange}
-                                ref={ref}
-                                className={`${inputCls} px-4 py-3`}
-                                aria-label="HSN Code"
                               />
                             </Field>
                           )}
@@ -950,12 +973,14 @@ export default function SaleOrdersPage() {
   const { currentOrg } = useAuthStore();
   const { fetchParties } = usePartyMasterStore();
   const { fetchItems } = useItemMasterStore();
+  const { fetchItems: fetchHsnSacItems } = useHsnSacStore();
 
   useEffect(() => {
     if (currentOrg?.id) {
       fetchOrders(currentOrg.id);
       fetchParties(currentOrg.id);
       fetchItems(currentOrg.id);
+      fetchHsnSacItems(currentOrg.id);
     }
   }, [currentOrg?.id]);
 

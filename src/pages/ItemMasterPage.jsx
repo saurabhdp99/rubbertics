@@ -56,9 +56,8 @@ const itemMasterSchema = z.object({
   subCategory: z.string().nullable().optional(),
   itemCode: z.string().min(1, 'NPPL Item No. is required'),
   customerItemCode: z.string().nullable().optional(),
-  itemName: z.string().min(1, 'Item name is required'),
+  itemName: z.string().min(1, 'Customer Item Name is required'),
   partName: z.string().nullable().optional(),
-  partNo: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   itemPrice: z.coerce.number().optional().or(z.literal('')),
   itemHsn: z.string().nullable().optional(),
@@ -84,8 +83,6 @@ const itemMasterSchema = z.object({
   scrapItem: z.string().nullable().optional(),
   drawingNo: z.string().nullable().optional(),
   revisionNo: z.string().nullable().optional(),
-  partName: z.string().nullable().optional(),
-  partNo: z.string().nullable().optional(),
   preferredVendor: z.string().nullable().optional(),
   alternateVendor: z.string().nullable().optional(),
   qualityAttachments: z.array(attachmentSchema).optional()
@@ -259,11 +256,12 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
                 <Input
                   type="text"
                   value={value ?? ''}
-                  disabled={disabled}
+                  disabled={true}
+                  readOnly={true}
                   onChange={onChange}
                   onBlur={onBlur}
-                  className={`${inputClass} pl-10 font-bold text-emerald-900 bg-emerald-50/30 focus:bg-white`}
-                  placeholder="e.g. RM-0001"
+                  className={`${inputClass} pl-10 font-bold text-emerald-900 bg-emerald-50/60 cursor-not-allowed opacity-90`}
+                  placeholder="Auto-generated when Item Category is selected"
                   aria-label={field.label}
                   ref={ref}
                 />
@@ -514,8 +512,16 @@ function ItemMasterForm({ mode, item, onBack }) {
   }));
 
   const onSubmit = async (data) => {
-    if (isAdd) await addItem(data, currentOrg?.id, currentUser?.id);
-    else await updateItem(item.id, data, currentUser?.id);
+    let finalCode = watch('itemCode') || item?.itemCode || '';
+    if (isAdd && (!finalCode || finalCode.trim() === '')) {
+      const currentCategory = watch('itemCategory');
+      if (currentCategory) {
+        finalCode = await getNextItemCode(currentCategory, currentOrg?.id);
+      }
+    }
+    const finalData = { ...data, itemCode: finalCode };
+    if (isAdd) await addItem(finalData, currentOrg?.id, currentUser?.id);
+    else await updateItem(item.id, finalData, currentUser?.id);
     onBack();
   };
 
