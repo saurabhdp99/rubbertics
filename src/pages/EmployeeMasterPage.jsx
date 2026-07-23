@@ -317,8 +317,11 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
     const finalForm = { ...data };
     if (isAdd) {
       // Auto generate employee code based on max id
-      const maxId = employeeMasterItems.reduce((max, item) => Math.max(max, item.id || 0), 0);
-      finalForm.employeeCode = `EMP${String(maxId + 1).padStart(4, '0')}`;
+      const maxNum = employeeMasterItems.reduce((max, item) => {
+        const match = String(item.employeeCode || '').match(/^EMP(\d+)$/i);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+      finalForm.employeeCode = `EMP${String(maxNum + 1).padStart(4, '0')}`;
       await addEmployeeMaster(finalForm, currentOrg?.id, currentUser?.id);
     } else {
       await updateEmployeeMaster(employee.id, finalForm, currentUser?.id);

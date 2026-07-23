@@ -105,6 +105,7 @@ const compoundMasterSchema = z.object({
     id: z.string(),
     particular: z.string().min(1, 'Ingredient required'),
     quantity: z.coerce.number().min(0, 'Min 0'),
+    phr: z.coerce.number().min(0, 'Min 0').optional(),
     uom: z.string().min(1, 'UOM required')
   })).optional(),
   totalOutput: z.coerce.number().optional(),
@@ -495,7 +496,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
         {!disabled && (
           <button
             type="button"
-            onClick={() => append({ id: crypto.randomUUID(), particular: '', quantity: 0, uom: 'kg' })}
+            onClick={() => append({ id: crypto.randomUUID(), particular: '', quantity: 0, phr: 0, uom: 'kg' })}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-sm"
           >
             <Plus size={14} strokeWidth={2.5} /> Add Ingredient
@@ -511,6 +512,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                 <th className="py-3 px-4">#</th>
                 <th className="py-3 px-4 min-w-[240px]">Particular (Ingredient Name)</th>
                 <th className="py-3 px-4 w-[160px]">Quantity</th>
+                <th className="py-3 px-4 w-[120px]">PHR</th>
                 <th className="py-3 px-4 w-[140px]">UOM</th>
                 {!disabled && <th className="py-3 px-4 w-[60px] text-center">Action</th>}
               </tr>
@@ -518,7 +520,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
             <tbody className="divide-y divide-slate-100 text-xs">
               {fields.length === 0 ? (
                 <tr>
-                  <td colSpan={disabled ? 4 : 5} className="py-8 text-center text-slate-400 italic">
+                  <td colSpan={disabled ? 5 : 6} className="py-8 text-center text-slate-400 italic">
                     No ingredients added. {!disabled && 'Click "Add Ingredient" above to start building formulation.'}
                   </td>
                 </tr>
@@ -548,6 +550,22 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                           <Input
                             type="number"
                             step="0.0001"
+                            {...field}
+                            disabled={disabled}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            className="w-full text-xs h-9 rounded-lg border border-slate-200 px-3 bg-white font-semibold text-slate-800 text-right focus:border-emerald-500 outline-none"
+                          />
+                        )}
+                      />
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <Controller
+                        name={`formulation.${index}.phr`}
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            step="0.01"
                             {...field}
                             disabled={disabled}
                             onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -591,6 +609,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               <tr className="bg-slate-100/80 font-black text-slate-800 border-t-2 border-slate-200">
                 <td colSpan={2} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">{totalOutput.toFixed(4)}</td>
+                <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs">
                   {formulationItems[0]?.uom || 'kg'}
                 </td>
@@ -615,12 +634,14 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                     )}
                   />
                 </td>
+                <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-2.5 px-4 text-slate-500 font-bold">%</td>
               </tr>
 
               <tr className="bg-emerald-50/50 font-black text-slate-800 border-t border-emerald-100">
                 <td colSpan={2} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-800 text-sm">{netWeight.toFixed(4)}</td>
+                <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs font-bold">
                   {formulationItems[0]?.uom || 'kg'}
                 </td>
@@ -645,6 +666,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                     )}
                   />
                 </td>
+                <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-2.5 px-4 text-slate-500 text-xs font-bold">
                   {formulationItems[0]?.uom || 'kg'}
                 </td>
@@ -779,17 +801,19 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                 <tr>
                                   <th className="py-2 px-3">Particular</th>
                                   <th className="py-2 px-3 text-right">Qty</th>
+                                  <th className="py-2 px-3 text-right">PHR</th>
                                   <th className="py-2 px-3">UOM</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {(snap.formulation || []).length === 0 ? (
-                                  <tr><td colSpan={3} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
+                                  <tr><td colSpan={4} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
                                 ) : (
                                   snap.formulation.map((fItem, i) => (
                                     <tr key={fItem.id || i}>
                                       <td className="py-2 px-3 font-semibold text-slate-800">{fItem.particular}</td>
                                       <td className="py-2 px-3 text-right font-bold text-emerald-700">{Number(fItem.quantity || 0).toFixed(4)}</td>
+                                      <td className="py-2 px-3 text-right font-bold text-emerald-700">{fItem.phr !== undefined ? Number(fItem.phr || 0).toFixed(2) : '-'}</td>
                                       <td className="py-2 px-3 text-slate-500">{fItem.uom}</td>
                                     </tr>
                                   ))
@@ -797,6 +821,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                 <tr className="bg-slate-50 font-black border-t border-slate-200">
                                   <td className="py-2 px-3 text-right">Total Output:</td>
                                   <td className="py-2 px-3 text-right text-emerald-800">{Number(snap.totalOutput || 0).toFixed(4)}</td>
+                                  <td className="py-2 px-3"></td>
                                   <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
                                 </tr>
                               </tbody>
