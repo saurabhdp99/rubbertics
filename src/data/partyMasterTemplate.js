@@ -256,13 +256,13 @@ export const PARTY_MASTER_FIELDS = [
   {
     key: 'deliveryTerms',
     label: 'Delivery Terms',
-    type: 'text',
+    type: 'creatable-select',
     section: 'Terms & Logistics',
   },
   {
     key: 'transport',
     label: 'Transport',
-    type: 'text',
+    type: 'dynamic-select',
     section: 'Terms & Logistics',
   },
   {

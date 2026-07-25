@@ -30,6 +30,7 @@ import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { PARTY_MASTER_FIELDS, PARTY_MASTER_SECTIONS } from '../data/partyMasterTemplate';
 import { usePartyMasterStore } from '../store/partyMasterStore';
+import { useTransportMasterStore } from '../store/transportMasterStore';
 import { useAuthStore } from '../store/authStore';
 
 
@@ -148,6 +149,32 @@ function FormField({
               />
             );
           }
+          if (field.type === 'dynamic-select') {
+            return (
+              <Select
+                isDisabled={disabled}
+                value={value || ''}
+                onChange={onChange}
+                placeholder={`Select ${field.label.toLowerCase()}`}
+                aria-label={field.label}
+              >
+                <Select.Trigger className={inputClass.replace('py-3', 'py-2').replace('px-4', 'px-3')}>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {selectOptions.map(opt => (
+                      <ListBox.Item key={opt} id={opt} textValue={opt}>
+                        {opt}
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            );
+          }
           if (field.type === 'textarea') {
             return (
               <textarea
@@ -245,6 +272,12 @@ function PartyMasterForm({ mode, party, onBack }) {
     deleteLookupOption: deletePartyMasterLookupOption,
   } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
+  const { transporters } = useTransportMasterStore();
+
+  const transportOptions = useMemo(() => {
+    if (!transporters) return [];
+    return Array.from(new Set(transporters.map(t => t.transporterName).filter(Boolean))).sort();
+  }, [transporters]);
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
@@ -538,7 +571,12 @@ function PartyMasterForm({ mode, party, onBack }) {
                         control={control}
                         disabled={isView || isSubmitting || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key)) || (isLoadingShipToPincode && ['shipToState', 'shipToDistrict', 'shipToCity', 'shipToCountry'].includes(field.key))}
                         error={errors[field.key]?.message}
-                        options={isCityField && cityOptions.length > 0 ? cityOptions : isShipToCityField && shipToCityOptions.length > 0 ? shipToCityOptions : partyMasterLookups[field.key] || field.options}
+                        options={
+                          isCityField && cityOptions.length > 0 ? cityOptions : 
+                          isShipToCityField && shipToCityOptions.length > 0 ? shipToCityOptions : 
+                          field.key === 'transport' ? transportOptions : 
+                          partyMasterLookups[field.key] || field.options
+                        }
                         onAddOption={(newOption) => {
                           if (isCityField) setCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
                           else if (isShipToCityField) setShipToCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
@@ -640,9 +678,13 @@ export default function PartyMasterPage() {
     fetchParties, isLoading,
   } = usePartyMasterStore();
   const { currentOrg } = useAuthStore();
+  const { fetchTransporters } = useTransportMasterStore();
 
   useEffect(() => {
-    if (currentOrg?.id) fetchParties(currentOrg.id);
+    if (currentOrg?.id) {
+      fetchParties(currentOrg.id);
+      fetchTransporters(currentOrg.id);
+    }
   }, [currentOrg?.id]);
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, party: null });
@@ -733,7 +775,7 @@ export default function PartyMasterPage() {
       );
     }
 
-    if (column.type === 'select' || column.type === 'creatable-select') {
+    if (column.type === 'select' || column.type === 'creatable-select' || column.type === 'dynamic-select') {
       return (
         <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
           {value || '-'}

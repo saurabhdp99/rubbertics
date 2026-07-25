@@ -49,7 +49,7 @@ export const ITEM_MASTER_FIELDS = [
   },
   {
     "key": "itemHsn",
-    "label": "Item HSN",
+    "label": "Item HSN Code",
     "type": "creatable-select",
     "section": "Basic Details"
   },
