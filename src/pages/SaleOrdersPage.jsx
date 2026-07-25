@@ -256,7 +256,7 @@ function SaleOrderForm({ mode, order, onBack }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name, part_no, part_name, item_hsn, uom, item_price')
+          .select('item_code, item_name, part_no, part_name, item_hsn, item_price')
           .eq('org_id', currentOrg.id);
         if (!error && data) {
           setFreshItems(data);
@@ -735,8 +735,26 @@ function SaleOrderForm({ mode, order, onBack }) {
                         <Controller
                           control={control}
                           name={`items.${index}.partNo`}
-                          render={({ field: { onChange, value } }) => (
+                          render={({ field: { value } }) => (
                             <Field label="Part Number">
+                              <Input
+                                type="text"
+                                value={value || ''}
+                                disabled
+                                readOnly
+                                placeholder="Auto-filled from Product Name"
+                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                aria-label="Part Number"
+                              />
+                            </Field>
+                          )}
+                        />
+
+                        <Controller
+                          control={control}
+                          name={`items.${index}.productName`}
+                          render={({ field: { onChange, value } }) => (
+                            <Field label="Product Name" wide>
                               {isView ? (
                                 <Input
                                   type="text"
@@ -744,7 +762,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                                   disabled
                                   readOnly
                                   className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                  aria-label="Part Number"
+                                  aria-label="Product Name"
                                 />
                               ) : (
                                 <Select
@@ -753,11 +771,11 @@ function SaleOrderForm({ mode, order, onBack }) {
                                     if (!val) return;
                                     onChange(val);
 
-                                    const matchedItem = freshItems.find(i => i.item_code === val || i.part_no === val);
+                                    const matchedItem = freshItems.find(i => (i.item_name === val || i.part_name === val));
                                     if (matchedItem) {
-                                      const pName = matchedItem.item_name || matchedItem.part_name || '';
-                                      if (pName) {
-                                        setValue(`items.${index}.productName`, pName, { shouldValidate: true, shouldDirty: true });
+                                      const pNo = matchedItem.item_code || matchedItem.part_no || '';
+                                      if (pNo) {
+                                        setValue(`items.${index}.partNo`, pNo, { shouldValidate: true, shouldDirty: true });
                                       }
                                       if (matchedItem.item_hsn && !watch(`items.${index}.hsnCode`)) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
@@ -771,17 +789,23 @@ function SaleOrderForm({ mode, order, onBack }) {
                                     }
                                   }}
                                   className="w-full"
-                                  aria-label="Part Number"
+                                  aria-label="Product Name"
                                 >
                                   <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                                    <Select.Value placeholder="Select Part Number" />
+                                    <Select.Value placeholder="Select Product Name" />
                                   </Select.Trigger>
                                   <Select.Popover>
                                     <ListBox>
-                                      {freshItems.filter(itm => itm.item_code).map(itm => (
-                                        <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
+                                      {Array.from(
+                                        new Set(
+                                          freshItems
+                                            .map(itm => itm.item_name || itm.part_name)
+                                            .filter(Boolean)
+                                        )
+                                      ).map(name => (
+                                        <ListBox.Item key={name} id={name} textValue={name}>
                                           <div className="flex flex-col gap-0.5 py-0.5">
-                                            <span className="font-bold text-slate-800">{itm.item_code}</span>
+                                            <span className="font-bold text-slate-800">{name}</span>
                                           </div>
                                         </ListBox.Item>
                                       ))}
@@ -789,24 +813,6 @@ function SaleOrderForm({ mode, order, onBack }) {
                                   </Select.Popover>
                                 </Select>
                               )}
-                            </Field>
-                          )}
-                        />
-
-                        <Controller
-                          control={control}
-                          name={`items.${index}.productName`}
-                          render={({ field: { value } }) => (
-                            <Field label="Product Name" wide>
-                              <Input
-                                type="text"
-                                value={value || ''}
-                                disabled
-                                readOnly
-                                placeholder="Auto-filled from Part Number"
-                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                aria-label="Product Name"
-                              />
                             </Field>
                           )}
                         />

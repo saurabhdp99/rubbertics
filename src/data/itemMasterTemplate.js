@@ -30,12 +30,6 @@ export const ITEM_MASTER_FIELDS = [
     "section": "Basic Details"
   },
   {
-    "key": "partName",
-    "label": "Part Name",
-    "type": "text",
-    "section": "Basic Details"
-  },
-  {
     "key": "aliasName",
     "label": "Alias Name",
     "type": "text",
@@ -56,7 +50,7 @@ export const ITEM_MASTER_FIELDS = [
   {
     "key": "itemHsn",
     "label": "Item HSN",
-    "type": "text",
+    "type": "creatable-select",
     "section": "Basic Details"
   },
   {
@@ -74,26 +68,22 @@ export const ITEM_MASTER_FIELDS = [
   {
     "key": "itemNetWeight",
     "label": "Item Net Weight",
-    "type": "number",
+    "type": "number-with-uom",
+    "uomKey": "itemNetWeightUom",
     "section": "Measurements"
   },
   {
     "key": "itemStdWeight",
     "label": "Item Std Weight",
-    "type": "number",
+    "type": "number-with-uom",
+    "uomKey": "itemStdWeightUom",
     "section": "Measurements"
   },
-
   {
     "key": "standardPacking",
     "label": "Standard Packing",
-    "type": "number",
-    "section": "Measurements"
-  },
-  {
-    "key": "uom",
-    "label": "Unit of Measure",
-    "type": "creatable-select",
+    "type": "number-with-uom",
+    "uomKey": "standardPackingUom",
     "section": "Measurements"
   },
   {

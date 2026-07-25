@@ -28,9 +28,11 @@ import { ITEM_MASTER_FIELDS } from '../data/itemMasterTemplate';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { useHsnSacStore } from '../store/hsnSacStore';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Yes' : '';
+  if (field.uomKey) item[field.uomKey] = '';
   return item;
 }, {});
 
@@ -65,9 +67,11 @@ const itemMasterSchema = z.object({
   remarks: z.string().nullable().optional(),
   isActive: z.string().nullable().optional(),
   itemStdWeight: z.coerce.number().optional().or(z.literal('')),
+  itemStdWeightUom: z.string().nullable().optional(),
   itemNetWeight: z.coerce.number().optional().or(z.literal('')),
+  itemNetWeightUom: z.string().nullable().optional(),
   standardPacking: z.coerce.number().optional().or(z.literal('')),
-  uom: z.string().nullable().optional(),
+  standardPackingUom: z.string().nullable().optional(),
   warehouseName: z.string().nullable().optional(),
   departmentName: z.string().nullable().optional(),
   moq: z.coerce.number().optional().or(z.literal('')),
@@ -219,7 +223,7 @@ function AttachmentsField({ value, onChange, disabled }) {
   );
 }
 
-function FormField({ field, control, disabled, error, options = [], onAddOption, onEditOption, onDeleteOption, onCategorySelect, onGenerateCode }) {
+function FormField({ field, control, disabled, error, options = [], onAddOption, onEditOption, onDeleteOption, onCategorySelect, onGenerateCode, uomOptions }) {
   if (field.type === 'attachments') {
     return (
       <div className="col-span-1 md:col-span-2 xl:col-span-3">
@@ -373,6 +377,53 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
           );
         }
 
+        if (field.type === 'number-with-uom') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+              </Label>
+              <div className="flex items-center">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={value ?? ''}
+                  disabled={disabled}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={`${inputClass} rounded-r-none border-r-0 focus-within:z-10`}
+                  placeholder={field.label}
+                  aria-label={field.label}
+                  ref={ref}
+                />
+                <Controller
+                  control={control}
+                  name={field.uomKey}
+                  render={({ field: uomField }) => (
+                    <select
+                      value={uomField.value || ''}
+                      onChange={uomField.onChange}
+                      disabled={disabled}
+                      className="h-[46px] px-2 bg-slate-50 border border-slate-200 rounded-r-xl outline-none text-[13px] font-semibold text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all min-w-[90px]"
+                    >
+                      <option value="">UOM</option>
+                      {(uomOptions || []).length > 0 ? (
+                        (uomOptions || []).map(opt => <option key={opt} value={opt}>{opt}</option>)
+                      ) : (
+                        <>
+                          <option value="Kgs">Kgs</option>
+                          <option value="Gram">Gram</option>
+                        </>
+                      )}
+                    </select>
+                  )}
+                />
+              </div>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
+
         return (
           <div className="flex flex-col gap-2">
             <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -456,6 +507,7 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
 function ItemMasterForm({ mode, item, onBack }) {
   const { addItem, updateItem, deleteItem: deleteItemMaster, lookups, addLookupOption, renameLookupOption, deleteLookupOption, getNextItemCode } = useItemMasterStore();
   const { parties: partyMasterItems } = usePartyMasterStore();
+  const { items: hsnSacItems } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
 
   const isView = mode === 'view';
@@ -464,6 +516,11 @@ function ItemMasterForm({ mode, item, onBack }) {
   const uniqueCategories = lookups?.itemCategory || [];
   const uniqueSubCategories = lookups?.subCategory || [];
   const uniqueUoms = lookups?.uom || [];
+
+  const hsnCodeOptions = useMemo(() => {
+    const codes = (hsnSacItems || []).map(item => item.hsnCode || item.hsn_code).filter(Boolean);
+    return Array.from(new Set(codes)).sort();
+  }, [hsnSacItems]);
 
   const vendorOptions = useMemo(() => {
     if (!partyMasterItems) return [];
@@ -573,7 +630,16 @@ function ItemMasterForm({ mode, item, onBack }) {
           </div>
         </div>
 
-        <form id="item-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
+        <form 
+          id="item-master-page-form" 
+          onSubmit={hookFormSubmit(onSubmit)} 
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6"
+        >
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -594,7 +660,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                       options={
                         field.key === 'itemCategory' ? uniqueCategories :
                           field.key === 'subCategory' ? uniqueSubCategories :
-                            field.key === 'uom' ? uniqueUoms :
+                            field.key === 'itemHsn' ? hsnCodeOptions :
                               field.key === 'preferredVendor' ? vendorOptions :
                                 field.key === 'alternateVendor' ? vendorOptions :
                                   []
@@ -604,6 +670,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                       onDeleteOption={deleteLookupOption}
                       onCategorySelect={handleCategorySelect}
                       onGenerateCode={handleGenerateCode}
+                      uomOptions={uniqueUoms}
                     />
                   ))}
                 </div>
@@ -675,11 +742,13 @@ export default function ItemMasterPage() {
   } = useItemMasterStore();
   const { currentOrg } = useAuthStore();
   const { fetchParties } = usePartyMasterStore();
+  const { fetchItems: fetchHsnSacItems } = useHsnSacStore();
 
   useEffect(() => {
     if (currentOrg?.id) {
       fetchItems(currentOrg.id);
       fetchParties(currentOrg.id);
+      fetchHsnSacItems(currentOrg.id);
     }
   }, [currentOrg?.id]);
 
