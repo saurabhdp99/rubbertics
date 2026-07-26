@@ -6,6 +6,7 @@ export const EMPLOYEE_MASTER_SECTIONS = [
   'Salary / Wages Details',
   'Bank Details',
   'Skill & Machine Mapping',
+  'Attachments & Notes',
 ];
 
 export const EMPLOYEE_MASTER_FIELDS = [
@@ -195,13 +196,6 @@ export const EMPLOYEE_MASTER_FIELDS = [
     type: 'text',
     section: 'Address Details',
   },
-  {
-    key: 'addressRemarks',
-    label: 'Remarks',
-    type: 'textarea',
-    section: 'Address Details',
-    wide: true,
-  },
 
   // Statutory Details
   {
@@ -251,13 +245,6 @@ export const EMPLOYEE_MASTER_FIELDS = [
     label: 'ESI Applicable',
     type: 'checkbox',
     section: 'Statutory Details',
-  },
-  {
-    key: 'statutoryRemarks',
-    label: 'Statutory Remarks',
-    type: 'textarea',
-    section: 'Statutory Details',
-    wide: true,
   },
 
   // Salary / Wages Details
@@ -327,13 +314,6 @@ export const EMPLOYEE_MASTER_FIELDS = [
     type: 'date',
     section: 'Salary / Wages Details',
   },
-  {
-    key: 'salaryRemarks',
-    label: 'Remarks',
-    type: 'textarea',
-    section: 'Salary / Wages Details',
-    wide: true,
-  },
 
   // Bank Details
   {
@@ -372,13 +352,6 @@ export const EMPLOYEE_MASTER_FIELDS = [
     type: 'text',
     section: 'Bank Details',
   },
-  {
-    key: 'bankRemarks',
-    label: 'Remarks',
-    type: 'textarea',
-    section: 'Bank Details',
-    wide: true,
-  },
 
   // Skill & Machine Mapping
   {
@@ -393,11 +366,27 @@ export const EMPLOYEE_MASTER_FIELDS = [
     type: 'creatable-select',
     section: 'Skill & Machine Mapping',
   },
+
+  // Attachments & Notes
   {
-    key: 'skillRemarks',
-    label: 'Remarks',
+    key: 'medicalHistory',
+    label: 'Medical History (Injuries / Diseases)',
     type: 'textarea',
-    section: 'Skill & Machine Mapping',
+    section: 'Attachments & Notes',
+    wide: true,
+  },
+  {
+    key: 'description',
+    label: 'Description / Notes',
+    type: 'textarea',
+    section: 'Attachments & Notes',
+    wide: true,
+  },
+  {
+    key: 'attachments',
+    label: 'Attachments',
+    type: 'attachments',
+    section: 'Attachments & Notes',
     wide: true,
   },
 ];

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -18,6 +18,8 @@ import {
   SlidersHorizontal,
   Tag,
   Trash2,
+  UploadCloud,
+  FileText,
   X,
   Users
 } from 'lucide-react';
@@ -38,6 +40,7 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 const EMPTY_EMPLOYEE = EMPLOYEE_MASTER_FIELDS.reduce((emp, field) => {
   if (field.type === 'creatable-select' || field.type === 'select') emp[field.key] = field.options?.[0] || '';
   else if (field.type === 'checkbox' || field.type === 'switch') emp[field.key] = false;
+  else if (field.type === 'attachments') emp[field.key] = [];
   else emp[field.key] = '';
   return emp;
 }, {});
@@ -88,7 +91,6 @@ const employeeMasterSchema = z.object({
   permanentState: z.string().optional(),
   permanentPincode: z.string().optional(),
   permanentCountry: z.string().optional(),
-  addressRemarks: z.string().optional(),
   panNo: z.string().optional(),
   aadhaarNo: z.string().optional(),
   uanNo: z.string().optional(),
@@ -97,7 +99,6 @@ const employeeMasterSchema = z.object({
   professionalTaxNo: z.string().optional(),
   pfApplicable: z.boolean().optional(),
   esiApplicable: z.boolean().optional(),
-  statutoryRemarks: z.string().optional(),
   salaryType: z.string().optional(),
   basicSalary: z.coerce.number().optional().or(z.literal('')),
   hra: z.coerce.number().optional().or(z.literal('')),
@@ -109,18 +110,155 @@ const employeeMasterSchema = z.object({
   otherDeduction: z.coerce.number().optional().or(z.literal('')),
   netSalary: z.coerce.number().optional().or(z.literal('')),
   effectiveFrom: z.string().optional(),
-  salaryRemarks: z.string().optional(),
   bankName: z.string().optional(),
   accountNo: z.string().optional(),
   ifscCode: z.string().optional(),
   accountHolderName: z.string().optional(),
   paymentMode: z.string().optional(),
   upiId: z.string().optional(),
-  bankRemarks: z.string().optional(),
   skillCategory: z.string().optional(),
   skillLevel: z.string().optional(),
-  skillRemarks: z.string().optional()
+  medicalHistory: z.string().optional(),
+  description: z.string().optional(),
+  attachments: z.array(z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    fileData: z.any().optional(),
+    fileName: z.string().optional(),
+    fileType: z.string().optional(),
+    fileObject: z.any().optional()
+  })).optional()
 });
+
+function AttachmentsField({ value, onChange, disabled }) {
+  const fileInputRef = useRef(null);
+  const [editingId, setEditingId] = useState(null);
+
+  const handleAdd = () => {
+    const newAttachment = { id: crypto.randomUUID(), name: '', fileData: null, fileName: '', fileType: '' };
+    onChange([...(value || []), newAttachment]);
+  };
+
+  const handleRemove = (id) => {
+    onChange((value || []).filter(att => att.id !== id));
+  };
+
+  const handleUpdate = (id, updates) => {
+    onChange((value || []).map(att => att.id === id ? { ...att, ...updates } : att));
+  };
+
+  const handleFileChange = (id, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleUpdate(id, {
+        fileObject: file,
+        fileData: URL.createObjectURL(file), // temporary local URL for preview
+        fileName: file.name,
+        fileType: file.type
+      });
+    }
+    e.target.value = null;
+  };
+
+  const triggerFileInput = (id) => {
+    setEditingId(id);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const openFile = (fileData) => {
+    if (!fileData) return;
+    if (fileData.startsWith('blob:') || fileData.startsWith('http')) {
+      window.open(fileData, '_blank');
+    } else {
+      const newTab = window.open();
+      newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <input
+        type="file"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={(e) => handleFileChange(editingId, e)}
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+      />
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {(!value || value.length === 0) ? 'Attachments' : `Attachments (${value.length})`}
+        </Label>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+          >
+            <Plus size={14} /> Add Attachment
+          </button>
+        )}
+      </div>
+
+      {(!value || value.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
+          <FileText size={32} className="mb-2 opacity-50" />
+          <p className="text-sm font-medium">No attachments added</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {value.map((att) => (
+            <div key={att.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex-1 w-full">
+                <Input
+                  placeholder="Enter attachment name (e.g. Identity Proof)"
+                  value={att.name}
+                  onChange={(e) => handleUpdate(att.id, { name: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus-within:bg-white transition-colors h-[42px] px-3 rounded-lg border border-slate-200 focus-within:border-emerald-500/50"
+                  aria-label="Attachment Name"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                {!att.fileData ? (
+                  !disabled && (
+                    <button
+                      type="button"
+                      onClick={() => triggerFileInput(att.id)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors h-[42px]"
+                    >
+                      <UploadCloud size={16} /> Upload File
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openFile(att.fileData)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors truncate max-w-[200px] h-[42px]"
+                    title={att.fileName}
+                  >
+                    <Eye size={16} className="shrink-0" /> <span className="truncate">{att.fileName}</span>
+                  </button>
+                )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(att.id)}
+                    className="p-2 h-[42px] w-[42px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                    title="Remove Attachment"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FormField({
   field,
@@ -131,7 +269,22 @@ function FormField({
   onAddOption,
   onRenameOption,
   onDeleteOption,
+  isLoadingPincode,
 }) {
+  if (field.type === 'attachments') {
+    return (
+      <div className={`col-span-1 ${field.wide ? 'md:col-span-2 xl:col-span-3' : ''}`}>
+        <Controller
+          control={control}
+          name={field.key}
+          render={({ field: { value, onChange } }) => (
+            <AttachmentsField value={value} onChange={onChange} disabled={disabled} />
+          )}
+        />
+      </div>
+    );
+  }
+
   const baseInputClass = `w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-emerald-500/50'
     } input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed`;
   const inputClass = `${baseInputClass} px-4 py-3`;
@@ -255,6 +408,9 @@ function FormField({
       {field.autoGenerated && !disabled && (
         <span className="text-[11px] font-semibold text-emerald-600">Auto generated and locked</span>
       )}
+      {(field.key === 'currentPincode' || field.key === 'permanentPincode') && isLoadingPincode && (
+        <span className="text-[11px] font-semibold text-emerald-600 animate-pulse">Fetching details...</span>
+      )}
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
     </label>
   );
@@ -276,7 +432,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
-  const { control, handleSubmit: hookFormSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+  const { control, handleSubmit: hookFormSubmit, reset, setValue, watch, getValues, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(employeeMasterSchema),
     defaultValues: createInitialEmployeeForm(employee)
   });
@@ -307,6 +463,112 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
       setValue('permanentCountry', currentAddress[6] || '');
     }
   }, [sameAsCurrentAddress, ...currentAddress, setValue]);
+
+  const [currentCityOptions, setCurrentCityOptions] = useState([]);
+  const [isLoadingCurrentPincode, setIsLoadingCurrentPincode] = useState(false);
+  const [permanentCityOptions, setPermanentCityOptions] = useState([]);
+  const [isLoadingPermanentPincode, setIsLoadingPermanentPincode] = useState(false);
+
+  const currentPincode = watch('currentPincode');
+  const permanentPincode = watch('permanentPincode');
+
+  useEffect(() => {
+    const fetchCurrentPincodeDetails = async () => {
+      if (mode === 'view') return;
+
+      if (currentPincode?.length === 6) {
+        setIsLoadingCurrentPincode(true);
+        try {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${currentPincode}`);
+          const data = await res.json();
+          if (data && data[0]?.Status === 'Success') {
+            const postOffices = data[0].PostOffice;
+            const state = postOffices[0].State;
+            const district = postOffices[0].District;
+            const country = postOffices[0].Country || 'India';
+            const areas = [...new Set(postOffices.map(po => po.Name))];
+
+            setCurrentCityOptions(areas);
+            setValue('currentState', state);
+            setValue('currentDistrict', district);
+            setValue('currentCountry', country);
+
+            const currentCity = getValues('currentCity');
+            setValue('currentCity', areas.includes(currentCity) ? currentCity : areas[0]);
+          } else {
+            setCurrentCityOptions([]);
+            setValue('currentState', '');
+            setValue('currentDistrict', '');
+            setValue('currentCity', '');
+          }
+        } catch (error) {
+          console.error("Failed to fetch current pincode details", error);
+        } finally {
+          setIsLoadingCurrentPincode(false);
+        }
+      } else {
+        setCurrentCityOptions([]);
+        const currentVals = getValues(['currentState', 'currentDistrict', 'currentCity']);
+        if (currentVals.some(v => v)) {
+          setValue('currentState', '');
+          setValue('currentDistrict', '');
+          setValue('currentCity', '');
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(fetchCurrentPincodeDetails, 600);
+    return () => clearTimeout(timeoutId);
+  }, [currentPincode, mode, setValue, getValues]);
+
+  useEffect(() => {
+    const fetchPermanentPincodeDetails = async () => {
+      if (mode === 'view' || sameAsCurrentAddress) return;
+
+      if (permanentPincode?.length === 6) {
+        setIsLoadingPermanentPincode(true);
+        try {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${permanentPincode}`);
+          const data = await res.json();
+          if (data && data[0]?.Status === 'Success') {
+            const postOffices = data[0].PostOffice;
+            const state = postOffices[0].State;
+            const district = postOffices[0].District;
+            const country = postOffices[0].Country || 'India';
+            const areas = [...new Set(postOffices.map(po => po.Name))];
+
+            setPermanentCityOptions(areas);
+            setValue('permanentState', state);
+            setValue('permanentDistrict', district);
+            setValue('permanentCountry', country);
+
+            const permanentCity = getValues('permanentCity');
+            setValue('permanentCity', areas.includes(permanentCity) ? permanentCity : areas[0]);
+          } else {
+            setPermanentCityOptions([]);
+            setValue('permanentState', '');
+            setValue('permanentDistrict', '');
+            setValue('permanentCity', '');
+          }
+        } catch (error) {
+          console.error("Failed to fetch permanent pincode details", error);
+        } finally {
+          setIsLoadingPermanentPincode(false);
+        }
+      } else {
+        setPermanentCityOptions([]);
+        const currentVals = getValues(['permanentState', 'permanentDistrict', 'permanentCity']);
+        if (currentVals.some(v => v)) {
+          setValue('permanentState', '');
+          setValue('permanentDistrict', '');
+          setValue('permanentCity', '');
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(fetchPermanentPincodeDetails, 600);
+    return () => clearTimeout(timeoutId);
+  }, [permanentPincode, mode, sameAsCurrentAddress, setValue, getValues]);
 
   const groupedFields = EMPLOYEE_MASTER_SECTIONS.map(section => ({
     section,
@@ -388,19 +650,62 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
                   <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">{group.section}</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {group.fields.map(field => (
-                    <FormField
-                      key={field.key}
-                      field={field}
-                      control={control}
-                      disabled={isView || isSubmitting || (sameAsCurrentAddress && field.key.startsWith('permanent'))}
-                      error={errors[field.key]?.message}
-                      options={employeeMasterLookups[field.key] || field.options}
-                      onAddOption={(newOption) => addEmployeeMasterLookupOption(field.key, newOption)}
-                      onRenameOption={(oldOption, newOption) => renameEmployeeMasterLookupOption(field.key, oldOption, newOption)}
-                      onDeleteOption={(option) => deleteEmployeeMasterLookupOption(field.key, option)}
-                    />
-                  ))}
+                  {group.fields.map(field => {
+                    const isCurrentCityField = field.key === 'currentCity';
+                    const isPermanentCityField = field.key === 'permanentCity';
+                    const fieldProps = { ...field };
+
+                    if (isCurrentCityField && currentCityOptions.length > 0) {
+                      fieldProps.type = 'creatable-select';
+                    }
+                    if (isPermanentCityField && permanentCityOptions.length > 0) {
+                      fieldProps.type = 'creatable-select';
+                    }
+
+                    return (
+                      <FormField
+                        key={field.key}
+                        field={fieldProps}
+                        control={control}
+                        disabled={isView || isSubmitting || (sameAsCurrentAddress && field.key.startsWith('permanent')) || (isLoadingCurrentPincode && ['currentState', 'currentDistrict', 'currentCity', 'currentCountry'].includes(field.key)) || (isLoadingPermanentPincode && ['permanentState', 'permanentDistrict', 'permanentCity', 'permanentCountry'].includes(field.key))}
+                        error={errors[field.key]?.message}
+                        options={
+                            isCurrentCityField && currentCityOptions.length > 0 ? currentCityOptions : 
+                            isPermanentCityField && permanentCityOptions.length > 0 ? permanentCityOptions : 
+                            employeeMasterLookups[field.key] || field.options
+                        }
+                        onAddOption={(newOption) => {
+                            if (isCurrentCityField) setCurrentCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
+                            else if (isPermanentCityField) setPermanentCityOptions(prev => prev.includes(newOption) ? prev : [...prev, newOption]);
+                            else addEmployeeMasterLookupOption(field.key, newOption);
+                        }}
+                        onRenameOption={(oldOption, newOption) => {
+                            if (isCurrentCityField) {
+                              setCurrentCityOptions(prev => prev.map(option => option === oldOption ? newOption : option));
+                              if (watch('currentCity') === oldOption) setValue('currentCity', newOption);
+                            } else if (isPermanentCityField) {
+                              setPermanentCityOptions(prev => prev.map(option => option === oldOption ? newOption : option));
+                              if (watch('permanentCity') === oldOption) setValue('permanentCity', newOption);
+                            } else {
+                              renameEmployeeMasterLookupOption(field.key, oldOption, newOption);
+                            }
+                        }}
+                        onDeleteOption={(option) => {
+                            if (isCurrentCityField) {
+                              setCurrentCityOptions(prev => prev.filter(item => item !== option));
+                              if (watch('currentCity') === option) setValue('currentCity', '');
+                              return true;
+                            } else if (isPermanentCityField) {
+                              setPermanentCityOptions(prev => prev.filter(item => item !== option));
+                              if (watch('permanentCity') === option) setValue('permanentCity', '');
+                              return true;
+                            }
+                            return deleteEmployeeMasterLookupOption(field.key, option);
+                        }}
+                        isLoadingPincode={isLoadingCurrentPincode || isLoadingPermanentPincode}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             ))}

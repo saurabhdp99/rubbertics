@@ -105,24 +105,72 @@ export const useEmployeeMasterStore = create((set, get) => ({
   },
 
   addEmployee: async (employeeData, orgId, userId) => {
-    const payload = mapToDb(employeeData, orgId, userId);
-    const { data, error } = await supabase
+    // Insert without attachments first to get the ID
+    const payload = { ...mapToDb(employeeData, orgId, userId), attachments: [] };
+    const { data: insertedData, error: insertError } = await supabase
       .from('employee_master')
       .insert([payload])
       .select()
       .single();
 
-    if (error) {
-      get().addNotification(`Failed to create employee: ${error.message}`, 'error');
+    if (insertError) {
+      get().addNotification(`Failed to create employee: ${insertError.message}`, 'error');
       return false;
     }
-    set(state => ({ employees: [mapFromDb(data), ...state.employees], currentPage: 1 }));
+
+    let finalAttachments = [];
+    if (employeeData.attachments && employeeData.attachments.length > 0) {
+      finalAttachments = await Promise.all(employeeData.attachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${orgId}/employee_master/${insertedData.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from('employee_master')
+        .update({ attachments: finalAttachments })
+        .eq('id', insertedData.id)
+        .select()
+        .single();
+
+      if (!updateError) {
+        if (orgId) await get().fetchEmployees(orgId);
+        get().addNotification('Employee created successfully!', 'success');
+        return true;
+      }
+    }
+
+    if (orgId) await get().fetchEmployees(orgId);
     get().addNotification('Employee created successfully!', 'success');
     return true;
   },
 
   updateEmployee: async (id, employeeData, userId) => {
-    const payload = { ...mapToDb(employeeData), updated_by: userId };
+    const existingEmployee = get().employees.find(e => e.id === id);
+    const empOrgId = existingEmployee?.orgId;
+
+    let finalAttachments = employeeData.attachments || [];
+    if (empOrgId && finalAttachments.length > 0) {
+      finalAttachments = await Promise.all(finalAttachments.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${empOrgId}/employee_master/${id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) return att;
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return att;
+      }));
+    }
+
+    const payload = { ...mapToDb({ ...employeeData, attachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('employee_master')
       .update(payload)
@@ -134,7 +182,8 @@ export const useEmployeeMasterStore = create((set, get) => ({
       get().addNotification(`Failed to update employee: ${error.message}`, 'error');
       return false;
     }
-    set(state => ({ employees: state.employees.map(e => (e.id === id ? mapFromDb(data) : e)) }));
+    
+    if (empOrgId) await get().fetchEmployees(empOrgId);
     get().addNotification('Employee updated successfully!', 'success');
     return true;
   },
@@ -313,7 +362,6 @@ function mapFromDb(row) {
     permanentState: row.permanent_state,
     permanentPincode: row.permanent_pincode,
     permanentCountry: row.permanent_country,
-    addressRemarks: row.address_remarks,
     panNo: row.pan_no,
     aadhaarNo: row.aadhaar_no,
     uanNo: row.uan_no,
@@ -322,7 +370,6 @@ function mapFromDb(row) {
     professionalTaxNo: row.professional_tax_no,
     pfApplicable: row.pf_applicable,
     esiApplicable: row.esi_applicable,
-    statutoryRemarks: row.statutory_remarks,
     salaryType: row.salary_type,
     basicSalary: Number(row.basic_salary || 0),
     hra: Number(row.hra || 0),
@@ -334,14 +381,12 @@ function mapFromDb(row) {
     otherDeduction: Number(row.other_deduction || 0),
     netSalary: Number(row.net_salary || 0),
     effectiveFrom: row.salary_effective_from,
-    salaryRemarks: row.salary_remarks,
     bankName: row.bank_name,
     accountNo: row.account_no,
     ifscCode: row.ifsc_code,
     accountHolderName: row.account_holder_name,
     paymentMode: row.payment_mode,
     upiId: row.upi_id,
-    bankRemarks: row.bank_remarks,
     skillCategory: row.skill_category,
     skillLevel: row.skill_level,
     machineTypeKnown: row.machine_type_known,
@@ -349,7 +394,9 @@ function mapFromDb(row) {
     trainingRequired: row.training_required,
     lastTrainingDate: row.last_training_date,
     nextTrainingDue: row.next_training_due,
-    skillRemarks: row.skill_remarks,
+    medicalHistory: row.medical_history,
+    description: row.description,
+    attachments: row.attachments || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -388,7 +435,6 @@ function mapToDb(data, orgId, userId) {
     permanent_state: data.permanentState,
     permanent_pincode: data.permanentPincode,
     permanent_country: data.permanentCountry,
-    address_remarks: data.addressRemarks,
     pan_no: data.panNo,
     aadhaar_no: data.aadhaarNo,
     uan_no: data.uanNo,
@@ -397,7 +443,6 @@ function mapToDb(data, orgId, userId) {
     professional_tax_no: data.professionalTaxNo,
     pf_applicable: data.pfApplicable || false,
     esi_applicable: data.esiApplicable || false,
-    statutory_remarks: data.statutoryRemarks,
     salary_type: data.salaryType || 'Monthly',
     basic_salary: Number(data.basicSalary || 0),
     hra: Number(data.hra || 0),
@@ -409,14 +454,12 @@ function mapToDb(data, orgId, userId) {
     other_deduction: Number(data.otherDeduction || 0),
     net_salary: Number(data.netSalary || 0),
     salary_effective_from: data.effectiveFrom || null,
-    salary_remarks: data.salaryRemarks,
     bank_name: data.bankName,
     account_no: data.accountNo,
     ifsc_code: data.ifscCode,
     account_holder_name: data.accountHolderName,
     payment_mode: data.paymentMode || 'Bank Transfer',
     upi_id: data.upiId,
-    bank_remarks: data.bankRemarks,
     skill_category: data.skillCategory,
     skill_level: data.skillLevel,
     machine_type_known: data.machineTypeKnown,
@@ -424,7 +467,9 @@ function mapToDb(data, orgId, userId) {
     training_required: data.trainingRequired || false,
     last_training_date: data.lastTrainingDate || null,
     next_training_due: data.nextTrainingDue || null,
-    skill_remarks: data.skillRemarks,
+    medical_history: data.medicalHistory,
+    description: data.description,
+    attachments: data.attachments || [],
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;
