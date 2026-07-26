@@ -113,6 +113,19 @@ export const useSaleOrderStore = create((set, get) => ({
   },
 
   addOrder: async (orderData, orgId, userId) => {
+    let generatedNo = orderData.npplSaleNo;
+    if (!generatedNo) {
+      const { orders } = get();
+      const existing = orders
+        .map(o => o.npplSaleNo)
+        .filter(n => n && n.toUpperCase().startsWith('SO-'))
+        .map(n => parseInt(n.substring(3), 10))
+        .filter(n => !isNaN(n));
+      const maxNo = existing.length > 0 ? Math.max(...existing) : 0;
+      generatedNo = `SO-${String(maxNo + 1).padStart(4, '0')}`;
+      orderData.npplSaleNo = generatedNo;
+    }
+
     const payload = mapToDb(orderData, orgId, userId);
     const { data, error } = await supabase
       .from('sale_orders')

@@ -60,7 +60,7 @@ function SortIcon({ sortDirection }) {
 const COLUMNS = [
   { key: 'date',              label: 'Date',             width: '100px' },
   { key: 'poNo',              label: 'PO No',            width: '140px' },
-  { key: 'npplPoNo',          label: 'PO Reference',     width: '150px' },
+  { key: 'npplPoNo',          label: 'NPPL Purchase Order No.',     width: '180px' },
   { key: 'vendorName',        label: 'Vendor Name',      width: '180px' },
   { key: 'items_partNo',      label: 'Part No',          width: '150px' },
   { key: 'items_productName', label: 'Product Name',     width: '240px' },
@@ -431,8 +431,8 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   control={control}
                   name="npplPoNo"
                   render={({ field: { onChange, value, ref } }) => (
-                    <Field label="PO Reference No." error={errors.npplPoNo?.message}>
-                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="REF-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Reference No." />
+                    <Field label="NPPL Purchase Order No." error={errors.npplPoNo?.message}>
+                      <Input type="text" value={value || ''} disabled={true} onChange={onChange} ref={ref} placeholder="Auto-generated (e.g. PO-0001)" className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`} aria-label="NPPL Purchase Order No." />
                     </Field>
                   )}
                 />

@@ -69,7 +69,7 @@ function SortIcon({ sortDirection }) {
 const COLUMNS = [
   { key: 'date', label: 'Date', width: '100px' },
   { key: 'poNo', label: 'PO No', width: '140px' },
-  { key: 'npplSaleNo', label: 'NPPL Sale No.', width: '150px' },
+  { key: 'npplSaleNo', label: 'NPPL Sale Order No.', width: '150px' },
   { key: 'partyName', label: 'Party Name', width: '180px' },
   { key: 'items_partNo', label: 'Part No', width: '150px' },
   { key: 'items_productName', label: 'Product Name', width: '240px' },
@@ -548,8 +548,8 @@ function SaleOrderForm({ mode, order, onBack }) {
                   control={control}
                   name="npplSaleNo"
                   render={({ field: { onChange, value, ref } }) => (
-                    <Field label="NPPL Sale No." error={errors.npplSaleNo?.message}>
-                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="NPPL-XXXX" className={`${inputCls} px-4 py-3`} aria-label="NPPL Sale No." />
+                    <Field label="NPPL Sale Order No." error={errors.npplSaleNo?.message}>
+                      <Input type="text" value={value || ''} disabled={true} onChange={onChange} ref={ref} placeholder="Auto-generated (e.g. SO-0001)" className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`} aria-label="NPPL Sale Order No." />
                     </Field>
                   )}
                 />
