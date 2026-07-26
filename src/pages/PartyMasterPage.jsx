@@ -32,6 +32,7 @@ import { PARTY_MASTER_FIELDS, PARTY_MASTER_SECTIONS } from '../data/partyMasterT
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useTransportMasterStore } from '../store/transportMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -734,6 +735,9 @@ export default function PartyMasterPage() {
 
   const renderCellValue = (party, column) => {
     const value = party[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'partyCode') {
       return (

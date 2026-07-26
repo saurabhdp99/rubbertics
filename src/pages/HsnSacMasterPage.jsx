@@ -23,6 +23,7 @@ import { useAuthStore } from '../store/authStore';
 
 import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_ITEM = HSN_SAC_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = '';
@@ -317,6 +318,9 @@ export default function HsnSacMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'hsnCode') {
       return (

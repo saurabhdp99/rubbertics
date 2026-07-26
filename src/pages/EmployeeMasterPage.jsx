@@ -33,6 +33,7 @@ import EditableCreatableSelect from '../components/common/EditableCreatableSelec
 import { EMPLOYEE_MASTER_FIELDS, EMPLOYEE_MASTER_SECTIONS } from '../data/employeeMasterTemplate';
 import { useEmployeeMasterStore } from '../store/employeeMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -821,6 +822,9 @@ export default function EmployeeMasterPage() {
 
   const renderCellValue = (employee, column) => {
     const value = employee[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'employeeCode') {
       return (

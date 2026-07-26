@@ -27,6 +27,7 @@ import StatsCard from '../components/common/StatsCard';
 import { MACHINE_MASTER_FIELDS } from '../data/machineMasterTemplate';
 import { useMachineMasterStore } from '../store/machineMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_MACHINE = MACHINE_MASTER_FIELDS.reduce((machine, field) => {
   machine[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : '';
@@ -712,6 +713,9 @@ export default function MachineMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'machineCode') {
       return (

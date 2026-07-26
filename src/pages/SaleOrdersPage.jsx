@@ -18,6 +18,7 @@ import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { useHsnSacStore } from '../store/hsnSacStore';
 import { supabase } from '../lib/supabase';
+import { formatTableDate } from '../utils/dateFormatter';
 
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -1030,6 +1031,9 @@ export default function SaleOrdersPage() {
 
   const renderCellValue = (order, column) => {
     const value = order[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'poNo') {
       return (

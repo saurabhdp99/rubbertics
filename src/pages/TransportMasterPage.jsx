@@ -30,6 +30,7 @@ import EditableCreatableSelect from '../components/common/EditableCreatableSelec
 import { TRANSPORT_MASTER_FIELDS, TRANSPORT_MASTER_SECTIONS } from '../data/transportMasterTemplate';
 import { useTransportMasterStore } from '../store/transportMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -541,6 +542,9 @@ export default function TransportMasterPage() {
 
   const renderCellValue = (transporter, column) => {
     const value = transporter[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'transporterCode') {
       return (

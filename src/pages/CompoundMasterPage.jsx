@@ -45,6 +45,7 @@ import StatsCard from '../components/common/StatsCard';
 import { COMPOUND_MASTER_FIELDS } from '../data/compoundMasterTemplate';
 import { useCompoundMasterStore } from '../store/compoundMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_COMPOUND = COMPOUND_MASTER_FIELDS.reduce((comp, field) => {
   comp[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
@@ -1255,6 +1256,9 @@ export default function CompoundMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'compoundCode') {
       return (

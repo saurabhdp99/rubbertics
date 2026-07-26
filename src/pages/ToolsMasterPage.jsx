@@ -39,6 +39,7 @@ import StatsCard from '../components/common/StatsCard';
 import { TOOLS_MASTER_FIELDS } from '../data/toolsMasterTemplate';
 import { useToolsMasterStore } from '../store/toolsMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_TOOL = TOOLS_MASTER_FIELDS.reduce((tool, field) => {
   tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
@@ -761,6 +762,9 @@ export default function ToolsMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'cycleTime' || column.type === 'value-unit') {
       if (!value && value !== 0 && value !== '0') return '-';

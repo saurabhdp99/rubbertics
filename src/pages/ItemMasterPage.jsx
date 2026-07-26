@@ -29,6 +29,7 @@ import { useItemMasterStore } from '../store/itemMasterStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useHsnSacStore } from '../store/hsnSacStore';
+import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
   item[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Yes' : '';
@@ -794,6 +795,9 @@ export default function ItemMasterPage() {
 
   const renderCellValue = (item, column) => {
     const value = item[column.key];
+    const dateFormatted = formatTableDate(value, column.key);
+    if (dateFormatted !== null) return dateFormatted;
+
 
     if (column.key === 'itemCode') {
       return (
