@@ -453,6 +453,26 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
     'currentCountry'
   ]);
 
+  const basicSalary = watch('basicSalary');
+  const hra = watch('hra');
+  const conveyance = watch('conveyance');
+  const otherAllowance = watch('otherAllowance');
+  const pfDeduction = watch('pfDeduction');
+  const esiDeduction = watch('esiDeduction');
+  const otherDeduction = watch('otherDeduction');
+
+  useEffect(() => {
+    const gross = (Number(basicSalary) || 0) + (Number(hra) || 0) + (Number(conveyance) || 0) + (Number(otherAllowance) || 0);
+    const net = gross - (Number(pfDeduction) || 0) - (Number(esiDeduction) || 0) - (Number(otherDeduction) || 0);
+    
+    if (getValues('grossSalary') !== gross) {
+      setValue('grossSalary', gross, { shouldDirty: true, shouldValidate: true });
+    }
+    if (getValues('netSalary') !== net) {
+      setValue('netSalary', net, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [basicSalary, hra, conveyance, otherAllowance, pfDeduction, esiDeduction, otherDeduction, setValue, getValues]);
+
   useEffect(() => {
     if (sameAsCurrentAddress) {
       setValue('permanentAddressLine1', currentAddress[0] || '');

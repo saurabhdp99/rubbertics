@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Pencil, Plus, Trash2, X, Loader2 } from 'lucide-react';
 
 export default function EditableCreatableSelect({
   value,
@@ -10,11 +10,16 @@ export default function EditableCreatableSelect({
   onAdd,
   onRename,
   onDelete,
+  className = '',
+  dropdownClassName = '',
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [newValue, setNewValue] = useState('');
   const [editingValue, setEditingValue] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [deletingValue, setDeletingValue] = useState(null);
   const [localOptions, setLocalOptions] = useState([]);
   const rootRef = useRef(null);
 
@@ -42,10 +47,20 @@ export default function EditableCreatableSelect({
     });
   }, [options, localOptions]);
 
-  const commitAdd = () => {
+  const commitAdd = async () => {
     const cleaned = newValue.trim();
     if (!cleaned) return;
-    onAdd?.(cleaned);
+    
+    if (onAdd) {
+      setIsAdding(true);
+      try {
+        const added = await onAdd(cleaned);
+        if (added === false) return;
+      } finally {
+        setIsAdding(false);
+      }
+    }
+    
     setLocalOptions(prev => [...prev, cleaned]);
     onChange?.(cleaned);
     setNewValue('');
@@ -57,20 +72,35 @@ export default function EditableCreatableSelect({
     setEditingText(option);
   };
 
-  const commitRename = () => {
+  const commitRename = async () => {
     const cleaned = editingText.trim();
     if (!editingValue || !cleaned) return;
-    onRename?.(editingValue, cleaned);
+    
+    if (onRename) {
+      setIsRenaming(true);
+      try {
+        const renamed = await onRename(editingValue, cleaned);
+        if (renamed === false) return;
+      } finally {
+        setIsRenaming(false);
+      }
+    }
+    
     setLocalOptions(prev => prev.map(opt => opt === editingValue ? cleaned : opt));
     if (value === editingValue) onChange?.(cleaned);
     setEditingValue(null);
     setEditingText('');
   };
 
-  const commitDelete = (option) => {
+  const commitDelete = async (option) => {
     if (onDelete) {
-      const deleted = onDelete(option);
-      if (!deleted) return;
+      setDeletingValue(option);
+      try {
+        const deleted = await onDelete(option);
+        if (!deleted) return;
+      } finally {
+        setDeletingValue(null);
+      }
     }
     setLocalOptions(prev => prev.filter(opt => opt !== option));
     if (value === option) onChange?.('');
@@ -82,7 +112,7 @@ export default function EditableCreatableSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(current => !current)}
-        className="w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border border-slate-200 bg-white transition-all outline-none input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed flex items-center justify-between gap-3 text-left"
+        className={`w-full px-4 py-3 text-[13px] font-medium rounded-xl text-slate-800 border border-slate-200 bg-white transition-all outline-none input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed flex items-center justify-between gap-3 text-left ${className}`}
       >
         <span className={`truncate ${value ? 'text-slate-800' : 'text-slate-400'}`}>
           {value || placeholder}
@@ -91,7 +121,7 @@ export default function EditableCreatableSelect({
       </button>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
+        <div className={`absolute z-50 mt-2 w-full min-w-[220px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden ${dropdownClassName}`}>
           <div className="p-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <input
@@ -110,10 +140,11 @@ export default function EditableCreatableSelect({
               <button
                 type="button"
                 onClick={commitAdd}
-                className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                disabled={isAdding}
+                className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 flex items-center justify-center transition-colors disabled:opacity-50"
                 title="Add value"
               >
-                <Plus size={16} />
+                {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               </button>
             </div>
           </div>
@@ -150,8 +181,8 @@ export default function EditableCreatableSelect({
                         }}
                         className="min-w-0 flex-1 px-3 py-2 text-[13px] font-medium rounded-lg border border-slate-200 outline-none focus:border-emerald-500/50"
                       />
-                      <button type="button" onClick={commitRename} className="h-8 w-8 rounded-lg text-emerald-700 hover:bg-emerald-50 flex items-center justify-center" title="Save value">
-                        <Check size={15} />
+                      <button type="button" onClick={commitRename} disabled={isRenaming} className="h-8 w-8 rounded-lg text-emerald-700 hover:bg-emerald-50 flex items-center justify-center disabled:opacity-50" title="Save value">
+                        {isRenaming ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
                       </button>
                       <button type="button" onClick={() => setEditingValue(null)} className="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-100 flex items-center justify-center" title="Cancel">
                         <X size={15} />
@@ -173,8 +204,8 @@ export default function EditableCreatableSelect({
                       <button type="button" onClick={() => startRename(option)} className="h-8 w-8 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 flex items-center justify-center" title="Edit value">
                         <Pencil size={14} />
                       </button>
-                      <button type="button" onClick={() => commitDelete(option)} className="h-8 w-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center" title="Delete value">
-                        <Trash2 size={14} />
+                      <button type="button" onClick={() => commitDelete(option)} disabled={deletingValue === option} className="h-8 w-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center disabled:opacity-50" title="Delete value">
+                        {deletingValue === option ? <Loader2 size={14} className="animate-spin text-red-500" /> : <Trash2 size={14} />}
                       </button>
                     </>
                   )}

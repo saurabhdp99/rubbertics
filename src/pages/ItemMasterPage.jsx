@@ -401,22 +401,20 @@ function FormField({ field, control, disabled, error, options = [], onAddOption,
                   control={control}
                   name={field.uomKey}
                   render={({ field: uomField }) => (
-                    <select
-                      value={uomField.value || ''}
-                      onChange={uomField.onChange}
-                      disabled={disabled}
-                      className="h-[46px] px-2 bg-slate-50 border border-slate-200 rounded-r-xl outline-none text-[13px] font-semibold text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all min-w-[90px]"
-                    >
-                      <option value="">UOM</option>
-                      {(uomOptions || []).length > 0 ? (
-                        (uomOptions || []).map(opt => <option key={opt} value={opt}>{opt}</option>)
-                      ) : (
-                        <>
-                          <option value="Kgs">Kgs</option>
-                          <option value="Gram">Gram</option>
-                        </>
-                      )}
-                    </select>
+                    <div className="w-[130px] shrink-0">
+                      <EditableCreatableSelect
+                        value={uomField.value || ''}
+                        options={uomOptions || ['Kgs', 'Gram']}
+                        onChange={uomField.onChange}
+                        disabled={disabled}
+                        placeholder="UOM"
+                        className="rounded-l-none border-l-0 bg-slate-50 hover:bg-slate-100 px-3 py-[11px] h-[46px] min-w-0"
+                        dropdownClassName="right-0"
+                        onAdd={(newVal) => onAddOption?.('uom', newVal)}
+                        onRename={(oldVal, newVal) => onEditOption?.('uom', oldVal, newVal)}
+                        onDelete={(val) => onDeleteOption?.('uom', val)}
+                      />
+                    </div>
                   )}
                 />
               </div>

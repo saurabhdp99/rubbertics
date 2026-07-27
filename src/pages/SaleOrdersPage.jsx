@@ -257,7 +257,7 @@ function SaleOrderForm({ mode, order, onBack }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name, part_no, part_name, item_hsn, item_price')
+          .select('item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) {
           setFreshItems(data);
@@ -778,13 +778,13 @@ function SaleOrderForm({ mode, order, onBack }) {
                                       if (pNo) {
                                         setValue(`items.${index}.partNo`, pNo, { shouldValidate: true, shouldDirty: true });
                                       }
-                                      if (matchedItem.item_hsn && !watch(`items.${index}.hsnCode`)) {
+                                      if (matchedItem.item_hsn) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
                                       }
-                                      if (matchedItem.uom && !watch(`items.${index}.uom`)) {
-                                        setValue(`items.${index}.uom`, matchedItem.uom, { shouldValidate: true, shouldDirty: true });
+                                      if (matchedItem.item_net_weight_uom || matchedItem.uom) {
+                                        setValue(`items.${index}.uom`, matchedItem.item_net_weight_uom || matchedItem.uom, { shouldValidate: true, shouldDirty: true });
                                       }
-                                      if (matchedItem.item_price !== undefined && matchedItem.item_price !== null && !watch(`items.${index}.price`)) {
+                                      if (matchedItem.item_price !== undefined && matchedItem.item_price !== null) {
                                         setValue(`items.${index}.price`, Number(matchedItem.item_price || 0), { shouldValidate: true, shouldDirty: true });
                                       }
                                     }
