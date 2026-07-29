@@ -401,8 +401,34 @@ function InwardForm({ mode, entry, onBack }) {
   });
 
   useEffect(() => {
-    reset(entry || EMPTY_ENTRY);
-  }, [entry, reset]);
+    if (isAdd && (!entry || !entry.grn_no)) {
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      const shortYear = year.toString().slice(-2);
+      const yearPrefix = month >= 3 ? `${shortYear}-${(year + 1).toString().slice(-2)}` : `${(year - 1).toString().slice(-2)}-${shortYear}`;
+      
+      const prefix = `NPPL/GRN${yearPrefix}/`;
+      let maxNum = 0;
+      if (entries && entries.length > 0) {
+        entries.forEach(e => {
+          if (e.grn_no && e.grn_no.startsWith(prefix)) {
+            const numPart = e.grn_no.split('/').pop();
+            const num = parseInt(numPart, 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        });
+      }
+      const nextNum = (maxNum + 1).toString().padStart(4, '0');
+      const nextGrn = `${prefix}${nextNum}`;
+      
+      reset({ ...(entry || EMPTY_ENTRY), grn_no: nextGrn });
+    } else {
+      reset(entry || EMPTY_ENTRY);
+    }
+  }, [entry, reset, isAdd, entries]);
 
   const onSubmit = async (data) => {
     const sanitizeDate = (val) => val === '' ? null : val;
@@ -485,7 +511,7 @@ function InwardForm({ mode, entry, onBack }) {
           <Section title="A. Receipt / Purchase Details" icon={ShoppingCart}>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
               <Controller control={control} name="grn_no" render={({field}) => (
-                <Field label="GRN No." required error={errors.grn_no?.message}><input {...field} disabled={isView} className={inputCls} placeholder="Auto Generate" /></Field>
+                <Field label="GRN No." required error={errors.grn_no?.message}><input {...field} disabled={isView} readOnly={isAdd} className={`${inputCls} ${isAdd ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`} placeholder="Auto Generate" /></Field>
               )}/>
               <Controller control={control} name="receipt_date" render={({field}) => (
                 <Field label="Receipt Date"><CustomDatePicker field={field} isView={isView} label="Receipt Date" /></Field>

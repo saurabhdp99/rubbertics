@@ -321,7 +321,6 @@ function mapFromDb(row) {
   return {
     id: row.id,
     date: row.date,
-    poNo: row.po_no,
     npplPoNo: row.nppl_po_no || '',
     vendorName: row.vendor_name,
     vendorAddress: row.vendor_address,
@@ -329,6 +328,7 @@ function mapFromDb(row) {
     items: row.items || [],
     paymentTerms: row.payment_terms,
     deliveryTerms: row.delivery_terms,
+    transport: row.transport,
     remark: row.remark,
     status: row.status || 'Pending',
     orgId: row.org_id,
@@ -339,7 +339,6 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
-    po_no: data.poNo,
     nppl_po_no: data.npplPoNo || null,
     vendor_name: data.vendorName,
     vendor_address: data.vendorAddress,
@@ -347,6 +346,7 @@ function mapToDb(data, orgId, userId) {
     items: data.items || [],
     payment_terms: data.paymentTerms,
     delivery_terms: data.deliveryTerms,
+    transport: data.transport,
     remark: data.remark,
     status: data.status || 'Pending',
     date: data.date || new Date().toISOString().split('T')[0],

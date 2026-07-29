@@ -23,7 +23,6 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 const EMPTY_ORDER = {
   createdDate: todayIsoDate(),
   date: todayIsoDate(),
-  poNo: '',
   npplPoNo: '',
   vendorName: '',
   vendorAddress: '',
@@ -38,6 +37,7 @@ const EMPTY_ORDER = {
     schedules: [{ scheduleQty: '', deliveryDate: '' }]
   }],
   paymentTerms: '',
+  transport: '',
   deliveryTerms: '',
   status: 'Pending',
   remark: '',
@@ -60,7 +60,6 @@ function SortIcon({ sortDirection }) {
 
 const COLUMNS = [
   { key: 'date',              label: 'Date',             width: '100px' },
-  { key: 'poNo',              label: 'PO No',            width: '140px' },
   { key: 'npplPoNo',          label: 'NPPL Purchase Order No.',     width: '180px' },
   { key: 'vendorName',        label: 'Vendor Name',      width: '180px' },
   { key: 'items_partNo',      label: 'Part No',          width: '150px' },
@@ -91,13 +90,13 @@ const itemSchema = z.object({
 const purchaseOrderSchema = z.object({
   createdDate:     z.string().optional(),
   date:            z.string().optional(),
-  poNo:            z.string().min(1, 'PO Number is required'),
   npplPoNo:        z.string().optional(),
   vendorName:      z.string().min(1, 'Vendor name is required'),
   vendorAddress:   z.string().optional(),
   shippingAddress: z.string().optional(),
   items:           z.array(itemSchema).min(1, 'At least one item is required'),
   paymentTerms:    z.string().optional(),
+  transport:       z.string().optional(),
   deliveryTerms:   z.string().optional(),
   status:          z.string().optional(),
   remark:          z.string().optional(),
@@ -264,7 +263,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name')
+          .select('item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) setFreshItems(data);
       }
@@ -416,17 +415,6 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   )}
                 />
 
-                {/* PO Number */}
-                <Controller
-                  control={control}
-                  name="poNo"
-                  render={({ field: { onChange, value, ref } }) => (
-                    <Field label="PO Number" required error={errors.poNo?.message}>
-                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="PO-2024-XXXX" className={`${inputCls} px-4 py-3`} aria-label="PO Number" />
-                    </Field>
-                  )}
-                />
-
                 {/* PO Reference No */}
                 <Controller
                   control={control}
@@ -541,6 +529,17 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   )}
                 />
 
+                {/* Transport */}
+                <Controller
+                  control={control}
+                  name="transport"
+                  render={({ field: { onChange, value, ref } }) => (
+                    <Field label="Transport">
+                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="Enter transport details" className={`${inputCls} px-4 py-3`} aria-label="Transport" />
+                    </Field>
+                  )}
+                />
+
                 {/* Delivery Terms */}
                 <Controller
                   control={control}
@@ -615,37 +614,76 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        {/* Part Number */}
+                        {/* Part Number (auto-filled) */}
                         <Controller
                           control={control}
                           name={`items.${index}.partNo`}
-                          render={({ field: { onChange, value } }) => (
+                          render={({ field: { value } }) => (
                             <Field label="Part Number">
+                              <Input
+                                type="text"
+                                value={value || ''}
+                                disabled
+                                readOnly
+                                placeholder="Auto-filled from Product Name"
+                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                aria-label="Part Number"
+                              />
+                            </Field>
+                          )}
+                        />
+
+                        {/* Product Name */}
+                        <Controller
+                          control={control}
+                          name={`items.${index}.productName`}
+                          render={({ field: { onChange, value } }) => (
+                            <Field label="Product Name" wide>
                               {isView ? (
-                                <Input type="text" value={value || ''} disabled readOnly className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`} aria-label="Part Number" />
+                                <Input
+                                  type="text"
+                                  value={value || ''}
+                                  disabled
+                                  readOnly
+                                  className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                  aria-label="Product Name"
+                                />
                               ) : (
                                 <Select
                                   value={value || null}
                                   onChange={(val) => {
                                     if (!val) return;
                                     onChange(val);
-                                    const matchedItem = freshItems.find(i => i.item_code === val);
+
+                                    const matchedItem = freshItems.find(i => (i.item_name === val || i.part_name === val));
                                     if (matchedItem) {
-                                      setValue(`items.${index}.productName`, matchedItem.item_name || '', { shouldValidate: true, shouldDirty: true });
+                                      const pNo = matchedItem.item_code || matchedItem.part_no || '';
+                                      if (pNo) {
+                                        setValue(`items.${index}.partNo`, pNo, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.item_hsn) {
+                                        setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.item_net_weight_uom || matchedItem.uom) {
+                                        setValue(`items.${index}.uom`, matchedItem.item_net_weight_uom || matchedItem.uom, { shouldValidate: true, shouldDirty: true });
+                                      }
+                                      if (matchedItem.item_price !== undefined && matchedItem.item_price !== null) {
+                                        setValue(`items.${index}.price`, Number(matchedItem.item_price || 0), { shouldValidate: true, shouldDirty: true });
+                                      }
                                     }
                                   }}
                                   className="w-full"
-                                  aria-label="Part Number"
+                                  aria-label="Product Name"
                                 >
                                   <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                                    <Select.Value placeholder="Select Part Number" />
+                                    <Select.Value placeholder="Select Product Name" />
                                   </Select.Trigger>
                                   <Select.Popover>
                                     <ListBox>
-                                      {freshItems.filter(itm => itm.item_code).map(itm => (
-                                        <ListBox.Item key={itm.item_code} id={itm.item_code} textValue={itm.item_code}>
+                                      {Array.from(new Set(freshItems.map(itm => itm.item_name || itm.part_name).filter(Boolean))).map(name => (
+                                        <ListBox.Item key={name} id={name} textValue={name}>
                                           <div className="flex flex-col gap-0.5 py-0.5">
-                                            <span className="font-bold text-slate-800">{itm.item_code}</span>
+                                            <span className="font-bold text-slate-800">{name}</span>
                                           </div>
                                         </ListBox.Item>
                                       ))}
@@ -653,25 +691,6 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                                   </Select.Popover>
                                 </Select>
                               )}
-                            </Field>
-                          )}
-                        />
-
-                        {/* Product Name (auto-filled) */}
-                        <Controller
-                          control={control}
-                          name={`items.${index}.productName`}
-                          render={({ field: { value } }) => (
-                            <Field label="Product Name" wide>
-                              <Input
-                                type="text"
-                                value={value || ''}
-                                disabled
-                                readOnly
-                                placeholder="Auto-filled from Part Number"
-                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                aria-label="Product Name"
-                              />
                             </Field>
                           )}
                         />
@@ -702,17 +721,16 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                         <Controller
                           control={control}
                           name={`items.${index}.uom`}
-                          render={({ field: { onChange, value } }) => (
+                          render={({ field: { value } }) => (
                             <Field label="UOM">
-                              <EditableCreatableSelect
+                              <Input
+                                type="text"
                                 value={value || ''}
-                                options={purchaseOrderLookups.uom || []}
-                                disabled={isView}
-                                placeholder="Select UOM"
-                                onChange={onChange}
-                                onAdd={(newOption) => addPurchaseOrderLookupOption('uom', newOption)}
-                                onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('uom', oldOption, newOption)}
-                                onDelete={(option) => deletePurchaseOrderLookupOption('uom', option)}
+                                disabled
+                                readOnly
+                                placeholder="Auto-filled from Product Name"
+                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                aria-label="UOM"
                               />
                             </Field>
                           )}

@@ -856,17 +856,16 @@ function SaleOrderForm({ mode, order, onBack }) {
                         <Controller
                           control={control}
                           name={`items.${index}.uom`}
-                          render={({ field: { onChange, value } }) => (
+                          render={({ field: { value } }) => (
                             <Field label="UOM">
-                              <EditableCreatableSelect
+                              <Input
+                                type="text"
                                 value={value || ''}
-                                options={saleOrderLookups.uom || []}
-                                disabled={isView}
-                                placeholder="Select UOM"
-                                onChange={onChange}
-                                onAdd={(newOption) => addSaleOrderLookupOption('uom', newOption)}
-                                onRename={(oldOption, newOption) => renameSaleOrderLookupOption('uom', oldOption, newOption)}
-                                onDelete={(option) => deleteSaleOrderLookupOption('uom', option)}
+                                disabled
+                                readOnly
+                                placeholder="Auto-filled from Product Name"
+                                className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
+                                aria-label="UOM"
                               />
                             </Field>
                           )}
