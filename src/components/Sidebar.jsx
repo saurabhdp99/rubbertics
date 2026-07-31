@@ -4,7 +4,7 @@ import {
   Building2, ChevronDown, Check, Plus,
   ShoppingBag, ShoppingCart, Package, Boxes,
   TrendingUp, Truck, ArrowDownLeft,
-  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users, Wrench, Beaker
+  ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users, Wrench, Beaker, Factory
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -29,6 +29,7 @@ export const navItems = [
   { label: 'Internal Complain Register', path: '/internal-complain-register', icon: AlertTriangle },
   { label: 'Process Control Standard', path: '/process-control-standard', icon: Sliders },
   { label: 'Lot Details Register', path: '/lot-details-register', icon: Barcode },
+  { label: 'Moulding Production', path: '/moulding-production', icon: Factory },
 ];
 
 export default function Sidebar() {
