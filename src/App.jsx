@@ -16,7 +16,6 @@ const PartyMasterPage = lazy(() => import('./pages/PartyMasterPage'));
 const TransportMasterPage = lazy(() => import('./pages/TransportMasterPage'));
 const EmployeeMasterPage = lazy(() => import('./pages/EmployeeMasterPage'));
 const InwardPage = lazy(() => import('./pages/InwardPage'));
-const MixingMoldingPlanPage = lazy(() => import('./pages/MixingMoldingPlanPage'));
 const DailyFinishingOutputReportPage = lazy(() => import('./pages/DailyFinishingOutputReportPage'));
 const DispatchPage = lazy(() => import('./pages/DispatchPage'));
 const RequisitionSlipPage = lazy(() => import('./pages/RequisitionSlipPage'));
@@ -24,9 +23,6 @@ const EnquiryRegisterPage = lazy(() => import('./pages/EnquiryRegisterPage'));
 const InternalComplainRegisterPage = lazy(() => import('./pages/InternalComplainRegisterPage'));
 const ProcessControlStandardPage = lazy(() => import('./pages/ProcessControlStandardPage'));
 const LotDetailsRegisterPage = lazy(() => import('./pages/LotDetailsRegisterPage'));
-const WeeklyMouldingPlanPage = lazy(() => import('./pages/WeeklyMouldingPlanPage'));
-const WorkOrderSheetPage = lazy(() => import('./pages/WorkOrderSheetPage'));
-const WorkOrderDetailsPage = lazy(() => import('./pages/WorkOrderDetailsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -65,7 +61,6 @@ function ERPApp() {
               {canAccess('/transport-master') && <Route path="/transport-master" element={<TransportMasterPage />} />}
               {canAccess('/employee-master') && <Route path="/employee-master" element={<EmployeeMasterPage />} />}
               {canAccess('/inward') && <Route path="/inward" element={<InwardPage />} />}
-              {canAccess('/mixing-molding-plan') && <Route path="/mixing-molding-plan" element={<MixingMoldingPlanPage />} />}
               {canAccess('/daily-finishing-output') && <Route path="/daily-finishing-output" element={<DailyFinishingOutputReportPage />} />}
               {canAccess('/dispatch') && <Route path="/dispatch" element={<DispatchPage />} />}
               {canAccess('/requisition-slip') && <Route path="/requisition-slip" element={<RequisitionSlipPage />} />}
@@ -73,9 +68,6 @@ function ERPApp() {
               {canAccess('/internal-complain-register') && <Route path="/internal-complain-register" element={<InternalComplainRegisterPage />} />}
               {canAccess('/process-control-standard') && <Route path="/process-control-standard" element={<ProcessControlStandardPage />} />}
               {canAccess('/lot-details-register') && <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />}
-              {canAccess('/weekly-moulding-plan') && <Route path="/weekly-moulding-plan" element={<WeeklyMouldingPlanPage />} />}
-              {canAccess('/work-order-sheet') && <Route path="/work-order-sheet" element={<WorkOrderSheetPage />} />}
-              {canAccess('/work-order-details') && <Route path="/work-order-details" element={<WorkOrderDetailsPage />} />}
               <Route path="*" element={<Navigate to={defaultPath} replace />} />
             </Routes>
           </Suspense>

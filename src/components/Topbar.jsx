@@ -6,13 +6,10 @@ import { useAuthStore } from '../store/authStore';
 // Map routes → page titles
 const PAGE_TITLES = {
   '/orders':                      'Sale Orders',
+  '/purchase-orders':             'Purchase Orders',
   '/item-master':                 'Item Master',
-  '/party-master':             'Party Master',
+  '/party-master':                'Party Master',
   '/inventory':                   'Inventory',
-  '/mixing-molding-plan':         'Mixing / Molding Plan',
-  '/weekly-moulding-plan':        'Weekly Moulding Plan',
-  '/work-order-sheet':            'Work Order Sheet',
-  '/work-order-details':          'Work Order Master',
   '/daily-finishing-output':      'Daily Finishing Output',
   '/dispatch':                    'Dispatch',
   '/inward':                      'Inward',

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Building2, ChevronDown, Check, Plus,
-  ShoppingBag, ShoppingCart, Package, Boxes, CalendarDays, CalendarRange,
-  FileText, Layers, TrendingUp, Truck, ArrowDownLeft,
+  ShoppingBag, ShoppingCart, Package, Boxes,
+  TrendingUp, Truck, ArrowDownLeft,
   ClipboardList, BookOpen, AlertTriangle, Sliders, Barcode, ContactRound, Settings, Users, Wrench, Beaker
 } from 'lucide-react';
 
@@ -21,10 +21,6 @@ export const navItems = [
   { label: 'Transport Master', path: '/transport-master', icon: Truck },
   { label: 'Employee Master', path: '/employee-master', icon: Users },
   { label: 'Inventory', path: '/inventory', icon: Boxes },
-  { label: 'Mixing/Molding Plan', path: '/mixing-molding-plan', icon: CalendarDays },
-  { label: 'Weekly Moulding Plan', path: '/weekly-moulding-plan', icon: CalendarRange },
-  { label: 'Work Order Sheet', path: '/work-order-sheet', icon: FileText },
-  { label: 'Work Order Master', path: '/work-order-details', icon: Layers },
   { label: 'Daily Finishing Output', path: '/daily-finishing-output', icon: TrendingUp },
   { label: 'Dispatch', path: '/dispatch', icon: Truck },
   { label: 'Inward', path: '/inward', icon: ArrowDownLeft },
