@@ -306,12 +306,10 @@ function CustomSelect({
   isCompact = false,
 }) {
   const heightClass = isCompact ? "h-9" : "h-[46px]";
-  const groupClass = isCompact
-    ? `w-full border border-slate-200 rounded-lg focus-within:border-emerald-500 focus-within:ring-1 transition-all shadow-sm ${isView ? "bg-transparent border-transparent shadow-none" : "bg-white hover:border-slate-300"}`
-    : baseInputClass;
-  const paddingClass = isCompact
-    ? "px-2 py-1 text-[12px]"
-    : "px-4 py-3 text-[13px]";
+  const paddingClass = isCompact ? "px-2 text-[12px]" : "px-4 text-[13px]";
+  const triggerCls = isCompact
+    ? `w-full ${heightClass} ${paddingClass} border border-slate-200 rounded-lg transition-all shadow-sm font-medium text-slate-800 outline-none ${isView ? "bg-transparent border-transparent shadow-none" : "bg-white hover:border-slate-300 focus-within:border-emerald-500 focus-within:ring-1"}`
+    : `w-full ${heightClass} ${paddingClass} ${baseInputClass} font-medium text-slate-800 focus-within:border-emerald-500/50`;
 
   const normalizedOptions = options.map((opt) =>
     typeof opt === "string"
@@ -321,19 +319,14 @@ function CustomSelect({
 
   return (
     <Select
-      selectedKeys={field.value ? new Set([field.value]) : new Set()}
-      onSelectionChange={(keys) => {
-        const val = keys instanceof Set ? Array.from(keys)[0] : keys;
-        field.onChange(val || "");
-      }}
       isDisabled={isView}
-      className="w-full"
+      value={field.value || ""}
+      onChange={(val) => field.onChange(val || "")}
       placeholder={placeholder}
       aria-label={placeholder}
+      className="w-full"
     >
-      <Select.Trigger
-        className={`${groupClass} flex items-center justify-between outline-none ${heightClass} ${paddingClass}`}
-      >
+      <Select.Trigger className={`${triggerCls} flex items-center justify-between`}>
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
@@ -342,6 +335,7 @@ function CustomSelect({
           {normalizedOptions.map((opt) => (
             <ListBox.Item key={opt.id} id={opt.id} textValue={opt.textValue}>
               {opt.textValue}
+              <ListBox.ItemIndicator />
             </ListBox.Item>
           ))}
         </ListBox>

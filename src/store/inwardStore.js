@@ -39,7 +39,7 @@ export const useInwardStore = create((set, get) => ({
       .from('inward_entries')
       .select('*')
       .eq('org_id', orgId)
-      .order('date', { ascending: false });
+      .order('receipt_date', { ascending: false });
 
     if (error) {
       set({ error: error.message, isLoading: false });
