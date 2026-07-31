@@ -46,7 +46,13 @@ const EMPTY_PARTY = PARTY_MASTER_FIELDS.reduce((party, field) => {
 }, {});
 
 const createInitialPartyForm = (party, defaultCategory, getNextPartyCode) => {
-  if (party) return { ...EMPTY_PARTY, ...party };
+  if (party) {
+    const safeParty = {};
+    for (const key in party) {
+      safeParty[key] = party[key] === null ? '' : party[key];
+    }
+    return { ...EMPTY_PARTY, ...safeParty };
+  }
 
   return {
     ...EMPTY_PARTY,

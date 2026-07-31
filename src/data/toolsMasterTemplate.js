@@ -15,7 +15,7 @@ export const TOOLS_MASTER_FIELDS = [
   {
     key: 'linkedPartName',
     label: 'Linked Part Name',
-    type: 'text',
+    type: 'select',
     section: 'Basic Details',
   },
   {

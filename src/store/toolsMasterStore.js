@@ -142,8 +142,8 @@ export const useToolsMasterStore = create((set, get) => ({
     }
 
     let finalAttachments = [];
-    if (toolData.attachments && toolData.attachments.length > 0) {
-      finalAttachments = await Promise.all(toolData.attachments.map(async (att) => {
+    if (toolData.toolAttachments && toolData.toolAttachments.length > 0) {
+      finalAttachments = await Promise.all(toolData.toolAttachments.map(async (att) => {
         if (att.fileObject) {
           const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
           const filePath = `${orgId}/tool_master/${insertedData.id}/${fileName}`;
@@ -178,7 +178,7 @@ export const useToolsMasterStore = create((set, get) => ({
     const existingTool = get().tools.find(t => t.id === id);
     const toolOrgId = existingTool?.orgId;
 
-    let finalAttachments = toolData.attachments || [];
+    let finalAttachments = toolData.toolAttachments || [];
     if (toolOrgId && finalAttachments.length > 0) {
       finalAttachments = await Promise.all(finalAttachments.map(async (att) => {
         if (att.fileObject) {
@@ -193,7 +193,7 @@ export const useToolsMasterStore = create((set, get) => ({
       }));
     }
 
-    const payload = { ...mapToDb({ ...toolData, attachments: finalAttachments }), updated_by: userId };
+    const payload = { ...mapToDb({ ...toolData, toolAttachments: finalAttachments }), updated_by: userId };
     const { data, error } = await supabase
       .from('tool_master')
       .update(payload)
@@ -393,7 +393,7 @@ function mapFromDb(row) {
     remarks: row.remarks,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    attachments: row.attachments || [],
+    toolAttachments: row.attachments || [],
   };
 }
 
@@ -425,7 +425,7 @@ function mapToDb(data, orgId, userId) {
     warranty_expiry: data.warrantyExpiry || null,
     status: data.status || 'Active',
     remarks: data.remarks,
-    attachments: data.attachments || [],
+    attachments: data.toolAttachments || [],
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;

@@ -40,6 +40,7 @@ import { TOOLS_MASTER_FIELDS } from '../data/toolsMasterTemplate';
 import { useToolsMasterStore } from '../store/toolsMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { formatTableDate } from '../utils/dateFormatter';
+import { useItemMasterStore } from '../store/itemMasterStore';
 
 const EMPTY_TOOL = TOOLS_MASTER_FIELDS.reduce((tool, field) => {
   tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
@@ -91,32 +92,32 @@ const attachmentSchema = z.object({
 
 const toolsMasterSchema = z.object({
   toolCode: z.string().min(1, 'Tool code is required'),
-  toolName: z.string().optional(),
+  toolName: z.string().nullish(),
   linkedPartName: z.string().min(1, 'Linked part name is required'),
   partRevision: z.string().min(1, 'Part revision is required'),
   process: z.string().min(1, 'Process is required'),
   numberOfCavities: z.coerce.number().min(1, 'Required'),
-  cycleTime: z.string().optional(),
-  cycleTimeUnit: z.string().optional().default('Sec'),
-  pressTonnage: z.string().optional(),
+  cycleTime: z.string().nullish(),
+  cycleTimeUnit: z.string().nullish().default('Sec'),
+  pressTonnage: z.string().nullish(),
   toolMaterial: z.string().min(1, 'Tool material is required'),
-  weight: z.string().optional(),
-  dimensions: z.string().optional(),
-  moldType: z.string().optional(),
-  shrinkageFactor: z.string().optional(),
+  weight: z.string().nullish(),
+  dimensions: z.string().nullish(),
+  moldType: z.string().nullish(),
+  shrinkageFactor: z.string().nullish(),
   lastMaintenanceDate: z.string().min(1, 'Last maintenance date is required'),
   nextMaintenanceDue: z.string().min(1, 'Next maintenance due date is required'),
   maintenanceFrequency: z.string().min(1, 'Maintenance frequency is required'),
   totalShotCount: z.coerce.number().min(0, 'Required'),
-  maximumToolLife: z.string().optional(),
-  toolMaker: z.string().optional(),
-  supplierContact: z.string().optional(),
-  toolCost: z.coerce.number().optional().or(z.literal('')),
-  purchaseDate: z.string().optional(),
-  warrantyExpiry: z.string().optional(),
-  status: z.string().optional(),
-  remarks: z.string().optional(),
-  toolAttachments: z.array(attachmentSchema).optional()
+  maximumToolLife: z.string().nullish(),
+  toolMaker: z.string().nullish(),
+  supplierContact: z.string().nullish(),
+  toolCost: z.coerce.number().nullish().or(z.literal('')),
+  purchaseDate: z.string().nullish(),
+  warrantyExpiry: z.string().nullish(),
+  status: z.string().nullish(),
+  remarks: z.string().nullish(),
+  toolAttachments: z.array(attachmentSchema).nullish()
 });
 
 function AttachmentsField({ value, onChange, disabled }) {
@@ -362,6 +363,46 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
       name={field.key}
       control={control}
       render={({ field: { value, onChange, onBlur, ref } }) => {
+        if (field.key === 'linkedPartName') {
+          return (
+            <div className="flex flex-col gap-2">
+              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {field.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <Select
+                isDisabled={disabled}
+                value={value || ''}
+                onChange={onChange}
+                aria-label={field.label}
+                placeholder={`Select ${field.label}`}
+                className="w-full"
+              >
+                <Select.Trigger className={`h-[46px] px-4 text-[13px] font-medium rounded-xl border bg-white transition-all input-glow ${error ? 'border-red-300' : 'border-slate-200 focus-within:border-emerald-500/50'}`}>
+                  <Select.Value>
+                    {value ? (
+                      <span className="truncate block font-semibold text-slate-800">{value}</span>
+                    ) : (
+                      <span className="text-slate-400">{`Select ${field.label}`}</span>
+                    )}
+                  </Select.Value>
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover className="max-h-64 overflow-y-auto">
+                  <ListBox>
+                    {(options || []).map(opt => (
+                      <ListBox.Item key={opt} id={opt} textValue={opt}>
+                        <span className="font-bold text-slate-700 text-[13px]">{opt}</span>
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+              {error && <span className="text-xs font-medium text-red-500">{error}</span>}
+            </div>
+          );
+        }
         if (field.type === 'creatable-select') {
           return (
             <div className="flex flex-col gap-2">
@@ -522,6 +563,17 @@ function ToolsMasterForm({ mode, tool, onBack }) {
     deleteLookupOption: deleteToolMasterLookupOption,
   } = useToolsMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
+  const { items: itemMasterItems, fetchItems: fetchItemMasterItems } = useItemMasterStore();
+
+  useEffect(() => {
+    if (currentOrg?.id && itemMasterItems.length === 0) {
+      fetchItemMasterItems(currentOrg.id);
+    }
+  }, [currentOrg?.id, fetchItemMasterItems, itemMasterItems.length]);
+
+  const partOptions = useMemo(() => {
+    return Array.from(new Set(itemMasterItems.map(item => item.itemName).filter(Boolean))).sort();
+  }, [itemMasterItems]);
 
   const isView = mode === 'view';
   const isAdd = mode === 'add';
@@ -559,9 +611,26 @@ function ToolsMasterForm({ mode, tool, onBack }) {
   }));
 
   const onSubmit = async (data) => {
-    if (isAdd) await addToolMaster(data, currentOrg?.id, currentUser?.id);
-    else await updateToolMaster(tool.id, data, currentUser?.id);
-    onBack();
+    console.log('Submitting data:', data);
+    let success = false;
+    try {
+      if (isAdd) {
+        success = await addToolMaster(data, currentOrg?.id, currentUser?.id);
+      } else {
+        success = await updateToolMaster(tool.id, data, currentUser?.id);
+      }
+      if (success) {
+        onBack();
+      } else {
+        console.error('API call returned false');
+      }
+    } catch (err) {
+      console.error('Error during submit:', err);
+    }
+  };
+
+  const onFormError = (errors) => {
+    console.error('Form validation errors:', errors);
   };
 
   return (
@@ -611,7 +680,7 @@ function ToolsMasterForm({ mode, tool, onBack }) {
           </div>
         </div>
 
-        <form id="tools-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
+        <form id="tools-master-page-form" onSubmit={hookFormSubmit(onSubmit, onFormError)} className="p-6">
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">
@@ -629,10 +698,10 @@ function ToolsMasterForm({ mode, tool, onBack }) {
                       control={control}
                       disabled={isView || isSubmitting || (isAdd && field.key === 'toolCode')}
                       error={errors[field.key]?.message}
-                      options={toolsMasterLookups[field.key]}
-                      onAddOption={(val) => addToolMasterLookupOption(field.key, val)}
-                      onRenameOption={(oldVal, newVal) => renameToolMasterLookupOption(field.key, oldVal, newVal)}
-                      onDeleteOption={(val) => deleteToolMasterLookupOption(field.key, val)}
+                      options={field.key === 'linkedPartName' ? partOptions : toolsMasterLookups[field.key]}
+                      onAddOption={field.key === 'linkedPartName' ? undefined : (val) => addToolMasterLookupOption(field.key, val)}
+                      onRenameOption={field.key === 'linkedPartName' ? undefined : (oldVal, newVal) => renameToolMasterLookupOption(field.key, oldVal, newVal)}
+                      onDeleteOption={field.key === 'linkedPartName' ? undefined : (val) => deleteToolMasterLookupOption(field.key, val)}
                     />
                   ))}
                 </div>
