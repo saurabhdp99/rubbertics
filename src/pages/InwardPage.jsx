@@ -1232,13 +1232,19 @@ function InwardForm({ mode, entry, onBack }) {
                         onChange={(val) => {
                           if (!val) return;
                           field.onChange(val);
-                          // Auto-fill transporter from the selected PO
+                          // Auto-fill transporter and po_date from the selected PO
                           const matchedPO = purchaseOrders.find(
                             (o) =>
                               o.npplPoNo === val && o.vendorName === vendorName,
                           );
                           if (matchedPO?.transport) {
                             setValue("transporter", matchedPO.transport, {
+                              shouldValidate: true,
+                              shouldDirty: true,
+                            });
+                          }
+                          if (matchedPO?.date) {
+                            setValue("po_date", matchedPO.date, {
                               shouldValidate: true,
                               shouldDirty: true,
                             });
