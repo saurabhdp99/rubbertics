@@ -321,9 +321,9 @@ function CustomSelect({
 
   return (
     <Select
-      selectedKeys={field.value ? [field.value] : []}
+      selectedKeys={field.value ? new Set([field.value]) : new Set()}
       onSelectionChange={(keys) => {
-        const val = Array.from(keys)[0];
+        const val = keys instanceof Set ? Array.from(keys)[0] : keys;
         field.onChange(val || "");
       }}
       isDisabled={isView}
