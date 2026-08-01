@@ -31,6 +31,7 @@ export const navItems = [
   { label: 'Lot Details Register', path: '/lot-details-register', icon: Barcode },
   { label: 'Moulding Production', path: '/moulding-production', icon: Factory },
   { label: 'Mixing Production', path: '/mixing-production', icon: Factory },
+  { label: 'Work Order', path: '/work-order', icon: ClipboardList },
 ];
 
 export default function Sidebar() {

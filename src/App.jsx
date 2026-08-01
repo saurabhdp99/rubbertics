@@ -25,6 +25,7 @@ const ProcessControlStandardPage = lazy(() => import('./pages/ProcessControlStan
 const LotDetailsRegisterPage = lazy(() => import('./pages/LotDetailsRegisterPage'));
 const MouldingProductionPage = lazy(() => import('./pages/MouldingProductionPage'));
 const MixingProductionPage = lazy(() => import('./pages/MixingProductionPage'));
+const WorkOrderPage = lazy(() => import('./pages/WorkOrderPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -72,6 +73,7 @@ function ERPApp() {
               {canAccess('/lot-details-register') && <Route path="/lot-details-register" element={<LotDetailsRegisterPage />} />}
               {canAccess('/moulding-production') && <Route path="/moulding-production" element={<MouldingProductionPage />} />}
               {canAccess('/mixing-production') && <Route path="/mixing-production" element={<MixingProductionPage />} />}
+              {canAccess('/work-order') && <Route path="/work-order" element={<WorkOrderPage />} />}
               <Route path="*" element={<Navigate to={defaultPath} replace />} />
             </Routes>
           </Suspense>
