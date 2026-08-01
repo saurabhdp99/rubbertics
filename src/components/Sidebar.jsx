@@ -30,6 +30,7 @@ export const navItems = [
   { label: 'Process Control Standard', path: '/process-control-standard', icon: Sliders },
   { label: 'Lot Details Register', path: '/lot-details-register', icon: Barcode },
   { label: 'Moulding Production', path: '/moulding-production', icon: Factory },
+  { label: 'Mixing Production', path: '/mixing-production', icon: Factory },
 ];
 
 export default function Sidebar() {
