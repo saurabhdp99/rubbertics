@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, FileText, Package, CheckCircle, FileSpreadsheet, ShieldCheck, Tag, X, Save, Edit, Trash2, Eye } from 'lucide-react';
-import { Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
-import toast from 'react-hot-toast';
+import { Plus, Search, FileText, Package, CheckCircle, FileSpreadsheet, ShieldCheck, Tag, X, Save, Edit, Trash2, Eye, AlertCircle } from 'lucide-react';
+import { Spinner, Button, DatePicker, DateField, Calendar } from '@heroui/react';
+import { parseDate } from "@internationalized/date";
 
 import { useMixingProductionStore } from '../store/mixingProductionStore';
 import { useAuthStore } from '../store/authStore';
@@ -13,7 +13,7 @@ import { useCompoundMasterStore } from '../store/compoundMasterStore';
 
 import DataTable from '../components/common/DataTable';
 import TableToolbar from '../components/common/TableToolbar';
-import CustomDatePicker from '../components/common/CustomDatePicker';
+// import CustomDatePicker from '../components/common/CustomDatePicker'; // removed invalid import
 
 // ----- UTILS & CONSTANTS -----
 const todayIsoDate = () => {
@@ -112,6 +112,35 @@ function CustomSelect({ field, isView, options, placeholder = "Select..." }) {
   );
 }
 
+function CustomDatePicker({ field, isView, label }) {
+  const dateValue = field.value && typeof field.value === "string" ? field.value.split("T")[0] : "";
+  return (
+    <DatePicker
+      value={dateValue ? parseDate(dateValue) : null}
+      isDisabled={isView}
+      onChange={(dateVal) => field.onChange(dateVal ? dateVal.toString() : "")}
+      className="w-full"
+      aria-label={label}
+    >
+      <DateField.Group className={`${baseInputClass} flex items-center overflow-hidden h-[46px]`} fullWidth>
+        <DateField.Input className="flex-1 py-1 px-4 text-[13px] outline-none bg-transparent">
+          {(segment) => <DateField.Segment segment={segment} />}
+        </DateField.Input>
+        <DateField.Suffix className="pr-2">
+          <DatePicker.Trigger className="text-slate-500 hover:text-emerald-600 transition-colors">
+            <DatePicker.TriggerIndicator />
+          </DatePicker.Trigger>
+        </DateField.Suffix>
+      </DateField.Group>
+      <DatePicker.Popover>
+        <DatePicker.Content>
+          <Calendar />
+        </DatePicker.Content>
+      </DatePicker.Popover>
+    </DatePicker>
+  );
+}
+
 // ----- FORM COMPONENT -----
 function MixingProductionForm({ mode, entry, onBack }) {
   const { currentOrg } = useAuthStore();
@@ -149,7 +178,7 @@ function MixingProductionForm({ mode, entry, onBack }) {
 
   const onSubmit = async (data) => {
     if (!currentOrg?.id) {
-      toast.error("No active organization found");
+      alert("No active organization found");
       return;
     }
 
@@ -178,12 +207,12 @@ function MixingProductionForm({ mode, entry, onBack }) {
         onBack();
       }
     } catch (err) {
-      toast.error(`Failed to save entry: ${err.message}`);
+      alert(`Failed to save entry: ${err.message}`);
     }
   };
 
-  const employeeOptions = employees.map(e => e.name);
-  const compoundOptions = compounds.map(c => c.name);
+  const employeeOptions = Array.from(new Set(employees.map(e => e.employeeName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name).filter(Boolean)));
+  const compoundOptions = Array.from(new Set(compounds.map(c => c.name || c.compoundName || c.compoundCode).filter(Boolean)));
   const statusOptions = ["Approved", "Reject", "Hold"];
 
   return (
@@ -406,36 +435,33 @@ export default function MixingProductionPage() {
         </div>
       )}
 
-      <Modal isOpen={isDeleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} placement="center" backdrop="blur">
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
-              </ModalHeader>
-              <ModalBody>
-                <p className="text-slate-600">
-                  Are you sure you want to delete this mixing production entry? This action cannot be undone.
-                </p>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose} className="font-bold">
+      {isDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                  <AlertCircle size={24} className="text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Delete Entry</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Are you sure you want to delete this mixing production entry? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <button onClick={() => setDeleteConfirmOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
                   Cancel
-                </Button>
-                <Button color="danger" onPress={async () => {
-                  if (entryToDelete) {
-                    await deleteEntry(entryToDelete.id);
-                    setDeleteConfirmOpen(false);
-                    setEntryToDelete(null);
-                  }
-                }} className="font-bold shadow-lg shadow-red-500/30">
+                </button>
+                <button onClick={async () => { await deleteEntry(entryToDelete?.id); setDeleteConfirmOpen(false); setEntryToDelete(null); }} className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors">
                   Delete Entry
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

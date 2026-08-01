@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../supabaseClient';
-import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabase';
 
 export const useMixingProductionStore = create((set, get) => ({
   entries: [],
@@ -19,8 +18,7 @@ export const useMixingProductionStore = create((set, get) => ({
       if (error) throw error;
       set({ entries: data || [] });
     } catch (error) {
-      toast.error('Failed to fetch mixing production entries');
-      console.error(error);
+      console.error('Failed to fetch mixing production entries', error);
     } finally {
       set({ isLoading: false });
     }
@@ -28,7 +26,7 @@ export const useMixingProductionStore = create((set, get) => ({
 
   addEntry: async (entry, orgId) => {
     if (!orgId) {
-      toast.error('Organization ID is missing');
+      alert('Organization ID is missing');
       return false;
     }
     set({ isLoading: true });
@@ -42,10 +40,9 @@ export const useMixingProductionStore = create((set, get) => ({
       if (error) throw error;
       
       set(state => ({ entries: [data, ...state.entries] }));
-      toast.success('Mixing production entry added successfully');
       return true;
     } catch (error) {
-      toast.error('Failed to add entry');
+      alert('Failed to add entry');
       console.error(error);
       return false;
     } finally {
@@ -68,10 +65,9 @@ export const useMixingProductionStore = create((set, get) => ({
       set(state => ({
         entries: state.entries.map(e => e.id === id ? data : e)
       }));
-      toast.success('Entry updated successfully');
       return true;
     } catch (error) {
-      toast.error('Failed to update entry');
+      alert('Failed to update entry');
       console.error(error);
       return false;
     } finally {
@@ -92,10 +88,9 @@ export const useMixingProductionStore = create((set, get) => ({
       set(state => ({
         entries: state.entries.filter(e => e.id !== id)
       }));
-      toast.success('Entry deleted successfully');
       return true;
     } catch (error) {
-      toast.error('Failed to delete entry');
+      alert('Failed to delete entry');
       console.error(error);
       return false;
     } finally {
