@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Search, FileText, Package, CheckCircle, FileSpreadsheet, ShieldCheck, Tag, X, Save, Edit, Trash2, Eye, AlertCircle } from 'lucide-react';
-import { Spinner, Button, DatePicker, DateField, Calendar } from '@heroui/react';
+import { Spinner, Button, DatePicker, DateField, Calendar, Select, ListBox } from '@heroui/react';
 import { parseDate } from "@internationalized/date";
 
 import { useMixingProductionStore } from '../store/mixingProductionStore';
@@ -100,15 +100,38 @@ function Field({ label, children, required, error, colClass = "col-span-1" }) {
 const Input = React.forwardRef((props, ref) => <input ref={ref} {...props} />);
 
 function CustomSelect({ field, isView, options, placeholder = "Select..." }) {
-  return (
-    <select {...field} disabled={isView} className={`${selectCls} appearance-none cursor-pointer disabled:cursor-not-allowed`}>
-      <option value="" disabled hidden>{placeholder}</option>
-      {options.map((opt, i) => (
-        <option key={i} value={typeof opt === 'string' ? opt : opt.value}>
-          {typeof opt === 'string' ? opt : opt.label}
-        </option>
-      ))}
-    </select>
+  return isView ? (
+    <Input type="text" value={field.value || ''} disabled readOnly className={`${selectCls} bg-slate-50 text-slate-600`} />
+  ) : (
+    <Select
+      value={field.value || null}
+      onChange={(val) => {
+        if (!val) return;
+        field.onChange(val);
+      }}
+      isDisabled={isView}
+      className="w-full"
+      aria-label={placeholder}
+    >
+      <Select.Trigger className={`${selectCls} flex items-center`}>
+        <Select.Value placeholder={placeholder} />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {options.map((opt, i) => {
+            const val = typeof opt === 'string' ? opt : opt.value;
+            const lbl = typeof opt === 'string' ? opt : opt.label;
+            return (
+              <ListBox.Item key={val} id={val} textValue={lbl}>
+                <div className="flex flex-col gap-0.5 py-0.5">
+                  <span className="font-bold text-slate-800">{lbl}</span>
+                </div>
+              </ListBox.Item>
+            );
+          })}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
 
@@ -144,8 +167,8 @@ function CustomDatePicker({ field, isView, label }) {
 // ----- FORM COMPONENT -----
 function MixingProductionForm({ mode, entry, onBack }) {
   const { currentOrg } = useAuthStore();
-  const { addEntry, updateEntry } = useMixingProductionStore();
-  
+  const { entries, addEntry, updateEntry } = useMixingProductionStore();
+
   const { employees, fetchEmployees } = useEmployeeMasterStore();
   const { compounds, fetchCompounds } = useCompoundMasterStore();
 
@@ -159,7 +182,7 @@ function MixingProductionForm({ mode, entry, onBack }) {
   const isView = mode === "view";
 
   const getInitialValues = () => {
-    if (!entry) return EMPTY_ENTRY;
+    if (!entry) return { ...EMPTY_ENTRY, sr_no: 'Auto generated on create' };
     const sanitized = { ...entry };
     Object.keys(sanitized).forEach(key => {
       if (sanitized[key] === null) {
@@ -171,7 +194,7 @@ function MixingProductionForm({ mode, entry, onBack }) {
     return sanitized;
   };
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(entrySchema),
     defaultValues: getInitialValues(),
   });
@@ -184,10 +207,10 @@ function MixingProductionForm({ mode, entry, onBack }) {
 
     const payload = { ...data };
     const numericFields = [
-      'batch_standard_weight', 'master_batch_weight', 'final_batch_weight', 
+      'batch_standard_weight', 'master_batch_weight', 'final_batch_weight',
       'actual_hardness', 'final_weight_variance'
     ];
-    
+
     numericFields.forEach(field => {
       if (payload[field] === "") {
         payload[field] = null;
@@ -199,6 +222,11 @@ function MixingProductionForm({ mode, entry, onBack }) {
     try {
       let success = false;
       if (mode === 'add') {
+        const maxNum = entries.reduce((max, item) => {
+          const match = String(item.sr_no || '').match(/^NPPL-MIX-(\d+)$/i);
+          return match ? Math.max(max, Number(match[1])) : max;
+        }, 0);
+        payload.sr_no = `NPPL-MIX-${String(maxNum + 1).padStart(5, '0')}`;
         success = await addEntry(payload, currentOrg.id);
       } else if (mode === 'edit') {
         success = await updateEntry(entry.id, payload);
@@ -214,6 +242,7 @@ function MixingProductionForm({ mode, entry, onBack }) {
   const employeeOptions = Array.from(new Set(employees.map(e => e.employeeName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name).filter(Boolean)));
   const compoundOptions = Array.from(new Set(compounds.map(c => c.name || c.compoundName || c.compoundCode).filter(Boolean)));
   const statusOptions = ["Approved", "Reject", "Hold"];
+  const batchStatusOptions = ["Master", "Final"];
 
   return (
     <div className="glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col bg-white">
@@ -250,18 +279,18 @@ function MixingProductionForm({ mode, entry, onBack }) {
         </div>
       </div>
 
-      <form id="mixing-form" onSubmit={handleSubmit(onSubmit)} className="p-6 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <form id="mixing-form" onSubmit={handleSubmit(onSubmit)} className="p-6 overflow-y-auto custom-scrollbar">
         <div className="flex flex-col gap-7">
           <Section title="1. GENERAL INFORMATION" icon={FileText}>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               <Controller name="sr_no" control={control} render={({ field }) => (
-                <Field label="SR NO"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter SR NO" /></Field>
+                <Field label="SR NO"><Input {...field} disabled={true} className={`${inputCls} bg-slate-50 text-slate-600`} placeholder="Auto generated on create" /></Field>
               )} />
               <Controller name="production_date" control={control} render={({ field }) => (
                 <Field label="Date" error={errors.production_date?.message}><CustomDatePicker field={field} isView={isView} label="Date" /></Field>
               )} />
               <Controller name="operator_name" control={control} render={({ field }) => (
-                <Field label="Operator Name"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Operator Name" /></Field>
+                <Field label="Operator Name"><CustomSelect field={field} isView={isView} options={employeeOptions} placeholder="Select Operator Name" /></Field>
               )} />
               <Controller name="lot_no" control={control} render={({ field }) => (
                 <Field label="Lot No."><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Lot No." /></Field>
@@ -270,7 +299,7 @@ function MixingProductionForm({ mode, entry, onBack }) {
                 <Field label="Batch No."><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Batch No." /></Field>
               )} />
               <Controller name="batch_status" control={control} render={({ field }) => (
-                <Field label="Batch Status"><CustomSelect field={field} isView={isView} options={statusOptions} placeholder="Select Status" /></Field>
+                <Field label="Batch Status"><CustomSelect field={field} isView={isView} options={batchStatusOptions} placeholder="Select Status" /></Field>
               )} />
             </div>
           </Section>
@@ -280,8 +309,49 @@ function MixingProductionForm({ mode, entry, onBack }) {
               <Controller name="compound_code" control={control} render={({ field }) => (
                 <Field label="Compound Code"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Compound Code" /></Field>
               )} />
-              <Controller name="compound_name" control={control} render={({ field }) => (
-                <Field label="Compound Name"><CustomSelect field={field} isView={isView} options={compoundOptions} placeholder="Select Compound" /></Field>
+              <Controller name="compound_name" control={control} render={({ field: { onChange, value } }) => (
+                <Field label="Compound Name">
+                  {isView ? (
+                    <Input type="text" value={value || ''} disabled readOnly className={`${inputCls} bg-slate-50 text-slate-600`} />
+                  ) : (
+                    <Select
+                      value={value || null}
+                      onChange={(val) => {
+                        if (!val) return;
+                        onChange(val);
+                        const matchedCompound = compounds.find(c => (c.name || c.compoundName || c.compoundCode) === val);
+                        if (matchedCompound) {
+                          const code = matchedCompound.compoundCode || matchedCompound.code || matchedCompound.name || '';
+                          const colour = matchedCompound.compoundColour || matchedCompound.colour || matchedCompound.color || '';
+                          if (code) {
+                            setValue('compound_code', code, { shouldValidate: true, shouldDirty: true });
+                          }
+                          if (colour) {
+                            setValue('colour', colour, { shouldValidate: true, shouldDirty: true });
+                          }
+                        }
+                      }}
+                      isDisabled={isView}
+                      className="w-full"
+                      aria-label="Compound Name"
+                    >
+                      <Select.Trigger className={`${inputCls} flex items-center`}>
+                        <Select.Value placeholder="Select Compound" />
+                      </Select.Trigger>
+                      <Select.Popover>
+                        <ListBox>
+                          {compoundOptions.map(opt => (
+                            <ListBox.Item key={opt} id={opt} textValue={opt}>
+                              <div className="flex flex-col gap-0.5 py-0.5">
+                                <span className="font-bold text-slate-800">{opt}</span>
+                              </div>
+                            </ListBox.Item>
+                          ))}
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
+                  )}
+                </Field>
               )} />
               <Controller name="colour" control={control} render={({ field }) => (
                 <Field label="Colour"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Colour" /></Field>
@@ -357,7 +427,7 @@ export default function MixingProductionPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
   const [selectedEntry, setSelectedEntry] = useState(null);
-  
+
   const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
 
@@ -414,12 +484,12 @@ export default function MixingProductionPage() {
         <MixingProductionForm mode={modalMode} entry={selectedEntry} onBack={() => { setModalOpen(false); setSelectedEntry(null); }} />
       ) : (
         <div className="glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col pb-4 mt-2">
-          <TableToolbar 
-            searchTerm={searchTerm} 
-            onSearchChange={setSearchTerm} 
-            searchPlaceholder="Search mixing entries..." 
+          <TableToolbar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search mixing entries..."
             onAdd={() => { setSelectedEntry(null); setModalMode("add"); setModalOpen(true); }}
-            onExport={() => {}}
+            onExport={() => { }}
           />
 
           <div className="flex-1 overflow-hidden">
