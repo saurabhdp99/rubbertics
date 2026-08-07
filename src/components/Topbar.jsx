@@ -24,6 +24,9 @@ const PAGE_TITLES = {
   '/compound-master':             'Compound Master',
   '/transport-master':            'Transport Master',
   '/employee-master':             'Employee Master',
+  '/moulding-production':         'Moulding Production',
+  '/mixing-production':           'Mixing Production',
+  '/work-order':                  'Work Order',
   '/settings':                    'Settings',
 };
 

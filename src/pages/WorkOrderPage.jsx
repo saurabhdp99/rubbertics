@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   FileText, Plus, Edit, Trash2, Eye, X, Save, ArrowLeft,
   AlertCircle, ShieldCheck, FileSpreadsheet, Building2, Package, Search, ClipboardList, Factory, Clock
@@ -16,8 +16,59 @@ import { useAuthStore } from "../store/authStore";
 import { useEmployeeMasterStore } from "../store/employeeMasterStore";
 import { useToolsMasterStore } from "../store/toolsMasterStore";
 import { useCompoundMasterStore } from "../store/compoundMasterStore";
+import { useSaleOrderStore } from "../store/saleOrderStore";
 
 const todayIsoDate = () => new Date().toISOString().split("T")[0];
+
+// --- Auto-generation helpers ---
+
+/**
+ * Get ISO week number for a given date.
+ */
+function getISOWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+/**
+ * Get Indian Financial Year short labels for a given date.
+ * FY runs April (current year) to March (next year).
+ * e.g. August 2026 → FY 26-27, February 2027 → FY 26-27
+ */
+function getFinancialYearLabels(date) {
+  const month = date.getMonth(); // 0-indexed (0=Jan, 3=Apr)
+  const year = date.getFullYear();
+  const fyStartYear = month >= 3 ? year : year - 1; // April onwards = current year FY
+  const fyEndYear = fyStartYear + 1;
+  const shortStart = String(fyStartYear).slice(-2); // e.g. "26"
+  const shortEnd = String(fyEndYear).slice(-2);     // e.g. "27"
+  return { shortStart, shortEnd };
+}
+
+/**
+ * Generate Lot No: {WeekNumber}{FullYear}-{SerialNo}
+ * e.g. 322026-01
+ */
+function generateLotNo(serialNumber) {
+  const now = new Date();
+  const week = getISOWeekNumber(now);
+  const year = now.getFullYear();
+  const sr = String(serialNumber).padStart(2, "0");
+  return `${week}${year}-${sr}`.toUpperCase();
+}
+
+/**
+ * Generate Work Order No: WO{FYStart}-{FYEnd}/{Serial0001}
+ * e.g. WO26-27/0001
+ */
+function generateWoNo(serialNumber) {
+  const now = new Date();
+  const { shortStart, shortEnd } = getFinancialYearLabels(now);
+  const sr = String(serialNumber).padStart(4, "0");
+  return `WO${shortStart}-${shortEnd}/${sr}`.toUpperCase();
+}
 
 const EMPTY_ENTRY = {
   // 1. WORK ORDER INFORMATION
@@ -224,24 +275,34 @@ function CustomSelect({ field, isView, options, placeholder = "Select..." }) {
 }
 
 function WorkOrderForm({ mode, entry, onBack }) {
-  const { addEntry, updateEntry } = useWorkOrderStore();
+  const { addEntry, updateEntry, entries } = useWorkOrderStore();
   const { currentOrg, currentUser } = useAuthStore();
   const { employees, fetchEmployees } = useEmployeeMasterStore();
   const { tools, fetchTools } = useToolsMasterStore();
   const { compounds, fetchCompounds } = useCompoundMasterStore();
+  const { orders: saleOrders, fetchOrders } = useSaleOrderStore();
 
   useEffect(() => {
     if (currentOrg?.id) {
       fetchEmployees(currentOrg.id);
       fetchTools(currentOrg.id);
       fetchCompounds(currentOrg.id);
+      fetchOrders(currentOrg.id);
     }
   }, [currentOrg]);
 
   const isView = mode === "view";
 
   const getInitialValues = () => {
-    if (!entry) return EMPTY_ENTRY;
+    if (!entry) {
+      // Auto-generate Lot No and WO No for new entries
+      const nextSerial = entries.length + 1;
+      return {
+        ...EMPTY_ENTRY,
+        lot_no: generateLotNo(nextSerial),
+        wo_no: generateWoNo(nextSerial),
+      };
+    }
     const sanitized = { ...entry };
     Object.keys(sanitized).forEach(key => {
       if (sanitized[key] === null) {
@@ -345,6 +406,37 @@ function WorkOrderForm({ mode, entry, onBack }) {
     watchAll.material_consumed_moulding, watchAll.total_rubber_req, isView, setValue
   ]);
 
+  // Auto-fill Part No when Part Name is selected
+  useEffect(() => {
+    if (isView) return;
+    const selectedPartName = watchAll.part_name;
+    if (!selectedPartName) return;
+
+    const selectedPo = watchAll.po_no;
+    const matchedOrders = selectedPo
+      ? saleOrders.filter(o => (o.poNo || '').toUpperCase() === (selectedPo || '').toUpperCase())
+      : saleOrders;
+
+    // Search items[] first (most specific), then fall back to top-level partNo
+    let foundPartNo = '';
+    for (const order of matchedOrders) {
+      if (Array.isArray(order.items)) {
+        const matchedItem = order.items.find(
+          item => (item.productName || '') === selectedPartName
+        );
+        if (matchedItem?.partNo) { foundPartNo = matchedItem.partNo; break; }
+      }
+      // fallback: if top-level productName matches
+      if ((order.productName || '') === selectedPartName && order.partNo) {
+        foundPartNo = order.partNo; break;
+      }
+    }
+
+    if (foundPartNo && watchAll.part_no !== foundPartNo) {
+      setValue('part_no', foundPartNo);
+    }
+  }, [watchAll.part_name, watchAll.po_no, saleOrders, isView, setValue]);
+
   const onSubmit = async (data) => {
     try {
       const numericFields = [
@@ -378,7 +470,42 @@ function WorkOrderForm({ mode, entry, onBack }) {
 
   const employeeOptions = Array.from(new Set(employees.map(e => e.employeeName).filter(Boolean)));
   const toolOptions = Array.from(new Set(tools.map(t => t.toolCode).filter(Boolean)));
-  const compoundOptions = Array.from(new Set(compounds.map(c => c.name).filter(Boolean)));
+  // Compound codes from compound master
+  const compoundOptions = Array.from(new Set(compounds.map(c => c.compoundCode).filter(Boolean)));
+  // PO numbers from sale orders — unique, non-empty, uppercase
+  const poOptions = Array.from(new Set(saleOrders.map(o => o.poNo).filter(Boolean))).map(p => p.toUpperCase());
+
+  // Part name options: when a PO is selected, only show product names linked to that PO's sale orders
+  const selectedPoNo = watchAll.po_no;
+  const partNameOptions = useMemo(() => {
+    const matchedOrders = selectedPoNo
+      ? saleOrders.filter(o => (o.poNo || '').toUpperCase() === (selectedPoNo || '').toUpperCase())
+      : saleOrders;
+    const names = new Set();
+    matchedOrders.forEach(o => {
+      // top-level productName
+      if (o.productName) names.add(o.productName);
+      // items[].productName
+      if (Array.isArray(o.items)) {
+        o.items.forEach(item => { if (item.productName) names.add(item.productName); });
+      }
+    });
+    return Array.from(names).filter(Boolean);
+  }, [selectedPoNo, saleOrders]);
+
+  // Auto-fill Colour when Compound Code is selected
+  useEffect(() => {
+    if (isView) return;
+    const selectedCode = watchAll.compound_code;
+    if (!selectedCode) return;
+    const matched = compounds.find(
+      c => (c.compoundCode || '').toLowerCase() === (selectedCode || '').toLowerCase()
+    );
+    const colour = matched?.compoundColour || '';
+    if (colour && watchAll.colour !== colour) {
+      setValue('colour', colour);
+    }
+  }, [watchAll.compound_code, compounds, isView, setValue]);
 
   return (
     <div className="animate-slide-up">
@@ -430,22 +557,42 @@ function WorkOrderForm({ mode, entry, onBack }) {
             <Section title="1. WORK ORDER INFORMATION" icon={FileText}>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 <Controller name="lot_no" control={control} render={({ field }) => (
-                  <Field label="Lot No." error={errors.lot_no?.message}><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Lot No." /></Field>
+                  <Field label="Lot No. (Auto Generated Week No: Year- SR NO)" error={errors.lot_no?.message}>
+                    <Input {...field} value={field.value?.toUpperCase() || ""} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-bold uppercase`} placeholder="Auto Generated" />
+                  </Field>
                 )} />
                 <Controller name="wo_no" control={control} render={({ field }) => (
-                  <Field label="Work Order No." error={errors.wo_no?.message}><Input {...field} disabled={isView} className={inputCls} placeholder="Enter WO No." /></Field>
+                  <Field label="Work Order No. (Auto Generated Financial Year No)" error={errors.wo_no?.message}>
+                    <Input {...field} value={field.value?.toUpperCase() || ""} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-bold uppercase`} placeholder="Auto Generated" />
+                  </Field>
                 )} />
                 <Controller name="wo_date" control={control} render={({ field }) => (
                   <Field label="WO Date" error={errors.wo_date?.message}><CustomDatePicker field={field} isView={isView} label="WO Date" /></Field>
                 )} />
                 <Controller name="po_no" control={control} render={({ field }) => (
-                  <Field label="PO No." error={errors.po_no?.message}><Input {...field} disabled={isView} className={inputCls} placeholder="Enter PO No." /></Field>
+                  <Field label="PO No. (From Sale Orders)" error={errors.po_no?.message}>
+                    <CustomSelect
+                      field={field}
+                      isView={isView}
+                      options={poOptions}
+                      placeholder="SELECT PO NO."
+                    />
+                  </Field>
                 )} />
                 <Controller name="part_name" control={control} render={({ field }) => (
-                  <Field label="Part Name" error={errors.part_name?.message}><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Part Name" /></Field>
+                  <Field label={selectedPoNo ? `PART NAME (FROM PO: ${selectedPoNo.toUpperCase()})` : "PART NAME"} error={errors.part_name?.message}>
+                    <CustomSelect
+                      field={field}
+                      isView={isView}
+                      options={partNameOptions}
+                      placeholder={selectedPoNo ? "SELECT PART NAME" : "SELECT PO FIRST"}
+                    />
+                  </Field>
                 )} />
                 <Controller name="part_no" control={control} render={({ field }) => (
-                  <Field label="Part No." error={errors.part_no?.message}><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Part No." /></Field>
+                  <Field label="Part No. (Auto Fetched)" error={errors.part_no?.message}>
+                    <Input {...field} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-bold`} placeholder="Auto filled from Part Name" />
+                  </Field>
                 )} />
                 <Controller name="wo_qty" control={control} render={({ field }) => (
                   <Field label="Work Order Qty (pcs)" error={errors.wo_qty?.message}><Input {...field} disabled={isView} type="number" className={inputCls} placeholder="0" /></Field>
@@ -462,13 +609,17 @@ function WorkOrderForm({ mode, entry, onBack }) {
             <Section title="2. MATERIAL, MOULD & PROCESS DETAILS" icon={Package} subtitle="Enter weight values in kilograms. Formula fields are calculated automatically.">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 <Controller name="compound_code" control={control} render={({ field }) => (
-                  <Field label="Compound Code"><CustomSelect field={field} isView={isView} options={compoundOptions} placeholder="Select Compound" /></Field>
+                  <Field label="Compound Code (From Compound Master)">
+                    <CustomSelect field={field} isView={isView} options={compoundOptions} placeholder="SELECT COMPOUND CODE" />
+                  </Field>
                 )} />
                 <Controller name="raw_material" control={control} render={({ field }) => (
                   <Field label="Raw Material"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Raw Material" /></Field>
                 )} />
                 <Controller name="colour" control={control} render={({ field }) => (
-                  <Field label="Colour"><Input {...field} disabled={isView} className={inputCls} placeholder="Enter Colour" /></Field>
+                  <Field label="Colour (Auto Fetched from Compound)">
+                    <Input {...field} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-bold`} placeholder="Auto filled from Compound Code" />
+                  </Field>
                 )} />
                 <Controller name="no_of_cavities" control={control} render={({ field }) => (
                   <Field label="No. of Cavities"><Input {...field} disabled={isView} type="number" className={inputCls} placeholder="0" /></Field>
@@ -600,8 +751,9 @@ export default function WorkOrderPage() {
   );
 
   const columns = [
+    { accessor: "lot_no", header: "Lot No.", render: (val) => val ? <span className="font-bold text-emerald-700 uppercase">{val}</span> : "-" },
     { accessor: "wo_date", header: "WO Date", render: (val) => val ? new Date(val).toLocaleDateString() : "-" },
-    { accessor: "wo_no", header: "WO No." },
+    { accessor: "wo_no", header: "Work Order No.", render: (val) => val ? <span className="font-bold text-blue-700 uppercase">{val}</span> : "-" },
     { accessor: "part_name", header: "Part Name" },
     { accessor: "wo_qty", header: "WO Qty" },
     { accessor: "wo_completion_percent", header: "Completion %", render: (val) => val ? `${val}%` : "-" },
