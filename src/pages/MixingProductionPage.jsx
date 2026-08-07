@@ -323,11 +323,15 @@ function MixingProductionForm({ mode, entry, onBack }) {
                         if (matchedCompound) {
                           const code = matchedCompound.compoundCode || matchedCompound.code || matchedCompound.name || '';
                           const colour = matchedCompound.compoundColour || matchedCompound.colour || matchedCompound.color || '';
+                          const standardSize = matchedCompound.standardSheetSize || '';
                           if (code) {
                             setValue('compound_code', code, { shouldValidate: true, shouldDirty: true });
                           }
                           if (colour) {
                             setValue('colour', colour, { shouldValidate: true, shouldDirty: true });
+                          }
+                          if (standardSize) {
+                            setValue('standard_sheet_size', standardSize, { shouldValidate: true, shouldDirty: true });
                           }
                         }
                       }}

@@ -30,6 +30,13 @@ export const COMPOUND_MASTER_FIELDS = [
     ],
     section: 'Compound Details',
   },
+  {
+    key: 'standardSheetSize',
+    label: 'Standard Sheet Size',
+    type: 'text',
+    placeholder: 'e.g. 1000x1000x2mm',
+    section: 'Compound Details',
+  },
 
   // Quality Tab
   {

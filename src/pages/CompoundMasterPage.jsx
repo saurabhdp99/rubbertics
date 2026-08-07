@@ -102,6 +102,7 @@ const compoundMasterSchema = z.object({
   compoundCode: z.string().min(1, 'Compound code is required'),
   compoundName: z.string().min(1, 'Compound name is required'),
   compoundColour: z.string().min(1, 'Compound colour is required'),
+  standardSheetSize: z.string().optional(),
   formulation: z.array(z.object({
     id: z.string(),
     particular: z.string().min(1, 'Ingredient required'),

@@ -282,6 +282,8 @@ function WorkOrderForm({ mode, entry, onBack }) {
   const { compounds, fetchCompounds } = useCompoundMasterStore();
   const { orders: saleOrders, fetchOrders } = useSaleOrderStore();
 
+  const [maxOrderQty, setMaxOrderQty] = useState(null);
+
   useEffect(() => {
     if (currentOrg?.id) {
       fetchEmployees(currentOrg.id);
@@ -314,7 +316,7 @@ function WorkOrderForm({ mode, entry, onBack }) {
     return sanitized;
   };
 
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors } } = useForm({
     resolver: zodResolver(entrySchema),
     defaultValues: getInitialValues(),
   });
@@ -410,7 +412,10 @@ function WorkOrderForm({ mode, entry, onBack }) {
   useEffect(() => {
     if (isView) return;
     const selectedPartName = watchAll.part_name;
-    if (!selectedPartName) return;
+    if (!selectedPartName) {
+      setMaxOrderQty(null);
+      return;
+    }
 
     const selectedPo = watchAll.po_no;
     const matchedOrders = selectedPo
@@ -419,23 +424,45 @@ function WorkOrderForm({ mode, entry, onBack }) {
 
     // Search items[] first (most specific), then fall back to top-level partNo
     let foundPartNo = '';
+    let foundOrderQty = null;
     for (const order of matchedOrders) {
       if (Array.isArray(order.items)) {
         const matchedItem = order.items.find(
           item => (item.productName || '') === selectedPartName
         );
-        if (matchedItem?.partNo) { foundPartNo = matchedItem.partNo; break; }
+        if (matchedItem) {
+          if (matchedItem.partNo) foundPartNo = matchedItem.partNo;
+          if (matchedItem.orderQty) foundOrderQty = Number(matchedItem.orderQty);
+          break;
+        }
       }
       // fallback: if top-level productName matches
-      if ((order.productName || '') === selectedPartName && order.partNo) {
-        foundPartNo = order.partNo; break;
+      if ((order.productName || '') === selectedPartName) {
+        if (order.partNo) foundPartNo = order.partNo;
+        if (order.orderQty) foundOrderQty = Number(order.orderQty);
+        break;
       }
     }
 
     if (foundPartNo && watchAll.part_no !== foundPartNo) {
       setValue('part_no', foundPartNo);
     }
+    setMaxOrderQty(foundOrderQty);
   }, [watchAll.part_name, watchAll.po_no, saleOrders, isView, setValue]);
+
+  // Validate wo_qty against maxOrderQty
+  useEffect(() => {
+    if (isView || maxOrderQty === null) return;
+    const currentQty = parseFloat(watchAll.wo_qty) || 0;
+    if (currentQty > maxOrderQty) {
+      setError("wo_qty", {
+        type: "manual",
+        message: `Your order qty is ${maxOrderQty} and you're adding more than this`,
+      });
+    } else {
+      clearErrors("wo_qty");
+    }
+  }, [watchAll.wo_qty, maxOrderQty, isView, setError, clearErrors]);
 
   const onSubmit = async (data) => {
     try {
