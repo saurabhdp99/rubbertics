@@ -366,8 +366,7 @@ function mapFromDb(row) {
     id: row.id,
     orgId: row.org_id,
     toolCode: row.tool_code,
-    toolName: row.tool_name,
-    linkedPartName: row.linked_part_name,
+    toolName: row.tool_name || row.linked_part_name || '',
     partRevision: row.part_revision,
     process: row.process,
     numberOfCavities: Number(row.number_of_cavities || 0),
@@ -401,7 +400,7 @@ function mapToDb(data, orgId, userId) {
   const payload = {
     tool_code: data.toolCode || 'Auto-generated',
     tool_name: data.toolName,
-    linked_part_name: data.linkedPartName,
+    linked_part_name: data.toolName || null,
     part_revision: data.partRevision,
     process: data.process,
     number_of_cavities: Number(data.numberOfCavities || 1),

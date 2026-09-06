@@ -8,13 +8,7 @@ export const TOOLS_MASTER_FIELDS = [
   },
   {
     key: 'toolName',
-    label: 'Tool Name / Description',
-    type: 'text',
-    section: 'Basic Details',
-  },
-  {
-    key: 'linkedPartName',
-    label: 'Linked Part Name',
+    label: 'Tool Name',
     type: 'select',
     section: 'Basic Details',
   },

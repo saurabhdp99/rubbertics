@@ -43,7 +43,7 @@ import { formatTableDate } from '../utils/dateFormatter';
 import { useItemMasterStore } from '../store/itemMasterStore';
 
 const EMPTY_TOOL = TOOLS_MASTER_FIELDS.reduce((tool, field) => {
-  tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
+  tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? (field.key === 'status' ? 'Active' : '') : field.type === 'number' ? '' : '';
   return tool;
 }, { cycleTimeUnit: 'Sec' });
 
@@ -57,7 +57,7 @@ const SECTION_ORDER = ['Basic Details', 'Technical', 'Maintenance', 'Cost & Supp
 
 const REQUIRED_FIELDS = [
   'toolCode',
-  'linkedPartName',
+  'toolName',
   'partRevision',
   'process',
   'numberOfCavities',
@@ -92,8 +92,7 @@ const attachmentSchema = z.object({
 
 const toolsMasterSchema = z.object({
   toolCode: z.string().min(1, 'Tool code is required'),
-  toolName: z.string().nullish(),
-  linkedPartName: z.string().min(1, 'Linked part name is required'),
+  toolName: z.string().min(1, 'Tool name is required'),
   partRevision: z.string().min(1, 'Part revision is required'),
   process: z.string().min(1, 'Process is required'),
   numberOfCavities: z.coerce.number().min(1, 'Required'),
@@ -363,7 +362,8 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
       name={field.key}
       control={control}
       render={({ field: { value, onChange, onBlur, ref } }) => {
-        if (field.key === 'linkedPartName') {
+        if (field.key === 'toolName') {
+          const selectOptions = (value && !(options || []).includes(value)) ? [value, ...(options || [])] : (options || []);
           return (
             <div className="flex flex-col gap-2">
               <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -390,7 +390,7 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
                 </Select.Trigger>
                 <Select.Popover className="max-h-64 overflow-y-auto">
                   <ListBox>
-                    {(options || []).map(opt => (
+                    {selectOptions.map(opt => (
                       <ListBox.Item key={opt} id={opt} textValue={opt}>
                         <span className="font-bold text-slate-700 text-[13px]">{opt}</span>
                         <ListBox.ItemIndicator />
@@ -698,10 +698,10 @@ function ToolsMasterForm({ mode, tool, onBack }) {
                       control={control}
                       disabled={isView || isSubmitting || (isAdd && field.key === 'toolCode')}
                       error={errors[field.key]?.message}
-                      options={field.key === 'linkedPartName' ? partOptions : toolsMasterLookups[field.key]}
-                      onAddOption={field.key === 'linkedPartName' ? undefined : (val) => addToolMasterLookupOption(field.key, val)}
-                      onRenameOption={field.key === 'linkedPartName' ? undefined : (oldVal, newVal) => renameToolMasterLookupOption(field.key, oldVal, newVal)}
-                      onDeleteOption={field.key === 'linkedPartName' ? undefined : (val) => deleteToolMasterLookupOption(field.key, val)}
+                      options={field.key === 'toolName' ? partOptions : toolsMasterLookups[field.key]}
+                      onAddOption={field.key === 'toolName' ? undefined : (val) => addToolMasterLookupOption(field.key, val)}
+                      onRenameOption={field.key === 'toolName' ? undefined : (oldVal, newVal) => renameToolMasterLookupOption(field.key, oldVal, newVal)}
+                      onDeleteOption={field.key === 'toolName' ? undefined : (val) => deleteToolMasterLookupOption(field.key, val)}
                     />
                   ))}
                 </div>
@@ -861,7 +861,7 @@ export default function ToolsMasterPage() {
       );
     }
 
-    if (column.key === 'toolName' || column.key === 'linkedPartName') {
+    if (column.key === 'toolName') {
       return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
     }
 
@@ -915,7 +915,7 @@ export default function ToolsMasterPage() {
               <div className="relative flex-1 w-full min-w-0 group">
                 <Input
                   type="text"
-                  placeholder="Search by tool code, name, part name, material..."
+                  placeholder="Search by tool code, tool name, material..."
                   value={toolsMasterSearchQuery}
                   onChange={event => setToolsMasterSearchQuery(event.target.value)}
                   aria-label="Search tools"
