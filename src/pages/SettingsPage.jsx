@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
-import { navItems } from '../components/Sidebar';
+import { navItems, erpNavSections } from '../components/Sidebar';
 
 const createStaffSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -114,21 +114,30 @@ function OrgAccessSelector({ organizations, accessMap, onToggleOrg, onTogglePage
                     {allPagesChecked ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                  {navItems.map(item => {
-                    const isChecked = allowedPages === null || allowedPages.includes(item.path);
-                    return (
-                      <label key={item.path} className="flex items-center gap-2.5 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => onTogglePage(org.id, item.path)}
-                          className="w-4 h-4 accent-emerald-500 rounded border-slate-300"
-                        />
-                        <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{item.label}</span>
-                      </label>
-                    );
-                  })}
+                <div className="flex flex-col gap-3">
+                  {erpNavSections.map(section => (
+                    <div key={section.id} className="p-2.5 rounded-lg bg-slate-50/70 border border-slate-200/60">
+                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        {section.title}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        {section.items.map(item => {
+                          const isChecked = allowedPages === null || allowedPages.includes(item.path);
+                          return (
+                            <label key={item.path} className="flex items-center gap-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => onTogglePage(org.id, item.path)}
+                                className="w-4 h-4 accent-emerald-500 rounded border-slate-300"
+                              />
+                              <span className="text-[12.5px] text-slate-700 group-hover:text-slate-900">{item.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

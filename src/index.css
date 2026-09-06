@@ -209,7 +209,7 @@ body {
 .erp-topbar {
   position: fixed;
   top: 0;
-  left: 230px;
+  left: 250px;
   /* same as sidebar width */
   right: 0;
   height: 64px;
@@ -222,6 +222,21 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid #e2e8f0;
+}
+
+@keyframes erpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: erpFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .erp-topbar-left {

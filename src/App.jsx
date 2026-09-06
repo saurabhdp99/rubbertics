@@ -46,7 +46,7 @@ function ERPApp() {
       <Sidebar />
       <Topbar />
       <main
-        className="transition-all duration-300 ease-in-out ml-[230px] min-h-screen pt-16"
+        className="transition-all duration-300 ease-in-out ml-[250px] min-h-screen pt-16"
       >
         <div className="px-1">
           <Suspense fallback={<AppLoader />}>
