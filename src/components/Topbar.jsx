@@ -27,6 +27,7 @@ const PAGE_TITLES = {
   '/moulding-production':         'Moulding Production',
   '/mixing-production':           'Mixing Production',
   '/work-order':                  'Work Order',
+  '/bill-of-materials':           'Bill of Materials (BOM)',
   '/settings':                    'Settings',
 };
 

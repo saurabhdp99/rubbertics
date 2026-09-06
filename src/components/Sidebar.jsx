@@ -51,6 +51,7 @@ export const erpNavSections = [
     icon: Factory,
     color: 'purple',
     items: [
+      { label: 'Bill of Materials (BOM)', path: '/bill-of-materials', icon: Layers },
       { label: 'Work Orders', path: '/work-order', icon: ClipboardList },
       { label: 'Mixing Production', path: '/mixing-production', icon: Factory },
       { label: 'Moulding Production', path: '/moulding-production', icon: Factory },
