@@ -13,6 +13,7 @@ import TableToolbar from '../components/common/TableToolbar';
 import DataTable from '../components/common/DataTable';
 import TableFooter from '../components/common/TableFooter';
 import StatsCard from '../components/common/StatsCard';
+import { useAuthStore } from '../store/authStore';
 import { useBOMStore } from '../store/bomStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { useCompoundMasterStore } from '../store/compoundMasterStore';
@@ -105,12 +106,32 @@ const bomSchema = z.object({
 // ─── Full-Page BOM Form Component ─────────────────────────────────────────────
 function BOMForm({ mode, bom, onBack }) {
   const isView = mode === 'view';
+  const { currentOrg } = useAuthStore();
   const { addBOM, updateBOM } = useBOMStore();
-  const { items: masterItems } = useItemMasterStore();
-  const { compounds: masterCompounds } = useCompoundMasterStore();
-  const { tools: masterTools } = useToolsMasterStore();
-  const { machines: masterMachines } = useMachineMasterStore();
-  const { employees } = useEmployeeMasterStore();
+  const { items: masterItems, fetchItems, isLoading: isItemsLoading } = useItemMasterStore();
+  const { compounds: masterCompounds, fetchCompounds, isLoading: isCompoundsLoading } = useCompoundMasterStore();
+  const { tools: masterTools, fetchTools, isLoading: isToolsLoading } = useToolsMasterStore();
+  const { machines: masterMachines, fetchMachines, isLoading: isMachinesLoading } = useMachineMasterStore();
+  const { employees, fetchEmployees, isLoading: isEmployeesLoading } = useEmployeeMasterStore();
+
+  useEffect(() => {
+    const orgId = currentOrg?.id || (() => {
+      try {
+        const raw = localStorage.getItem('rubbertics_current_org');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+
+    if (orgId) {
+      if (!masterItems || masterItems.length === 0) fetchItems(orgId);
+      if (!masterCompounds || masterCompounds.length === 0) fetchCompounds(orgId);
+      if (!masterTools || masterTools.length === 0) fetchTools(orgId);
+      if (!masterMachines || masterMachines.length === 0) fetchMachines(orgId);
+      if (!employees || employees.length === 0) fetchEmployees(orgId);
+    }
+  }, [currentOrg?.id, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length, employees?.length]);
 
   const [inserts, setInserts] = useState(bom?.inserts ? [...bom.inserts] : []);
   const [packaging, setPackaging] = useState(bom?.packaging ? [...bom.packaging] : []);
@@ -159,48 +180,53 @@ function BOMForm({ mode, bom, onBack }) {
   }, [watchAll.netWeight, watchAll.scrapPercent, isView, setValue, watchAll.grossWeight]);
 
   // Handle Finished Item Selection
-  const handleItemSelect = (e) => {
+  const handleItemSelect = (e, fieldOnChange) => {
+    fieldOnChange?.(e);
     const itemCode = e.target.value;
-    setValue('itemCode', itemCode);
+    setValue('itemCode', itemCode, { shouldValidate: true, shouldDirty: true });
     const found = masterItems?.find(it => (it.itemCode || it.item_code) === itemCode);
     if (found) {
-      setValue('itemName', found.itemName || found.customerItemName || found.item_name || '');
-      setValue('customerPartNo', found.customerItemCode || found.customer_item_code || '');
-      setValue('drawingNo', found.drawingNo || found.drawing_no || '');
-      if (found.revisionNo || found.revision_no) setValue('revisionNo', found.revisionNo || found.revision_no);
-      if (found.itemNetWeight) {
-        setValue('netWeight', found.itemNetWeight.toString());
+      const itName = found.itemName || found.customerItemName || found.item_name || '';
+      setValue('itemName', itName, { shouldValidate: true, shouldDirty: true });
+      setValue('customerPartNo', found.customerItemCode || found.customer_item_code || '', { shouldDirty: true });
+      setValue('drawingNo', found.drawingNo || found.drawing_no || '', { shouldDirty: true });
+      if (found.revisionNo || found.revision_no) setValue('revisionNo', found.revisionNo || found.revision_no, { shouldDirty: true });
+      if (found.itemNetWeight || found.net_weight) {
+        setValue('netWeight', String(found.itemNetWeight || found.net_weight), { shouldValidate: true, shouldDirty: true });
       }
       if (!watchAll.bomTitle) {
-        setValue('bomTitle', `${found.itemName || found.itemCode} Standard BOM`);
+        setValue('bomTitle', `${itName || itemCode} Standard BOM`, { shouldDirty: true });
       }
     }
   };
 
   // Handle Compound Selection
-  const handleCompoundSelect = (e) => {
+  const handleCompoundSelect = (e, fieldOnChange) => {
+    fieldOnChange?.(e);
     const compoundCode = e.target.value;
-    setValue('compoundCode', compoundCode);
+    setValue('compoundCode', compoundCode, { shouldValidate: true, shouldDirty: true });
     const found = masterCompounds?.find(c => (c.compoundCode || c.compound_code) === compoundCode);
     if (found) {
-      setValue('compoundName', found.compoundName || found.compound_name || '');
-      if (found.compoundColour || found.compound_colour) setValue('colour', found.compoundColour || found.compound_colour);
-      if (found.hardnessShoreA || found.hardness) setValue('hardness', found.hardnessShoreA || found.hardness);
-      if (found.specificGravity || found.specific_gravity) setValue('specificGravity', found.specificGravity || found.specific_gravity);
+      setValue('compoundName', found.compoundName || found.compound_name || '', { shouldValidate: true, shouldDirty: true });
+      if (found.polymer) setValue('polymer', found.polymer, { shouldDirty: true });
+      if (found.compoundColour || found.compound_colour) setValue('colour', found.compoundColour || found.compound_colour, { shouldDirty: true });
+      if (found.hardnessShoreA || found.hardness) setValue('hardness', String(found.hardnessShoreA || found.hardness), { shouldDirty: true });
+      if (found.specificGravity || found.specific_gravity) setValue('specificGravity', String(found.specificGravity || found.specific_gravity), { shouldDirty: true });
     }
   };
 
   // Handle Tool / Mould Selection
-  const handleToolSelect = (e) => {
+  const handleToolSelect = (e, fieldOnChange) => {
+    fieldOnChange?.(e);
     const toolCode = e.target.value;
-    setValue('mouldCode', toolCode);
+    setValue('mouldCode', toolCode, { shouldValidate: true, shouldDirty: true });
     const found = masterTools?.find(t => (t.toolCode || t.tool_code) === toolCode);
     if (found) {
       if (found.numberOfCavities || found.number_of_cavities) {
-        setValue('cavities', String(found.numberOfCavities || found.number_of_cavities));
+        setValue('cavities', String(found.numberOfCavities || found.number_of_cavities), { shouldDirty: true });
       }
       if (found.cycleTime) {
-        setValue('cycleTimeSec', String(parseFloat(found.cycleTime) || 180));
+        setValue('cycleTimeSec', String(parseFloat(found.cycleTime) || 180), { shouldDirty: true });
       }
     }
   };
@@ -405,13 +431,25 @@ function BOMForm({ mode, bom, onBack }) {
               {/* Finished Item link */}
               <Controller name="itemCode" control={control} render={({ field }) => (
                 <Field label="Finished Item Code (Item Master)">
-                  <select {...field} onChange={handleItemSelect} disabled={isView} className={selectCls}>
-                    <option value="">Select Item from Master</option>
-                    {masterItems?.map(it => (
-                      <option key={it.id || it.itemCode} value={it.itemCode || it.item_code}>
-                        {it.itemCode || it.item_code} - {it.itemName || it.customerItemName || it.item_name}
-                      </option>
-                    ))}
+                  <select
+                    {...field}
+                    onChange={(e) => handleItemSelect(e, field.onChange)}
+                    disabled={isView}
+                    className={selectCls}
+                  >
+                    <option value="">{isItemsLoading ? 'Loading items...' : 'Select Item from Master'}</option>
+                    {field.value && !masterItems?.some(it => (it.itemCode || it.item_code) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {masterItems?.map(it => {
+                      const code = it.itemCode || it.item_code;
+                      const name = it.itemName || it.customerItemName || it.item_name || '';
+                      return (
+                        <option key={it.id || code} value={code}>
+                          {code} - {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -468,13 +506,26 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mt-4 pt-4 border-t border-slate-100">
               <Controller name="mouldCode" control={control} render={({ field }) => (
                 <Field label="Mould / Tool No. (Tools Master)">
-                  <select {...field} onChange={handleToolSelect} disabled={isView} className={selectCls}>
-                    <option value="">Select Tool / Mould</option>
-                    {masterTools?.map(t => (
-                      <option key={t.id || t.toolCode} value={t.toolCode || t.tool_code}>
-                        {t.toolCode || t.tool_code} ({t.numberOfCavities || 1} Cav)
-                      </option>
-                    ))}
+                  <select
+                    {...field}
+                    onChange={(e) => handleToolSelect(e, field.onChange)}
+                    disabled={isView}
+                    className={selectCls}
+                  >
+                    <option value="">{isToolsLoading ? 'Loading tools...' : 'Select Tool / Mould'}</option>
+                    {field.value && !masterTools?.some(t => (t.toolCode || t.tool_code) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {masterTools?.map(t => {
+                      const code = t.toolCode || t.tool_code;
+                      const name = t.toolName || t.tool_name;
+                      const cav = t.numberOfCavities || t.number_of_cavities || 1;
+                      return (
+                        <option key={t.id || code} value={code}>
+                          {code} {name ? `- ${name}` : ''} ({cav} Cav)
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -494,12 +545,19 @@ function BOMForm({ mode, bom, onBack }) {
               <Controller name="machinePress" control={control} render={({ field }) => (
                 <Field label="Machine / Press (Machine Master)">
                   <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">Select Press / Extruder</option>
-                    {masterMachines?.map(m => (
-                      <option key={m.id || m.machineCode} value={m.machineCode || m.machine_code}>
-                        {m.machineCode || m.machine_code} - {m.machineName || m.machine_name}
-                      </option>
-                    ))}
+                    <option value="">{isMachinesLoading ? 'Loading machines...' : 'Select Press / Extruder'}</option>
+                    {field.value && !masterMachines?.some(m => (m.machineCode || m.machine_code) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {masterMachines?.map(m => {
+                      const code = m.machineCode || m.machine_code;
+                      const name = m.machineName || m.machine_name;
+                      return (
+                        <option key={m.id || code} value={code}>
+                          {code} - {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -511,13 +569,25 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <Controller name="compoundCode" control={control} render={({ field }) => (
                 <Field label="Compound Code (Compound Master)">
-                  <select {...field} onChange={handleCompoundSelect} disabled={isView} className={selectCls}>
-                    <option value="">Select Compound</option>
-                    {masterCompounds?.map(c => (
-                      <option key={c.id || c.compoundCode} value={c.compoundCode || c.compound_code}>
-                        {c.compoundCode || c.compound_code} - {c.compoundName || c.compound_name}
-                      </option>
-                    ))}
+                  <select
+                    {...field}
+                    onChange={(e) => handleCompoundSelect(e, field.onChange)}
+                    disabled={isView}
+                    className={selectCls}
+                  >
+                    <option value="">{isCompoundsLoading ? 'Loading compounds...' : 'Select Compound'}</option>
+                    {field.value && !masterCompounds?.some(c => (c.compoundCode || c.compound_code) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {masterCompounds?.map(c => {
+                      const code = c.compoundCode || c.compound_code;
+                      const name = c.compoundName || c.compound_name;
+                      return (
+                        <option key={c.id || code} value={code}>
+                          {code} - {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -929,12 +999,18 @@ function BOMForm({ mode, bom, onBack }) {
               <Controller name="prepared_by" control={control} render={({ field }) => (
                 <Field label="Prepared By">
                   <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">Select Employee</option>
-                    {employees?.map(e => (
-                      <option key={e.id || e.employeeId} value={e.employeeName || e.employee_name}>
-                        {e.employeeName || e.employee_name}
-                      </option>
-                    ))}
+                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
+                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {employees?.map(e => {
+                      const name = e.employeeName || e.employee_name;
+                      return (
+                        <option key={e.id || e.employeeId || name} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -942,12 +1018,18 @@ function BOMForm({ mode, bom, onBack }) {
               <Controller name="checked_by" control={control} render={({ field }) => (
                 <Field label="Checked By (QA)">
                   <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">Select Employee</option>
-                    {employees?.map(e => (
-                      <option key={e.id || e.employeeId} value={e.employeeName || e.employee_name}>
-                        {e.employeeName || e.employee_name}
-                      </option>
-                    ))}
+                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
+                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {employees?.map(e => {
+                      const name = e.employeeName || e.employee_name;
+                      return (
+                        <option key={e.id || e.employeeId || name} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -955,12 +1037,18 @@ function BOMForm({ mode, bom, onBack }) {
               <Controller name="approved_by" control={control} render={({ field }) => (
                 <Field label="Approved By (Plant Lead)">
                   <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">Select Employee</option>
-                    {employees?.map(e => (
-                      <option key={e.id || e.employeeId} value={e.employeeName || e.employee_name}>
-                        {e.employeeName || e.employee_name}
-                      </option>
-                    ))}
+                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
+                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                      <option value={field.value}>{field.value} (Current)</option>
+                    )}
+                    {employees?.map(e => {
+                      const name = e.employeeName || e.employee_name;
+                      return (
+                        <option key={e.id || e.employeeId || name} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
               )} />
@@ -986,6 +1074,32 @@ function BOMForm({ mode, bom, onBack }) {
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
 export default function BillOfMaterialsPage() {
+  const { currentOrg } = useAuthStore();
+  const { fetchItems } = useItemMasterStore();
+  const { fetchCompounds } = useCompoundMasterStore();
+  const { fetchTools } = useToolsMasterStore();
+  const { fetchMachines } = useMachineMasterStore();
+  const { fetchEmployees } = useEmployeeMasterStore();
+
+  useEffect(() => {
+    const orgId = currentOrg?.id || (() => {
+      try {
+        const raw = localStorage.getItem('rubbertics_current_org');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+
+    if (orgId) {
+      fetchItems(orgId);
+      fetchCompounds(orgId);
+      fetchTools(orgId);
+      fetchMachines(orgId);
+      fetchEmployees(orgId);
+    }
+  }, [currentOrg?.id, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees]);
+
   const {
     boms,
     notifications,

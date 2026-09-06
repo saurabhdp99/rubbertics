@@ -4,6 +4,7 @@ import {
   Calculator, CheckCircle2, AlertCircle, RefreshCw, ChevronRight,
   TrendingUp, ArrowRight, DollarSign, Clock, ShieldCheck, FileText
 } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import { useBOMStore } from '../../store/bomStore';
 import { useItemMasterStore } from '../../store/itemMasterStore';
 import { useCompoundMasterStore } from '../../store/compoundMasterStore';
@@ -18,11 +19,30 @@ import {
 } from '../../data/bomTemplate';
 
 export default function BOMModal() {
+  const { currentOrg } = useAuthStore();
   const { isModalOpen, modalMode, selectedBOM, setModalOpen, addBOM, updateBOM } = useBOMStore();
-  const { items: masterItems } = useItemMasterStore();
-  const { compounds: masterCompounds } = useCompoundMasterStore();
-  const { tools: masterTools } = useToolsMasterStore();
-  const { machines: masterMachines } = useMachineMasterStore();
+  const { items: masterItems, fetchItems } = useItemMasterStore();
+  const { compounds: masterCompounds, fetchCompounds } = useCompoundMasterStore();
+  const { tools: masterTools, fetchTools } = useToolsMasterStore();
+  const { machines: masterMachines, fetchMachines } = useMachineMasterStore();
+
+  useEffect(() => {
+    const orgId = currentOrg?.id || (() => {
+      try {
+        const raw = localStorage.getItem('rubbertics_current_org');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+
+    if (orgId && isModalOpen) {
+      if (!masterItems || masterItems.length === 0) fetchItems(orgId);
+      if (!masterCompounds || masterCompounds.length === 0) fetchCompounds(orgId);
+      if (!masterTools || masterTools.length === 0) fetchTools(orgId);
+      if (!masterMachines || masterMachines.length === 0) fetchMachines(orgId);
+    }
+  }, [currentOrg?.id, isModalOpen, fetchItems, fetchCompounds, fetchTools, fetchMachines, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length]);
 
   const [activeTab, setActiveTab] = useState('general');
   const [formData, setFormData] = useState({ ...DEFAULT_BOM });
@@ -372,6 +392,9 @@ export default function BOMModal() {
                         className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white cursor-pointer"
                       >
                         <option value="">-- Choose or type below --</option>
+                        {formData.itemCode && !masterItems?.some(it => (it.itemCode || it.item_code) === formData.itemCode) && (
+                          <option value={formData.itemCode}>{formData.itemCode} (Current)</option>
+                        )}
                         {masterItems?.map(it => (
                           <option key={it.id || it.itemCode} value={it.itemCode || it.item_code}>
                             {it.itemCode || it.item_code} - {it.itemName || it.customerItemName || it.item_name}
@@ -468,6 +491,9 @@ export default function BOMModal() {
                       className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white cursor-pointer"
                     >
                       <option value="">-- Select Mould --</option>
+                      {formData.mouldCode && !masterTools?.some(t => (t.toolCode || t.tool_code) === formData.mouldCode) && (
+                        <option value={formData.mouldCode}>{formData.mouldCode} (Current)</option>
+                      )}
                       {masterTools?.map(t => (
                         <option key={t.id || t.toolCode} value={t.toolCode || t.tool_code}>
                           {t.toolCode || t.tool_code} ({t.numberOfCavities || 1} Cav)
@@ -512,6 +538,9 @@ export default function BOMModal() {
                       className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white cursor-pointer"
                     >
                       <option value="">-- Choose Machine --</option>
+                      {formData.machinePress && !masterMachines?.some(m => (m.machineCode || m.machine_code) === formData.machinePress) && (
+                        <option value={formData.machinePress}>{formData.machinePress} (Current)</option>
+                      )}
                       {masterMachines?.map(m => (
                         <option key={m.id || m.machineCode} value={m.machineCode || m.machine_code}>
                           {m.machineCode || m.machine_code} - {m.machineName || m.machine_name}
@@ -551,6 +580,9 @@ export default function BOMModal() {
                       className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white cursor-pointer"
                     >
                       <option value="">-- Choose Compound --</option>
+                      {formData.compoundCode && !masterCompounds?.some(c => (c.compoundCode || c.compound_code) === formData.compoundCode) && (
+                        <option value={formData.compoundCode}>{formData.compoundCode} (Current)</option>
+                      )}
                       {masterCompounds?.map(c => (
                         <option key={c.id || c.compoundCode} value={c.compoundCode || c.compound_code}>
                           {c.compoundCode || c.compound_code} - {c.compoundName || c.compound_name}
