@@ -181,11 +181,11 @@ export default function DispatchForm({ mode = 'add', dispatch = null, onBack }) 
     }
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     if (isAdd) {
-      addDispatch(data);
+      await addDispatch(data);
     } else if (dispatch?.id) {
-      updateDispatch(dispatch.id, data);
+      await updateDispatch(dispatch.id, data);
     }
     onBack();
   };

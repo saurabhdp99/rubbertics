@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Truck,
   Calendar,
@@ -25,11 +25,14 @@ import DataTable from '../components/common/DataTable';
 import TableFooter from '../components/common/TableFooter';
 import DispatchForm from '../components/dispatch/DispatchForm';
 import { useDispatchStore } from '../store/dispatchStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function DispatchPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const {
     dispatches,
+    isLoading,
+    fetchDispatches,
     isFormOpen,
     formMode,
     selectedDispatch,
@@ -41,6 +44,11 @@ export default function DispatchPage() {
     deleteDispatch,
     notifications,
   } = useDispatchStore();
+
+  useEffect(() => {
+    const orgId = useAuthStore.getState().currentOrg?.id;
+    if (orgId) fetchDispatches(orgId);
+  }, []);
 
   // Dynamic statistics
   const totalQuantity = useMemo(
@@ -403,16 +411,25 @@ export default function DispatchPage() {
             />
 
             {/* Table */}
-            <DataTable
-              columns={columns}
-              data={filteredData}
-              minWidth="1750px"
-              emptyMessage="No dispatch records found"
-            />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+                  <p className="text-sm font-medium text-slate-500">Loading dispatch entries...</p>
+                </div>
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                minWidth="1750px"
+                emptyMessage="No dispatch records found"
+              />
+            )}
 
             <TableFooter
               totalEntries={filteredData.length}
-              additionalInfo="Dispatch register maintained frontend-side with persistent storage"
+              additionalInfo="Dispatch register synced with Supabase backend"
             />
           </div>
         </>
