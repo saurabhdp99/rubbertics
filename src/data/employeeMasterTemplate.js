@@ -44,6 +44,12 @@ export const EMPLOYEE_MASTER_FIELDS = [
     section: 'Employee Details',
   },
   {
+    key: 'dateOfJoining',
+    label: 'Date of Joining',
+    type: 'date',
+    section: 'Employee Details',
+  },
+  {
     key: 'mobileNo',
     label: 'Mobile No',
     type: 'text',

@@ -153,7 +153,7 @@ export const useEmployeeMasterStore = create((set, get) => ({
 
   updateEmployee: async (id, employeeData, userId) => {
     const existingEmployee = get().employees.find(e => e.id === id);
-    const empOrgId = existingEmployee?.orgId;
+    const empOrgId = existingEmployee?.orgId || useAuthStore.getState().currentOrg?.id;
 
     let finalAttachments = employeeData.attachments || [];
     if (empOrgId && finalAttachments.length > 0) {
@@ -170,7 +170,8 @@ export const useEmployeeMasterStore = create((set, get) => ({
       }));
     }
 
-    const payload = { ...mapToDb({ ...employeeData, attachments: finalAttachments }), updated_by: userId };
+    const payload = mapToDb({ ...employeeData, attachments: finalAttachments });
+    if (userId) payload.updated_by = userId;
     const { data, error } = await supabase
       .from('employee_master')
       .update(payload)
@@ -336,6 +337,7 @@ function mapFromDb(row) {
     employeeType: row.employee_type,
     gender: row.gender,
     dob: row.dob,
+    dateOfJoining: row.date_of_joining,
     mobileNo: row.mobile_no,
     alternateMobile: row.alternate_mobile,
     email: row.email,
@@ -409,6 +411,7 @@ function mapToDb(data, orgId, userId) {
     employee_type: data.employeeType || 'Permanent',
     gender: data.gender,
     dob: data.dob || null,
+    date_of_joining: data.dateOfJoining || null,
     mobile_no: data.mobileNo,
     alternate_mobile: data.alternateMobile,
     email: data.email,

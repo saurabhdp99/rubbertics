@@ -47,7 +47,13 @@ const EMPTY_EMPLOYEE = EMPLOYEE_MASTER_FIELDS.reduce((emp, field) => {
 }, {});
 
 const createInitialEmployeeForm = (employee) => {
-  if (employee) return { ...EMPTY_EMPLOYEE, ...employee };
+  if (employee) {
+    const initialized = { ...EMPTY_EMPLOYEE };
+    Object.keys(employee).forEach(key => {
+      initialized[key] = employee[key] ?? EMPTY_EMPLOYEE[key] ?? '';
+    });
+    return initialized;
+  }
   return {
     ...EMPTY_EMPLOYEE,
     employeeCode: 'Auto generated on create', // Will be overridden on submit
@@ -55,7 +61,7 @@ const createInitialEmployeeForm = (employee) => {
 };
 
 const TABLE_COLUMNS = EMPLOYEE_MASTER_FIELDS
-  .filter(field => ['employeeCode', 'employeeName', 'department', 'designation', 'mobileNo', 'netSalary', 'bankName', 'skillCategory'].includes(field.key))
+  .filter(field => ['employeeCode', 'employeeName', 'department', 'designation', 'dateOfJoining', 'mobileNo', 'netSalary', 'bankName', 'skillCategory'].includes(field.key))
   .map(field => ({
     ...field,
     width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' ? '160px' : '190px',
@@ -63,73 +69,80 @@ const TABLE_COLUMNS = EMPLOYEE_MASTER_FIELDS
   }));
 
 const employeeMasterSchema = z.object({
-  employeeCode: z.string().optional(),
+  employeeCode: z.string().nullish(),
   employeeName: z.string().min(1, 'Employee name is required'),
-  employeeType: z.string().optional(),
-  gender: z.string().optional(),
-  dob: z.string().optional(),
-  mobileNo: z.string().optional(),
-  alternateMobile: z.string().optional(),
-  bloodGroup: z.string().optional(),
-  maritalStatus: z.string().optional(),
-  department: z.string().optional(),
-  designation: z.string().optional(),
-  emergencyContactName: z.string().optional(),
-  emergencyContactNumber: z.string().optional(),
-  emergencyContactRelation: z.string().optional(),
-  currentAddressLine1: z.string().optional(),
-  currentAddressLine2: z.string().optional(),
-  currentCity: z.string().optional(),
-  currentDistrict: z.string().optional(),
-  currentState: z.string().optional(),
-  currentPincode: z.string().optional(),
-  currentCountry: z.string().optional(),
-  sameAsCurrentAddress: z.boolean().optional(),
-  permanentAddressLine1: z.string().optional(),
-  permanentAddressLine2: z.string().optional(),
-  permanentCity: z.string().optional(),
-  permanentDistrict: z.string().optional(),
-  permanentState: z.string().optional(),
-  permanentPincode: z.string().optional(),
-  permanentCountry: z.string().optional(),
-  panNo: z.string().optional(),
-  aadhaarNo: z.string().optional(),
-  uanNo: z.string().optional(),
-  pfNo: z.string().optional(),
-  esiNo: z.string().optional(),
-  professionalTaxNo: z.string().optional(),
-  pfApplicable: z.boolean().optional(),
-  esiApplicable: z.boolean().optional(),
-  salaryType: z.string().optional(),
-  basicSalary: z.coerce.number().optional().or(z.literal('')),
-  hra: z.coerce.number().optional().or(z.literal('')),
-  conveyance: z.coerce.number().optional().or(z.literal('')),
-  otherAllowance: z.coerce.number().optional().or(z.literal('')),
-  grossSalary: z.coerce.number().optional().or(z.literal('')),
-  pfDeduction: z.coerce.number().optional().or(z.literal('')),
-  esiDeduction: z.coerce.number().optional().or(z.literal('')),
-  otherDeduction: z.coerce.number().optional().or(z.literal('')),
-  netSalary: z.coerce.number().optional().or(z.literal('')),
-  effectiveFrom: z.string().optional(),
-  bankName: z.string().optional(),
-  accountNo: z.string().optional(),
-  ifscCode: z.string().optional(),
-  accountHolderName: z.string().optional(),
-  paymentMode: z.string().optional(),
-  upiId: z.string().optional(),
-  skillCategory: z.string().optional(),
-  skillLevel: z.string().optional(),
-  medicalHistory: z.string().optional(),
-  description: z.string().optional(),
+  employeeType: z.string().nullish(),
+  gender: z.string().nullish(),
+  dob: z.string().nullish(),
+  dateOfJoining: z.string().nullish(),
+  mobileNo: z.string().nullish(),
+  alternateMobile: z.string().nullish(),
+  email: z.string().nullish(),
+  bloodGroup: z.string().nullish(),
+  maritalStatus: z.string().nullish(),
+  department: z.string().nullish(),
+  designation: z.string().nullish(),
+  emergencyContactName: z.string().nullish(),
+  emergencyContactNumber: z.string().nullish(),
+  emergencyContactRelation: z.string().nullish(),
+  currentAddressLine1: z.string().nullish(),
+  currentAddressLine2: z.string().nullish(),
+  currentCity: z.string().nullish(),
+  currentDistrict: z.string().nullish(),
+  currentState: z.string().nullish(),
+  currentPincode: z.string().nullish(),
+  currentCountry: z.string().nullish(),
+  sameAsCurrentAddress: z.boolean().nullish(),
+  permanentAddressLine1: z.string().nullish(),
+  permanentAddressLine2: z.string().nullish(),
+  permanentCity: z.string().nullish(),
+  permanentDistrict: z.string().nullish(),
+  permanentState: z.string().nullish(),
+  permanentPincode: z.string().nullish(),
+  permanentCountry: z.string().nullish(),
+  panNo: z.string().nullish(),
+  aadhaarNo: z.string().nullish(),
+  uanNo: z.string().nullish(),
+  pfNo: z.string().nullish(),
+  esiNo: z.string().nullish(),
+  professionalTaxNo: z.string().nullish(),
+  pfApplicable: z.boolean().nullish(),
+  esiApplicable: z.boolean().nullish(),
+  salaryType: z.string().nullish(),
+  basicSalary: z.coerce.number().nullish().or(z.literal('')),
+  hra: z.coerce.number().nullish().or(z.literal('')),
+  conveyance: z.coerce.number().nullish().or(z.literal('')),
+  otherAllowance: z.coerce.number().nullish().or(z.literal('')),
+  grossSalary: z.coerce.number().nullish().or(z.literal('')),
+  pfDeduction: z.coerce.number().nullish().or(z.literal('')),
+  esiDeduction: z.coerce.number().nullish().or(z.literal('')),
+  otherDeduction: z.coerce.number().nullish().or(z.literal('')),
+  netSalary: z.coerce.number().nullish().or(z.literal('')),
+  effectiveFrom: z.string().nullish(),
+  bankName: z.string().nullish(),
+  accountNo: z.string().nullish(),
+  ifscCode: z.string().nullish(),
+  accountHolderName: z.string().nullish(),
+  paymentMode: z.string().nullish(),
+  upiId: z.string().nullish(),
+  skillCategory: z.string().nullish(),
+  skillLevel: z.string().nullish(),
+  machineTypeKnown: z.string().nullish(),
+  canWorkOnCriticalMachine: z.boolean().nullish(),
+  trainingRequired: z.boolean().nullish(),
+  lastTrainingDate: z.string().nullish(),
+  nextTrainingDue: z.string().nullish(),
+  medicalHistory: z.string().nullish(),
+  description: z.string().nullish(),
   attachments: z.array(z.object({
     id: z.string(),
-    name: z.string().optional(),
-    fileData: z.any().optional(),
-    fileName: z.string().optional(),
-    fileType: z.string().optional(),
-    fileObject: z.any().optional()
-  })).optional()
-});
+    name: z.string().nullish(),
+    fileData: z.any().nullish(),
+    fileName: z.string().nullish(),
+    fileType: z.string().nullish(),
+    fileObject: z.any().nullish()
+  })).nullish()
+}).passthrough();
 
 function AttachmentsField({ value, onChange, disabled }) {
   const fileInputRef = useRef(null);
@@ -598,6 +611,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
 
   const onSubmit = async (data) => {
     const finalForm = { ...data };
+    let success = false;
     if (isAdd) {
       // Auto generate employee code based on max id
       const maxNum = employeeMasterItems.reduce((max, item) => {
@@ -605,11 +619,13 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
         return match ? Math.max(max, Number(match[1])) : max;
       }, 0);
       finalForm.employeeCode = `EMP${String(maxNum + 1).padStart(4, '0')}`;
-      await addEmployeeMaster(finalForm, currentOrg?.id, currentUser?.id);
+      success = await addEmployeeMaster(finalForm, currentOrg?.id, currentUser?.id);
     } else {
-      await updateEmployeeMaster(employee.id, finalForm, currentUser?.id);
+      success = await updateEmployeeMaster(employee.id, finalForm, currentUser?.id);
     }
-    onBack();
+    if (success) {
+      onBack();
+    }
   };
 
 
@@ -660,7 +676,18 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
           </div>
         </div>
 
-        <form id="employee-master-page-form" onSubmit={hookFormSubmit(onSubmit)} className="p-6">
+        <form
+          id="employee-master-page-form"
+          onSubmit={hookFormSubmit(onSubmit, (formErrors) => {
+            console.error("Form validation errors:", formErrors);
+            const errorFields = Object.keys(formErrors);
+            if (errorFields.length > 0) {
+              const firstError = formErrors[errorFields[0]]?.message || 'Invalid field value';
+              useEmployeeMasterStore.getState().addNotification(`Validation error (${errorFields[0]}): ${firstError}`, 'error');
+            }
+          })}
+          className="p-6"
+        >
           <div className="flex flex-col gap-7">
             {groupedFields.map(group => (
               <section key={group.section} className="border-b border-slate-100 last:border-b-0 pb-7 last:pb-0">

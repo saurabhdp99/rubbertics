@@ -36,7 +36,7 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 const dispatchSchema = z.object({
   srNo: z.coerce.number().optional(),
   invDate: z.string().min(1, 'Invoice date is required'),
-  invoiceNo: z.string().min(1, 'Invoice number is required'),
+  invoiceNo: z.string().min(1, 'Delivery Challan No. is required'),
   saleOrderNo: z.string().min(1, 'Sale Order No is required'),
   partyName: z.string().min(1, 'Party Name is required'),
   partNo: z.string().optional(),
@@ -247,7 +247,7 @@ export default function DispatchForm({ mode = 'add', dispatch = null, onBack }) 
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
                 {watchInvoiceNo
-                  ? `Invoice No: ${watchInvoiceNo}`
+                  ? `Delivery Challan No.: ${watchInvoiceNo}`
                   : 'Enter consignment details for material dispatch'}
               </p>
             </div>
@@ -279,8 +279,8 @@ export default function DispatchForm({ mode = 'add', dispatch = null, onBack }) 
         {/* Form Body */}
         <form id="dispatch-form" onSubmit={handleSubmit(onSubmit)} className="p-6">
           <div className="flex flex-col gap-7">
-            {/* Section 1: INVOICE & ORDER INFORMATION */}
-            <Section title="1. Invoice & Order Information" icon={FileText}>
+            {/* Section 1: DELIVERY CHALLAN & ORDER INFORMATION */}
+            <Section title="1. Delivery Challan & Order Information" icon={FileText}>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="SR. NO" error={errors.srNo?.message}>
                   <div className="relative">
@@ -306,7 +306,7 @@ export default function DispatchForm({ mode = 'add', dispatch = null, onBack }) 
                   </div>
                 </Field>
 
-                <Field label="Invoice Number" required error={errors.invoiceNo?.message}>
+                <Field label="Delivery Challan No." required error={errors.invoiceNo?.message}>
                   <div className="relative">
                     <FileText size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input

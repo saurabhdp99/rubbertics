@@ -82,7 +82,7 @@ export default function DispatchPage() {
     const headers = [
       'SR.NO',
       'INV DATE',
-      'INVOICE NO',
+      'DELIVERY CHALLAN NO.',
       'SALE ORDER NO',
       'PARTY NAME',
       'PART NO',
@@ -166,7 +166,7 @@ export default function DispatchPage() {
       render: (value) => <span className="font-mono text-[12px] text-slate-500">{value}</span>,
     },
     {
-      header: 'INVOICE NO',
+      header: 'DELIVERY CHALLAN NO.',
       accessor: 'invoiceNo',
       icon: FileText,
       width: 'w-[150px]',
@@ -394,7 +394,7 @@ export default function DispatchPage() {
             <TableToolbar
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
-              searchPlaceholder="Search by Invoice No, SO No, Party Name, Part No, Transporter..."
+              searchPlaceholder="Search by Delivery Challan No., SO No, Party Name, Part No, Transporter..."
               theme="emerald"
               showFilter={false}
               addButtonText="New Dispatch"
