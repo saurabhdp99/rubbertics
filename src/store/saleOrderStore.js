@@ -126,6 +126,7 @@ export const useSaleOrderStore = create((set, get) => ({
       orderData.npplSaleNo = generatedNo;
     }
 
+    // Insert without document URL first to get the ID
     const payload = mapToDb(orderData, orgId, userId);
     const { data, error } = await supabase
       .from('sale_orders')
@@ -137,13 +138,49 @@ export const useSaleOrderStore = create((set, get) => ({
       get().addNotification(`Failed to create order: ${error.message}`, 'error');
       return;
     }
-    set(state => ({ orders: [mapFromDb(data), ...state.orders] }));
+
+    // Upload PO document if provided
+    let poDocumentUrl = null;
+    if (orderData._poDocumentFile) {
+      const file = orderData._poDocumentFile;
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = `${orgId}/sale_orders/${data.id}/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, file);
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+        poDocumentUrl = publicUrl;
+        await supabase.from('sale_orders').update({ po_document_url: poDocumentUrl }).eq('id', data.id);
+      }
+    }
+
+    const finalRecord = { ...mapFromDb(data), poDocumentUrl };
+    set(state => ({ orders: [finalRecord, ...state.orders] }));
     get().addNotification('Sale order created successfully!', 'success');
     get().closeModal();
   },
 
   updateOrder: async (id, orderData, userId) => {
-    const payload = { ...mapToDb(orderData), updated_by: userId };
+    const existing = get().orders.find(o => o.id === id);
+    const orgId = existing?.orgId || useAuthStore.getState().currentOrg?.id;
+
+    // Upload new PO document if provided
+    let poDocumentUrl = orderData.poDocumentUrl || existing?.poDocumentUrl || null;
+    if (orderData._poDocumentFile) {
+      const file = orderData._poDocumentFile;
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = `${orgId}/sale_orders/${id}/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, file);
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+        poDocumentUrl = publicUrl;
+      }
+    }
+
+    const payload = { ...mapToDb({ ...orderData, poDocumentUrl }), updated_by: userId };
     const { data, error } = await supabase
       .from('sale_orders')
       .update(payload)
@@ -479,6 +516,7 @@ function mapFromDb(row) {
     deliveryTerms: row.delivery_terms,
     orgId: row.org_id,
     items: row.items || [],
+    poDocumentUrl: row.po_document_url || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -507,6 +545,7 @@ function mapToDb(data, orgId, userId) {
     delivery_terms: data.deliveryTerms,
     items: data.items || [],
     date: data.date || new Date().toISOString().split('T')[0],
+    po_document_url: data.poDocumentUrl || null,
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;

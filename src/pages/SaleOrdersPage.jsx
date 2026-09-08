@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
-  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2
+  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2, Paperclip, Download
 } from 'lucide-react';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
@@ -77,6 +77,7 @@ const COLUMNS = [
   { key: 'items_orderQty', label: 'Total Order Qty', width: '120px', align: 'right' },
   { key: 'items_scheduleQty', label: 'Total Sched Qty', width: '120px', align: 'right' },
   { key: 'items_deliveryDate', label: 'Schedule Date(s)', width: '140px' },
+  { key: 'poDocumentUrl', label: 'PO Document', width: '120px', align: 'center' },
   { key: 'remark', label: 'Remarks', width: '140px' },
 ];
 
@@ -905,6 +906,33 @@ function SaleOrderForm({ mode, order, onBack }) {
 
                 <Controller
                   control={control}
+                  name="_poDocumentFile"
+                  render={({ field: { onChange, ref } }) => (
+                    <Field label="PO Document Upload">
+                      <div className="relative">
+                        <Paperclip size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          disabled={isView}
+                          onChange={(e) => onChange(e.target.files?.[0])}
+                          ref={ref}
+                          className={`${inputCls} pl-11 py-2.5 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer`}
+                        />
+                        {order?.poDocumentUrl && (
+                          <div className="mt-2 text-xs font-semibold">
+                            <a href={order.poDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline flex items-center gap-1">
+                              <Download size={12} /> View Existing Document
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  control={control}
                   name="remark"
                   render={({ field: { onChange, value, ref } }) => (
                     <Field label="Remarks" wide>
@@ -1047,6 +1075,24 @@ export default function SaleOrdersPage() {
         <span className="inline-flex items-center gap-1.5 text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 whitespace-nowrap">
           <Tag size={12} /> {value || '-'}
         </span>
+      );
+    }
+
+    if (column.key === 'poDocumentUrl') {
+      if (!value) return <span className="text-slate-400 font-medium">-</span>;
+      return (
+        <div className="flex justify-center">
+          <a
+            href={value}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors text-xs font-bold"
+            title="View PO Document"
+          >
+            <Paperclip size={14} />
+            View
+          </a>
+        </div>
       );
     }
 
