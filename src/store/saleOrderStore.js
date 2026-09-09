@@ -126,8 +126,10 @@ export const useSaleOrderStore = create((set, get) => ({
       orderData.npplSaleNo = generatedNo;
     }
 
+    const effectiveOrgId = orgId || useAuthStore.getState().currentOrg?.id;
+
     // Insert without document URL first to get the ID
-    const payload = mapToDb(orderData, orgId, userId);
+    const payload = mapToDb(orderData, effectiveOrgId, userId);
     const { data, error } = await supabase
       .from('sale_orders')
       .insert([payload])
@@ -136,51 +138,117 @@ export const useSaleOrderStore = create((set, get) => ({
 
     if (error) {
       get().addNotification(`Failed to create order: ${error.message}`, 'error');
-      return;
+      return false;
     }
 
-    // Upload PO document if provided
-    let poDocumentUrl = null;
-    if (orderData._poDocumentFile) {
+    // Process attachments
+    let finalAttachments = [];
+    const attachmentsToProcess = orderData.attachments || [];
+    if (attachmentsToProcess.length > 0) {
+      finalAttachments = await Promise.all(attachmentsToProcess.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${effectiveOrgId}/sale_orders/${data.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) {
+            console.error('Failed to upload attachment:', uploadError);
+            get().addNotification(`Failed to upload ${att.name || att.fileObject.name}: ${uploadError.message}`, 'error');
+            return { id: att.id, name: att.name, fileName: att.fileObject.name };
+          }
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name || att.fileObject.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return {
+          id: att.id,
+          name: att.name || att.fileName || '',
+          fileName: att.fileName || '',
+          fileType: att.fileType || '',
+          fileData: att.fileData || att.url || '',
+          url: att.url || att.fileData || ''
+        };
+      }));
+    } else if (orderData._poDocumentFile) {
       const file = orderData._poDocumentFile;
-      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const filePath = `${orgId}/sale_orders/${data.id}/${fileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('attachments')
-        .upload(filePath, file);
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filePath = `${effectiveOrgId}/sale_orders/${data.id}/${fileName}`;
+      const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, file);
       if (!uploadError) {
         const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
-        poDocumentUrl = publicUrl;
-        await supabase.from('sale_orders').update({ po_document_url: poDocumentUrl }).eq('id', data.id);
+        finalAttachments = [{ id: crypto.randomUUID(), name: 'PO Document', fileName: file.name, fileType: file.type, fileData: publicUrl, url: publicUrl }];
       }
     }
 
-    const finalRecord = { ...mapFromDb(data), poDocumentUrl };
+    const primaryDocUrl = finalAttachments.length > 0
+      ? (finalAttachments[0].url || finalAttachments[0].fileData)
+      : null;
+
+    if (finalAttachments.length > 0 || primaryDocUrl) {
+      await supabase
+        .from('sale_orders')
+        .update({ attachments: finalAttachments, po_document_url: primaryDocUrl })
+        .eq('id', data.id);
+    }
+
+    const finalRecord = { ...mapFromDb({ ...data, attachments: finalAttachments, po_document_url: primaryDocUrl }), attachments: finalAttachments, poDocumentUrl: primaryDocUrl };
     set(state => ({ orders: [finalRecord, ...state.orders] }));
     get().addNotification('Sale order created successfully!', 'success');
     get().closeModal();
+    return true;
   },
 
   updateOrder: async (id, orderData, userId) => {
     const existing = get().orders.find(o => o.id === id);
     const orgId = existing?.orgId || useAuthStore.getState().currentOrg?.id;
 
-    // Upload new PO document if provided
-    let poDocumentUrl = orderData.poDocumentUrl || existing?.poDocumentUrl || null;
-    if (orderData._poDocumentFile) {
+    // Process attachments
+    let finalAttachments = [];
+    const attachmentsToProcess = orderData.attachments !== undefined ? orderData.attachments : (existing?.attachments || []);
+    
+    if (attachmentsToProcess.length > 0) {
+      finalAttachments = await Promise.all(attachmentsToProcess.map(async (att) => {
+        if (att.fileObject) {
+          const fileName = `${Date.now()}_${att.fileObject.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${orgId}/sale_orders/${id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, att.fileObject);
+          if (uploadError) {
+            console.error('Failed to upload attachment:', uploadError);
+            get().addNotification(`Failed to upload ${att.name || att.fileObject.name}: ${uploadError.message}`, 'error');
+            return { id: att.id, name: att.name, fileName: att.fileObject.name };
+          }
+          const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+          return { id: att.id, name: att.name || att.fileObject.name, fileName: att.fileObject.name, fileType: att.fileObject.type, fileData: publicUrl, url: publicUrl };
+        }
+        return {
+          id: att.id,
+          name: att.name || att.fileName || '',
+          fileName: att.fileName || '',
+          fileType: att.fileType || '',
+          fileData: att.fileData || att.url || '',
+          url: att.url || att.fileData || ''
+        };
+      }));
+    } else if (orderData._poDocumentFile) {
       const file = orderData._poDocumentFile;
-      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const filePath = `${orgId}/sale_orders/${id}/${fileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('attachments')
-        .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, file);
       if (!uploadError) {
         const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
-        poDocumentUrl = publicUrl;
+        finalAttachments = [{ id: crypto.randomUUID(), name: 'PO Document', fileName: file.name, fileType: file.type, fileData: publicUrl, url: publicUrl }];
       }
     }
 
-    const payload = { ...mapToDb({ ...orderData, poDocumentUrl }), updated_by: userId };
+    const primaryDocUrl = finalAttachments.length > 0 
+      ? (finalAttachments[0].url || finalAttachments[0].fileData)
+      : (orderData.poDocumentUrl !== undefined ? orderData.poDocumentUrl : null);
+
+    const payload = { 
+      ...mapToDb({ ...orderData, attachments: finalAttachments, poDocumentUrl: primaryDocUrl }), 
+      attachments: finalAttachments,
+      po_document_url: primaryDocUrl,
+      updated_by: userId 
+    };
+
     const { data, error } = await supabase
       .from('sale_orders')
       .update(payload)
@@ -190,13 +258,14 @@ export const useSaleOrderStore = create((set, get) => ({
 
     if (error) {
       get().addNotification(`Failed to update order: ${error.message}`, 'error');
-      return;
+      return false;
     }
     set(state => ({
       orders: state.orders.map(o => (o.id === id ? mapFromDb(data) : o)),
     }));
     get().addNotification('Order updated successfully!', 'success');
     get().closeModal();
+    return true;
   },
 
   deleteOrder: async (id) => {
@@ -516,7 +585,8 @@ function mapFromDb(row) {
     deliveryTerms: row.delivery_terms,
     orgId: row.org_id,
     items: row.items || [],
-    poDocumentUrl: row.po_document_url || null,
+    attachments: row.attachments || [],
+    poDocumentUrl: row.po_document_url || (row.attachments && row.attachments[0]?.url) || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -544,8 +614,9 @@ function mapToDb(data, orgId, userId) {
     payment_terms: data.paymentTerms,
     delivery_terms: data.deliveryTerms,
     items: data.items || [],
+    attachments: data.attachments || [],
     date: data.date || new Date().toISOString().split('T')[0],
-    po_document_url: data.poDocumentUrl || null,
+    po_document_url: data.poDocumentUrl || (data.attachments && data.attachments[0]?.url) || null,
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;

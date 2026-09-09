@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 import {
   ArrowLeft, BadgeCheck,
-  Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
-  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2, Paperclip, Download
+  Edit, Eye, FileDown, FileText, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
+  Tag, Trash2, UploadCloud, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2, Paperclip, Download
 } from 'lucide-react';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
@@ -41,8 +41,10 @@ const EMPTY_ORDER = {
     schedules: [{ scheduleQty: '', deliveryDate: '' }]
   }],
   paymentTerms: '',
-  deliveryTerms: '',
   remark: '',
+  attachments: [],
+  _poDocumentFile: null,
+  poDocumentUrl: null,
 };
 
 const PRIORITY_STYLES = {
@@ -108,7 +110,10 @@ const saleOrderSchema = z.object({
   paymentTerms: z.string().optional(),
   deliveryTerms: z.string().optional(),
   remark: z.string().optional(),
-});
+  attachments: z.array(z.any()).optional(),
+  _poDocumentFile: z.any().optional(),
+  poDocumentUrl: z.string().nullable().optional(),
+}).passthrough();
 
 // --- Form Component ---
 function Field({ label, children, required, error, wide }) {
@@ -121,6 +126,142 @@ function Field({ label, children, required, error, wide }) {
       {children}
       {error && <span className="text-xs font-medium text-red-500">{error}</span>}
     </label>
+  );
+}
+
+function AttachmentsField({ value = [], onChange, disabled }) {
+  const fileInputRef = useRef(null);
+  const [editingId, setEditingId] = useState(null);
+
+  const handleAdd = () => {
+    const newAttachment = { id: crypto.randomUUID(), name: '', fileData: null, fileName: '', fileType: '' };
+    onChange([...(value || []), newAttachment]);
+  };
+
+  const handleRemove = (id) => {
+    onChange((value || []).filter(att => att.id !== id));
+  };
+
+  const handleUpdate = (id, updates) => {
+    onChange((value || []).map(att => att.id === id ? { ...att, ...updates } : att));
+  };
+
+  const handleFileChange = (id, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const current = (value || []).find(att => att.id === id);
+      const autoName = current?.name?.trim() ? current.name : file.name.replace(/\.[^/.]+$/, '');
+      handleUpdate(id, {
+        name: autoName,
+        fileObject: file,
+        fileData: URL.createObjectURL(file),
+        fileName: file.name,
+        fileType: file.type
+      });
+    }
+    e.target.value = null;
+  };
+
+  const triggerFileInput = (id) => {
+    setEditingId(id);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const openFile = (fileData) => {
+    if (!fileData) return;
+    if (fileData.startsWith('blob:') || fileData.startsWith('http')) {
+      window.open(fileData, '_blank');
+    } else {
+      const newTab = window.open();
+      if (newTab) {
+        newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <input
+        type="file"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={(e) => handleFileChange(editingId, e)}
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+      />
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          {(!value || value.length === 0) ? 'PO Documents / Attachments' : `PO Documents / Attachments (${value.length})`}
+        </label>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-200"
+          >
+            <Plus size={14} /> Add Document
+          </button>
+        )}
+      </div>
+
+      {(!value || value.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-6 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-slate-400">
+          <FileText size={28} className="mb-2 opacity-50 text-slate-400" />
+          <p className="text-sm font-medium">No documents attached</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {value.map((att) => (
+            <div key={att.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-xl border border-slate-200 bg-white shadow-sm hover:border-slate-300 transition-all">
+              <div className="flex-1 w-full">
+                <input
+                  placeholder="Enter document name (e.g. PO Copy, Drawing, Spec)"
+                  value={att.name || ''}
+                  onChange={(e) => handleUpdate(att.id, { name: e.target.value })}
+                  disabled={disabled}
+                  className="w-full text-sm outline-none bg-slate-50 focus:bg-white transition-colors h-[42px] px-3.5 rounded-lg border border-slate-200 focus:border-emerald-500/50"
+                  aria-label="Document Name"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                {(!att.fileData && !att.url) ? (
+                  !disabled && (
+                    <button
+                      type="button"
+                      onClick={() => triggerFileInput(att.id)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors h-[42px]"
+                    >
+                      <UploadCloud size={16} /> Upload File
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openFile(att.fileData || att.url)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors truncate max-w-[220px] h-[42px]"
+                    title={att.fileName || att.name || 'View File'}
+                  >
+                    <Eye size={16} className="shrink-0 text-emerald-600" />
+                    <span className="truncate">{att.fileName || att.name || 'View File'}</span>
+                  </button>
+                )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(att.id)}
+                    className="p-2 h-[42px] w-[42px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors border border-transparent hover:border-red-100"
+                    title="Remove Document"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -319,7 +460,28 @@ function SaleOrderForm({ mode, order, onBack }) {
           if (!deliveryTerms && party.deliveryTerms) deliveryTerms = party.deliveryTerms;
         }
       }
-      return { ...EMPTY_ORDER, ...order, items, partyAddress, shippingAddress, paymentTerms, deliveryTerms };
+      let attachments = order.attachments || [];
+      if ((!attachments || attachments.length === 0) && order.poDocumentUrl) {
+        attachments = [{
+          id: 'legacy-po-doc',
+          name: 'PO Document',
+          fileName: 'Existing Document',
+          fileData: order.poDocumentUrl,
+          url: order.poDocumentUrl,
+        }];
+      }
+      return {
+        ...EMPTY_ORDER,
+        ...order,
+        items,
+        partyAddress,
+        shippingAddress,
+        paymentTerms,
+        deliveryTerms,
+        attachments,
+        _poDocumentFile: null,
+        poDocumentUrl: order.poDocumentUrl || null,
+      };
     }
     return { ...EMPTY_ORDER };
   };
@@ -363,9 +525,12 @@ function SaleOrderForm({ mode, order, onBack }) {
     delete finalForm.deliveryDate;
 
 
-    if (isAdd) await addOrder(finalForm, currentOrg?.id, currentUser?.id);
-    else await updateOrder(order.id, finalForm, currentUser?.id);
-    onBack();
+    let success = false;
+    if (isAdd) success = await addOrder(finalForm, currentOrg?.id, currentUser?.id);
+    else success = await updateOrder(order.id, finalForm, currentUser?.id);
+    if (success !== false) {
+      onBack();
+    }
   };
 
 
@@ -904,32 +1069,15 @@ function SaleOrderForm({ mode, order, onBack }) {
                 </div>
 
 
-                <Controller
-                  control={control}
-                  name="_poDocumentFile"
-                  render={({ field: { onChange, ref } }) => (
-                    <Field label="PO Document Upload">
-                      <div className="relative">
-                        <Paperclip size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg"
-                          disabled={isView}
-                          onChange={(e) => onChange(e.target.files?.[0])}
-                          ref={ref}
-                          className={`${inputCls} pl-11 py-2.5 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer`}
-                        />
-                        {order?.poDocumentUrl && (
-                          <div className="mt-2 text-xs font-semibold">
-                            <a href={order.poDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline flex items-center gap-1">
-                              <Download size={12} /> View Existing Document
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </Field>
-                  )}
-                />
+                <div className="col-span-1 md:col-span-2 xl:col-span-3">
+                  <Controller
+                    control={control}
+                    name="attachments"
+                    render={({ field: { value, onChange } }) => (
+                      <AttachmentsField value={value} onChange={onChange} disabled={isView} />
+                    )}
+                  />
+                </div>
 
                 <Controller
                   control={control}
@@ -1079,18 +1227,42 @@ export default function SaleOrdersPage() {
     }
 
     if (column.key === 'poDocumentUrl') {
-      if (!value) return <span className="text-slate-400 font-medium">-</span>;
+      const attachments = order.attachments || [];
+      const primaryUrl = value || (attachments.length > 0 ? (attachments[0].url || attachments[0].fileData) : null);
+      if (!primaryUrl && attachments.length === 0) return <span className="text-slate-400 font-medium">-</span>;
+
+      if (attachments.length > 1) {
+        return (
+          <div className="flex justify-center items-center gap-1.5">
+            <a
+              href={primaryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors text-xs font-bold"
+              title={attachments[0]?.name || "View Document"}
+            >
+              <Paperclip size={13} />
+              {attachments[0]?.name ? attachments[0].name.slice(0, 12) + (attachments[0].name.length > 12 ? '...' : '') : 'View'}
+            </a>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200" title={`${attachments.length} attachments total`}>
+              +{attachments.length - 1}
+            </span>
+          </div>
+        );
+      }
+
+      const docTitle = attachments[0]?.name || "View Document";
       return (
         <div className="flex justify-center">
           <a
-            href={value}
+            href={primaryUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors text-xs font-bold"
-            title="View PO Document"
+            title={docTitle}
           >
             <Paperclip size={14} />
-            View
+            {attachments[0]?.name ? attachments[0].name.slice(0, 14) + (attachments[0].name.length > 14 ? '...' : '') : 'View'}
           </a>
         </div>
       );
