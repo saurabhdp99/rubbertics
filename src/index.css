@@ -206,11 +206,26 @@ body {
    ERP TOPBAR
    ============================================================ */
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
 .erp-topbar {
   position: fixed;
   top: 0;
-  left: 250px;
-  /* same as sidebar width */
+  left: 272px;
+  /* matches expanded sidebar width */
   right: 0;
   height: 64px;
   z-index: 20;
@@ -222,6 +237,7 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid #e2e8f0;
+  transition: left 0.25s ease-in-out;
 }
 
 @keyframes erpFadeIn {

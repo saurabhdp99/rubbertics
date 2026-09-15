@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useSidebarStore } from '../store/sidebarStore';
 
 // Map routes → page titles
 const PAGE_TITLES = {
@@ -33,6 +34,7 @@ const PAGE_TITLES = {
 
 export default function Topbar() {
   const { currentUser, logout } = useAuthStore();
+  const { isCollapsed, toggleSidebar } = useSidebarStore();
   const isAdmin = currentUser?.role === 'admin';
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,9 +69,12 @@ export default function Topbar() {
     : 'U';
 
   return (
-    <header className="erp-topbar">
+    <header
+      className="erp-topbar transition-[left] duration-250 ease-in-out"
+      style={{ left: isCollapsed ? '76px' : '272px' }}
+    >
       {/* Left – page title */}
-      <div className="erp-topbar-left">
+      <div className="erp-topbar-left flex items-center">
         <div>
           <h2 className="erp-topbar-title">{pageTitle}</h2>
         </div>

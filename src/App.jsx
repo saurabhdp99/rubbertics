@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { useAuthStore } from './store/authStore';
+import { useSidebarStore } from './store/sidebarStore';
 
 const SaleOrdersPage = lazy(() => import('./pages/SaleOrdersPage'));
 const PurchaseOrdersPage = lazy(() => import('./pages/PurchaseOrdersPage'));
@@ -36,6 +37,7 @@ const OrgSelectPage = lazy(() => import('./pages/OrgSelectPage'));
 // ─── ERP Shell (authenticated, org selected) ────────────────────────────────
 function ERPApp() {
   const { currentUser, currentOrg, staffOrgAccessMap } = useAuthStore();
+  const { isCollapsed } = useSidebarStore();
   const isAdmin = currentUser?.role === 'admin';
   const allowedPages = (!isAdmin && currentOrg && staffOrgAccessMap) ? staffOrgAccessMap[currentOrg.id] : null;
 
@@ -47,7 +49,7 @@ function ERPApp() {
       <Sidebar />
       <Topbar />
       <main
-        className="transition-all duration-300 ease-in-out ml-[250px] min-h-screen pt-16"
+        className={`transition-all duration-250 ease-in-out min-h-screen pt-16 ${isCollapsed ? 'ml-[76px]' : 'ml-[272px]'}`}
       >
         <div className="px-1">
           <Suspense fallback={<AppLoader />}>
