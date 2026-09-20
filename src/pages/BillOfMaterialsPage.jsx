@@ -91,7 +91,9 @@ const bomSchema = z.object({
   colour: z.string().optional(),
   hardness: z.string().optional(),
   specificGravity: z.string().optional(),
+  netCompoundWeight: z.any().optional(),
   netWeight: z.any().optional(),
+  weightLossFlyLossPercent: z.any().optional(),
   scrapPercent: z.any().optional(),
   grossWeight: z.any().optional(),
   compoundRate: z.any().optional(),
@@ -177,8 +179,10 @@ function BOMForm({ mode, bom, onBack }) {
       mouldCode: bom.mouldCode || '',
       cavities: bom.cavities?.toString() || '',
       cycleTimeSec: bom.cycleTimeSec?.toString() || '',
-      netWeight: bom.netWeight?.toString() || '',
-      scrapPercent: bom.scrapPercent?.toString() || '10',
+      netCompoundWeight: (bom.netCompoundWeight ?? bom.netWeight)?.toString() || '',
+      netWeight: (bom.netCompoundWeight ?? bom.netWeight)?.toString() || '',
+      weightLossFlyLossPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '10',
+      scrapPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '10',
       grossWeight: bom.grossWeight?.toString() || '',
       compoundRate: bom.compoundRate?.toString() || '',
       overheadCost: bom.overheadCost?.toString() || '0',
@@ -195,15 +199,15 @@ function BOMForm({ mode, bom, onBack }) {
   // Auto Calculations for Gross Weight & Rubber Cost
   useEffect(() => {
     if (isView) return;
-    const net = parseFloat(watchAll.netWeight) || 0;
-    const scrap = parseFloat(watchAll.scrapPercent) || 0;
+    const net = parseFloat(watchAll.netCompoundWeight ?? watchAll.netWeight) || 0;
+    const loss = parseFloat(watchAll.weightLossFlyLossPercent ?? watchAll.scrapPercent) || 0;
     if (net > 0) {
-      const gross = calculateGrossWeight(net, scrap);
+      const gross = calculateGrossWeight(net, loss);
       if (watchAll.grossWeight !== gross.toString()) {
         setValue('grossWeight', gross.toString());
       }
     }
-  }, [watchAll.netWeight, watchAll.scrapPercent, isView, setValue, watchAll.grossWeight]);
+  }, [watchAll.netCompoundWeight, watchAll.netWeight, watchAll.weightLossFlyLossPercent, watchAll.scrapPercent, isView, setValue, watchAll.grossWeight]);
 
   // Helper: Find matching tool in Tools Master based on Item details (item name, customer item code/part no, item code, drawing no)
   const findMatchingTool = (item, toolsList) => {
@@ -262,7 +266,7 @@ function BOMForm({ mode, bom, onBack }) {
       const match = toolsList.find(t => {
         const { tName, tCode } = getToolProps(t);
         return (tName && (tName.includes(custCode) || custCode.includes(tName))) ||
-               (tCode && (tCode.includes(custCode) || custCode.includes(tCode)));
+          (tCode && (tCode.includes(custCode) || custCode.includes(tCode)));
       });
       if (match) return match;
     }
@@ -329,6 +333,7 @@ function BOMForm({ mode, bom, onBack }) {
 
     const netWt = item.itemNetWeight || item.net_weight || item.netWeight || item.item_std_weight || item.itemStdWeight;
     if (netWt) {
+      setValue('netCompoundWeight', String(netWt), { shouldValidate: true, shouldDirty: true });
       setValue('netWeight', String(netWt), { shouldValidate: true, shouldDirty: true });
     }
     if (!watchAll.bomTitle && (itName || item.itemCode || item.item_code)) {
@@ -426,6 +431,7 @@ function BOMForm({ mode, bom, onBack }) {
       setValue('mouldCode', '', { shouldDirty: true });
       setValue('cavities', '', { shouldDirty: true });
       setValue('cycleTimeSec', '', { shouldDirty: true });
+      setValue('netCompoundWeight', '', { shouldDirty: true });
       setValue('netWeight', '', { shouldDirty: true });
       return;
     }
@@ -438,7 +444,7 @@ function BOMForm({ mode, bom, onBack }) {
       setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
       setValue('mouldCode', '', { shouldDirty: true });
     }
-    
+
     // Also query Supabase to ensure freshest revision data from item_master table
     if (currentOrg?.id) {
       try {
@@ -651,8 +657,8 @@ function BOMForm({ mode, bom, onBack }) {
   }, [watchAll.grossWeight, watchAll.compoundRate, watchAll.overheadCost, watchAll.batchQty, inserts, packaging]);
 
   const yieldPct = useMemo(() => {
-    return calculateMaterialYield(watchAll.netWeight, watchAll.grossWeight);
-  }, [watchAll.netWeight, watchAll.grossWeight]);
+    return calculateMaterialYield(watchAll.netCompoundWeight ?? watchAll.netWeight, watchAll.grossWeight);
+  }, [watchAll.netCompoundWeight, watchAll.netWeight, watchAll.grossWeight]);
 
   const onSubmit = (data) => {
     const payload = {
@@ -661,8 +667,10 @@ function BOMForm({ mode, bom, onBack }) {
       inserts,
       packaging,
       routing,
-      netWeight: parseFloat(data.netWeight) || 0,
-      scrapPercent: parseFloat(data.scrapPercent) || 0,
+      netCompoundWeight: parseFloat(data.netCompoundWeight ?? data.netWeight) || 0,
+      netWeight: parseFloat(data.netCompoundWeight ?? data.netWeight) || 0,
+      weightLossFlyLossPercent: parseFloat(data.weightLossFlyLossPercent ?? data.scrapPercent) || 0,
+      scrapPercent: parseFloat(data.weightLossFlyLossPercent ?? data.scrapPercent) || 0,
       grossWeight: parseFloat(data.grossWeight) || 0,
       compoundRate: parseFloat(data.compoundRate) || 0,
       batchQty: parseInt(data.batchQty) || 100,
@@ -682,7 +690,7 @@ function BOMForm({ mode, bom, onBack }) {
   return (
     <div className="animate-slide-up">
       <div className="glass-card rounded-2xl shadow-xl overflow-hidden">
-        
+
         {/* Form Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-4">
@@ -932,7 +940,7 @@ function BOMForm({ mode, bom, onBack }) {
           </Section>
 
           {/* 2. RUBBER COMPOUND & WEIGHT CALCULATIONS */}
-          <Section title="2. RUBBER COMPOUND & WEIGHT CALCULATIONS" icon={Beaker} subtitle="Gross weight and rubber cost are auto-calculated from net weight and scrap allowance">
+          <Section title="2. RUBBER COMPOUND & WEIGHT CALCULATIONS" icon={Beaker} subtitle="Gross weight and rubber cost are auto-calculated from net weight and weight loss / fly loss">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <Controller name="compoundCode" control={control} render={({ field }) => (
                 <Field label="Compound Code (Compound Master)">
@@ -995,15 +1003,37 @@ function BOMForm({ mode, bom, onBack }) {
                 </Field>
               )} />
 
-              <Controller name="netWeight" control={control} render={({ field }) => (
-                <Field label="Net Rubber Weight (g)">
-                  <input {...field} disabled={isView} type="number" step="0.01" className={inputCls} placeholder="0.00" />
+              <Controller name="netCompoundWeight" control={control} render={({ field }) => (
+                <Field label="Net Compound Weight (g)">
+                  <input
+                    {...field}
+                    disabled={isView}
+                    type="number"
+                    step="0.01"
+                    className={inputCls}
+                    placeholder="0.00"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setValue('netWeight', e.target.value, { shouldDirty: true });
+                    }}
+                  />
                 </Field>
               )} />
 
-              <Controller name="scrapPercent" control={control} render={({ field }) => (
-                <Field label="Flash / Scrap Allowance (%)">
-                  <input {...field} disabled={isView} type="number" step="0.5" className={inputCls} placeholder="10" />
+              <Controller name="weightLossFlyLossPercent" control={control} render={({ field }) => (
+                <Field label="Weight Loss / Fly Loss (%)">
+                  <input
+                    {...field}
+                    disabled={isView}
+                    type="number"
+                    step="0.5"
+                    className={inputCls}
+                    placeholder="10"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setValue('scrapPercent', e.target.value, { shouldDirty: true });
+                    }}
+                  />
                 </Field>
               )} />
 
@@ -1515,7 +1545,7 @@ export default function BillOfMaterialsPage() {
     let totalYield = 0;
     let count = 0;
     boms.forEach(b => {
-      const y = calculateMaterialYield(b.netWeight, b.grossWeight);
+      const y = calculateMaterialYield(b.netCompoundWeight ?? b.netWeight, b.grossWeight);
       if (y > 0 && y <= 100) {
         totalYield += y;
         count++;
@@ -1594,11 +1624,11 @@ export default function BillOfMaterialsPage() {
     },
     {
       accessor: 'netWeight',
-      header: 'Net / Gross Wt (g)',
+      header: 'Net Compound / Gross (g)',
       align: 'right',
       render: (_, row) => (
         <div className="text-right font-medium">
-          <span className="font-bold text-slate-900">{row.netWeight}g</span>
+          <span className="font-bold text-slate-900">{row.netCompoundWeight ?? row.netWeight}g</span>
           <span className="text-slate-400 text-[11px] block">Gross: {row.grossWeight}g</span>
         </div>
       ),
@@ -1636,10 +1666,10 @@ export default function BillOfMaterialsPage() {
           val === 'Active'
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
             : val === 'Under Review'
-            ? 'bg-amber-50 text-amber-700 border-amber-200'
-            : val === 'Obsolete'
-            ? 'bg-red-50 text-red-700 border-red-200'
-            : 'bg-slate-100 text-slate-600 border-slate-200';
+              ? 'bg-amber-50 text-amber-700 border-amber-200'
+              : val === 'Obsolete'
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200';
         return (
           <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${badgeClass}`}>
             {val || 'Draft'}
@@ -1695,9 +1725,8 @@ export default function BillOfMaterialsPage() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-semibold text-white pointer-events-auto transition-all animate-fadeIn ${
-                n.type === 'error' ? 'bg-red-600' : n.type === 'info' ? 'bg-slate-800' : 'bg-emerald-600'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-semibold text-white pointer-events-auto transition-all animate-fadeIn ${n.type === 'error' ? 'bg-red-600' : n.type === 'info' ? 'bg-slate-800' : 'bg-emerald-600'
+                }`}
             >
               {n.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
               <span>{n.message}</span>

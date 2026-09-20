@@ -1,14 +1,14 @@
 // ─── BOM Template & Calculations Engine ───────────────────────────────────────
 
 /**
- * Calculate Gross Rubber Weight from Net Weight and Scrap/Flash Percentage.
- * Gross Weight = Net Weight * (1 + Scrap% / 100)
+ * Calculate Gross Rubber Weight from Net Weight and Weight Loss / Fly Loss Percentage.
+ * Gross Weight = Net Weight * (1 + (Weight Loss / Fly Loss)% / 100)
  */
-export function calculateGrossWeight(netWeight, scrapPercent) {
+export function calculateGrossWeight(netWeight, lossPercent) {
   const net = parseFloat(netWeight) || 0;
-  const scrap = parseFloat(scrapPercent) || 0;
+  const loss = parseFloat(lossPercent) || 0;
   if (net <= 0) return 0;
-  const gross = net * (1 + scrap / 100);
+  const gross = net * (1 + loss / 100);
   return Math.round(gross * 100) / 100;
 }
 
@@ -93,8 +93,10 @@ export const DEFAULT_BOM = {
   colour: '',
   hardness: '',
   specificGravity: '1.20',
-  netWeight: '', // in grams
-  scrapPercent: 12, // 12% standard flash/runner scrap
+  netCompoundWeight: '', // in grams
+  netWeight: '', // backwards compatibility
+  weightLossFlyLossPercent: 12, // 12% standard weight loss / fly loss
+  scrapPercent: 12, // backwards compatibility
   grossWeight: '', // in grams
   compoundRate: '', // $/kg or ₹/kg
 

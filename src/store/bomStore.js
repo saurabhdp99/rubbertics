@@ -103,11 +103,21 @@ export const useBOMStore = create((set, get) => ({
     const count = maxNum > 0 ? maxNum + 1 : boms.length + 1;
     const autoBomNo = bomData.bomNo?.trim() || `${prefix}${String(count).padStart(3, '0')}`;
 
-    const gross = bomData.grossWeight || calculateGrossWeight(bomData.netWeight, bomData.scrapPercent);
+    const net = bomData.netCompoundWeight !== undefined && bomData.netCompoundWeight !== null && bomData.netCompoundWeight !== ''
+      ? bomData.netCompoundWeight
+      : bomData.netWeight;
+    const lossPercent = bomData.weightLossFlyLossPercent !== undefined && bomData.weightLossFlyLossPercent !== null
+      ? bomData.weightLossFlyLossPercent
+      : bomData.scrapPercent;
+    const gross = bomData.grossWeight || calculateGrossWeight(net, lossPercent);
 
     const newBOM = {
       ...DEFAULT_BOM,
       ...bomData,
+      netCompoundWeight: parseFloat(net) || 0,
+      netWeight: parseFloat(net) || 0,
+      weightLossFlyLossPercent: parseFloat(lossPercent) || 0,
+      scrapPercent: parseFloat(lossPercent) || 0,
       id: crypto.randomUUID ? crypto.randomUUID() : `bom-${Date.now()}`,
       bomNo: autoBomNo,
       grossWeight: gross,
@@ -124,13 +134,26 @@ export const useBOMStore = create((set, get) => ({
 
   updateBOM: (id, updates) => {
     const boms = get().boms;
-    const gross = updates.grossWeight || calculateGrossWeight(updates.netWeight, updates.scrapPercent);
-
     const updated = boms.map(b => {
       if (b.id === id) {
+        const net = updates.netCompoundWeight !== undefined && updates.netCompoundWeight !== null && updates.netCompoundWeight !== ''
+          ? updates.netCompoundWeight
+          : (updates.netWeight !== undefined && updates.netWeight !== null && updates.netWeight !== ''
+            ? updates.netWeight
+            : (b.netCompoundWeight ?? b.netWeight));
+        const lossPercent = updates.weightLossFlyLossPercent !== undefined && updates.weightLossFlyLossPercent !== null
+          ? updates.weightLossFlyLossPercent
+          : (updates.scrapPercent !== undefined && updates.scrapPercent !== null
+            ? updates.scrapPercent
+            : (b.weightLossFlyLossPercent ?? b.scrapPercent));
+        const gross = updates.grossWeight || calculateGrossWeight(net, lossPercent);
         return {
           ...b,
           ...updates,
+          netCompoundWeight: parseFloat(net) || 0,
+          netWeight: parseFloat(net) || 0,
+          weightLossFlyLossPercent: parseFloat(lossPercent) || 0,
+          scrapPercent: parseFloat(lossPercent) || 0,
           grossWeight: gross,
           updatedAt: new Date().toISOString()
         };
@@ -225,7 +248,7 @@ export const useBOMStore = create((set, get) => ({
     const headers = [
       'BOM No', 'Title', 'Item Code', 'Item Name', 'Customer Part No', 'Drawing No',
       'Revision', 'Status', 'Polymer', 'Compound Code', 'Colour', 'Hardness',
-      'Net Wt (g)', 'Scrap %', 'Gross Wt (g)', 'Compound Rate', 'Mould Code', 'Cavities',
+      'Net Compound Wt (g)', 'Weight Loss / Fly Loss %', 'Gross Wt (g)', 'Compound Rate', 'Mould Code', 'Cavities',
       'Cycle Time (s)', 'Est Unit Cost', 'Batch Qty'
     ];
 
@@ -244,8 +267,8 @@ export const useBOMStore = create((set, get) => ({
         `"${b.compoundCode || ''}"`,
         `"${b.colour || ''}"`,
         `"${b.hardness || ''}"`,
-        b.netWeight || 0,
-        b.scrapPercent || 0,
+        b.netCompoundWeight ?? b.netWeight ?? 0,
+        b.weightLossFlyLossPercent ?? b.scrapPercent ?? 0,
         b.grossWeight || 0,
         b.compoundRate || 0,
         `"${b.mouldCode || ''}"`,

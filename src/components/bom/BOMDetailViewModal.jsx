@@ -12,7 +12,7 @@ export default function BOMDetailViewModal() {
 
   const bom = selectedBOM;
   const costs = calculateBOMCost(bom);
-  const yieldPct = calculateMaterialYield(bom.netWeight, bom.grossWeight);
+  const yieldPct = calculateMaterialYield(bom.netCompoundWeight ?? bom.netWeight, bom.grossWeight);
 
   const handlePrint = () => {
     window.print();
@@ -138,12 +138,12 @@ export default function BOMDetailViewModal() {
                 <span className="font-medium text-slate-800">{bom.polymer} · {bom.hardness}</span>
               </div>
               <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Net Part Weight</span>
-                <span className="font-bold text-slate-800">{bom.netWeight} grams</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Net Compound Weight</span>
+                <span className="font-bold text-slate-800">{bom.netCompoundWeight ?? bom.netWeight} grams</span>
               </div>
               <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Gross Weight (with Scrap)</span>
-                <span className="font-extrabold text-slate-900">{bom.grossWeight} g <span className="text-slate-400 text-[10px]">({bom.scrapPercent}% scrap)</span></span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Gross Weight (with Weight Loss / Fly Loss)</span>
+                <span className="font-extrabold text-slate-900">{bom.grossWeight} g <span className="text-slate-400 text-[10px]">({bom.weightLossFlyLossPercent ?? bom.scrapPercent}% loss)</span></span>
               </div>
             </div>
 

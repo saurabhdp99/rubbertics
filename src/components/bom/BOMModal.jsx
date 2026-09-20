@@ -67,22 +67,26 @@ export default function BOMModal() {
     }
   }, [isModalOpen, selectedBOM]);
 
-  // Recalculate gross weight whenever net weight or scrap percent changes
+  // Recalculate gross weight whenever net compound weight or weight loss / fly loss percent changes
   const handleNetWeightChange = (val) => {
     const net = parseFloat(val) || 0;
-    const gross = calculateGrossWeight(net, formData.scrapPercent);
+    const loss = parseFloat(formData.weightLossFlyLossPercent ?? formData.scrapPercent) || 0;
+    const gross = calculateGrossWeight(net, loss);
     setFormData(prev => ({
       ...prev,
+      netCompoundWeight: val,
       netWeight: val,
       grossWeight: gross
     }));
   };
 
-  const handleScrapPercentChange = (val) => {
-    const scrap = parseFloat(val) || 0;
-    const gross = calculateGrossWeight(formData.netWeight, scrap);
+  const handleWeightLossChange = (val) => {
+    const loss = parseFloat(val) || 0;
+    const net = parseFloat(formData.netCompoundWeight ?? formData.netWeight) || 0;
+    const gross = calculateGrossWeight(net, loss);
     setFormData(prev => ({
       ...prev,
+      weightLossFlyLossPercent: val,
       scrapPercent: val,
       grossWeight: gross
     }));
@@ -94,8 +98,8 @@ export default function BOMModal() {
   }, [formData]);
 
   const materialYield = useMemo(() => {
-    return calculateMaterialYield(formData.netWeight, formData.grossWeight);
-  }, [formData.netWeight, formData.grossWeight]);
+    return calculateMaterialYield(formData.netCompoundWeight ?? formData.netWeight, formData.grossWeight);
+  }, [formData.netCompoundWeight, formData.netWeight, formData.grossWeight]);
 
   if (!isModalOpen) return null;
 
@@ -129,9 +133,10 @@ export default function BOMModal() {
         cavities: matchedTool ? (matchedTool.numberOfCavities || matchedTool.number_of_cavities || prev.cavities) : prev.cavities,
         cycleTimeSec: matchedTool ? (matchedTool.cycleTime || matchedTool.cycle_time || prev.cycleTimeSec) : prev.cycleTimeSec,
         bomTitle: prev.bomTitle || `${found.itemName || found.itemCode} Standard BOM`,
+        netCompoundWeight: found.itemNetWeight || found.itemStdWeight || prev.netCompoundWeight || prev.netWeight,
         netWeight: found.itemNetWeight || found.itemStdWeight || prev.netWeight,
         grossWeight: found.itemNetWeight
-          ? calculateGrossWeight(found.itemNetWeight, prev.scrapPercent)
+          ? calculateGrossWeight(found.itemNetWeight, prev.weightLossFlyLossPercent ?? prev.scrapPercent)
           : prev.grossWeight
       }));
     } else {
@@ -304,8 +309,9 @@ export default function BOMModal() {
     if (!formData.compoundCode?.trim() && !formData.compoundName?.trim()) {
       newErrors.compound = 'Rubber Compound is required';
     }
-    if (!formData.netWeight || parseFloat(formData.netWeight) <= 0) {
-      newErrors.netWeight = 'Valid Net Weight is required';
+    const netVal = formData.netCompoundWeight ?? formData.netWeight;
+    if (!netVal || parseFloat(netVal) <= 0) {
+      newErrors.netWeight = 'Valid Net Compound Weight is required';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -737,7 +743,7 @@ export default function BOMModal() {
                 <div className="text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Calculator size={15} className="text-emerald-600" />
-                    Weight & Flash Scrap Calculations
+                    Weight & Weight Loss / Fly Loss Calculations
                   </span>
                   <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">
                     <span>Material Yield: {materialYield}%</span>
@@ -747,34 +753,34 @@ export default function BOMModal() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-                      Net Part Weight (g) <span className="text-red-500">*</span>
+                      Net Compound Weight (g) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.netWeight}
+                      value={formData.netCompoundWeight ?? formData.netWeight ?? ''}
                       onChange={(e) => handleNetWeightChange(e.target.value)}
                       placeholder="e.g. 84.50"
                       className={`w-full px-3 py-2 text-[14px] font-bold border rounded-xl focus:outline-none ${
                         errors.netWeight ? 'border-red-500 bg-red-50/20' : 'border-slate-200 focus:border-emerald-500'
                       }`}
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Finished trimmed weight</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Finished trimmed compound weight</p>
                   </div>
 
                   <div>
                     <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-                      Flash / Scrap Allowance (%)
+                      Weight Loss / Fly Loss (%)
                     </label>
                     <input
                       type="number"
                       step="0.5"
-                      value={formData.scrapPercent}
-                      onChange={(e) => handleScrapPercentChange(e.target.value)}
+                      value={formData.weightLossFlyLossPercent ?? formData.scrapPercent ?? ''}
+                      onChange={(e) => handleWeightLossChange(e.target.value)}
                       placeholder="10"
                       className="w-full px-3 py-2 text-[14px] font-bold border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Runner, overflow & flash</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Weight loss / fly loss allowance</p>
                   </div>
 
                   <div>
@@ -787,7 +793,7 @@ export default function BOMModal() {
                       value={formData.grossWeight || ''}
                       className="w-full px-3 py-2 text-[14px] font-extrabold text-slate-800 border border-slate-200 rounded-xl bg-slate-50 cursor-not-allowed"
                     />
-                    <p className="text-[10px] text-emerald-600 mt-1">Auto-calculated: Net + Scrap</p>
+                    <p className="text-[10px] text-emerald-600 mt-1">Auto-calculated: Net + Weight Loss</p>
                   </div>
 
                   <div>
