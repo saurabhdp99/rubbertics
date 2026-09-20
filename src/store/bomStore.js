@@ -76,8 +76,18 @@ export const useBOMStore = create((set, get) => ({
   addBOM: (bomData) => {
     const boms = get().boms;
     const yearCode = String(new Date().getFullYear()).slice(-2);
-    const count = boms.length + 1;
-    const autoBomNo = bomData.bomNo?.trim() || `BOM-${yearCode}-${String(count).padStart(3, '0')}`;
+    const prefix = `BOM-${yearCode}-`;
+    let maxNum = 0;
+    boms.forEach(b => {
+      if (b.bomNo && typeof b.bomNo === 'string' && b.bomNo.startsWith(prefix)) {
+        const num = parseInt(b.bomNo.replace(prefix, ''), 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+    const count = maxNum > 0 ? maxNum + 1 : boms.length + 1;
+    const autoBomNo = bomData.bomNo?.trim() || `${prefix}${String(count).padStart(3, '0')}`;
 
     const gross = bomData.grossWeight || calculateGrossWeight(bomData.netWeight, bomData.scrapPercent);
 
@@ -144,8 +154,18 @@ export const useBOMStore = create((set, get) => ({
     }
 
     const yearCode = String(new Date().getFullYear()).slice(-2);
-    const count = boms.length + 1;
-    const newBomNo = `BOM-${yearCode}-${String(count).padStart(3, '0')}`;
+    const prefix = `BOM-${yearCode}-`;
+    let maxNum = 0;
+    boms.forEach(b => {
+      if (b.bomNo && typeof b.bomNo === 'string' && b.bomNo.startsWith(prefix)) {
+        const num = parseInt(b.bomNo.replace(prefix, ''), 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+    const count = maxNum > 0 ? maxNum + 1 : boms.length + 1;
+    const newBomNo = `${prefix}${String(count).padStart(3, '0')}`;
 
     const duplicated = {
       ...original,

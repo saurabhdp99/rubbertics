@@ -104,6 +104,19 @@ export default function BOMModal() {
     const itemCode = e.target.value;
     const found = masterItems?.find(it => (it.itemCode || it.item_code) === itemCode);
     if (found) {
+      const itName = (found.itemName || found.customerItemName || found.item_name || '').toLowerCase();
+      const custCode = (found.customerItemCode || found.customer_item_code || '').toLowerCase();
+      const itCode = (found.itemCode || found.item_code || '').toLowerCase();
+
+      const matchedTool = masterTools?.find(t => {
+        const tName = (t.toolName || t.tool_name || t.linked_part_name || '').toLowerCase();
+        const tCode = (t.toolCode || t.tool_code || '').toLowerCase();
+        return (itName && tName === itName) ||
+               (custCode && (tName === custCode || tCode === custCode)) ||
+               (itCode && (tName === itCode || tCode === itCode)) ||
+               (itName && tName && (itName.includes(tName) || tName.includes(itName)));
+      });
+
       setFormData(prev => ({
         ...prev,
         itemCode: found.itemCode || found.item_code || '',
@@ -111,6 +124,10 @@ export default function BOMModal() {
         customerPartNo: found.customerItemCode || found.customer_item_code || prev.customerPartNo,
         drawingNo: found.drawingNo || found.drawing_no || prev.drawingNo,
         revisionNo: found.revisionNo || found.revision_no || prev.revisionNo,
+        batchQty: found.batchQty || found.batch_qty || prev.batchQty,
+        mouldCode: matchedTool ? (matchedTool.toolCode || matchedTool.tool_code) : prev.mouldCode,
+        cavities: matchedTool ? (matchedTool.numberOfCavities || matchedTool.number_of_cavities || prev.cavities) : prev.cavities,
+        cycleTimeSec: matchedTool ? (matchedTool.cycleTime || matchedTool.cycle_time || prev.cycleTimeSec) : prev.cycleTimeSec,
         bomTitle: prev.bomTitle || `${found.itemName || found.itemCode} Standard BOM`,
         netWeight: found.itemNetWeight || found.itemStdWeight || prev.netWeight,
         grossWeight: found.itemNetWeight
@@ -118,7 +135,7 @@ export default function BOMModal() {
           : prev.grossWeight
       }));
     } else {
-      setFormData(prev => ({ ...prev, itemCode }));
+      setFormData(prev => ({ ...prev, itemCode, mouldCode: '', cavities: '', cycleTimeSec: '' }));
     }
   };
 
@@ -348,15 +365,21 @@ export default function BOMModal() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-                    BOM Number <span className="text-slate-400 font-normal">(Leave blank to auto-generate)</span>
+                    BOM Number <span className="text-slate-400 font-normal">(Auto-generated)</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bomNo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, bomNo: e.target.value }))}
-                    placeholder="e.g. BOM-26-005"
-                    className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-slate-50/50"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.bomNo}
+                      disabled
+                      readOnly
+                      placeholder="Auto-generated"
+                      className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed pr-16"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 pointer-events-none">
+                      Auto
+                    </span>
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">

@@ -20,6 +20,7 @@ import { useCompoundMasterStore } from '../store/compoundMasterStore';
 import { useToolsMasterStore } from '../store/toolsMasterStore';
 import { useMachineMasterStore } from '../store/machineMasterStore';
 import { useEmployeeMasterStore } from '../store/employeeMasterStore';
+import { supabase } from '../lib/supabase';
 import {
   DEFAULT_BOM,
   POLYMER_OPTIONS,
@@ -107,7 +108,7 @@ const bomSchema = z.object({
 function BOMForm({ mode, bom, onBack }) {
   const isView = mode === 'view';
   const { currentOrg } = useAuthStore();
-  const { addBOM, updateBOM } = useBOMStore();
+  const { boms, addBOM, updateBOM } = useBOMStore();
   const { items: masterItems, fetchItems, isLoading: isItemsLoading } = useItemMasterStore();
   const { compounds: masterCompounds, fetchCompounds, isLoading: isCompoundsLoading } = useCompoundMasterStore();
   const { tools: masterTools, fetchTools, isLoading: isToolsLoading } = useToolsMasterStore();
@@ -137,27 +138,52 @@ function BOMForm({ mode, bom, onBack }) {
   const [packaging, setPackaging] = useState(bom?.packaging ? [...bom.packaging] : []);
   const [routing, setRouting] = useState(bom?.routing ? [...bom.routing] : [...DEFAULT_BOM.routing]);
 
+  // Compute next sequential BOM Number (e.g. BOM-26-005)
+  const nextBomNo = useMemo(() => {
+    if (bom?.bomNo) return bom.bomNo;
+    const yearCode = String(new Date().getFullYear()).slice(-2);
+    const prefix = `BOM-${yearCode}-`;
+    let maxNum = 0;
+    (boms || []).forEach(b => {
+      if (b.bomNo && typeof b.bomNo === 'string' && b.bomNo.startsWith(prefix)) {
+        const num = parseInt(b.bomNo.replace(prefix, ''), 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+    const nextNum = maxNum > 0 ? maxNum + 1 : (boms?.length || 0) + 1;
+    return `${prefix}${String(nextNum).padStart(3, '0')}`;
+  }, [bom, boms]);
+
   const defaultVals = useMemo(() => {
     if (!bom) {
-      const yearCode = String(new Date().getFullYear()).slice(-2);
       return {
         ...DEFAULT_BOM,
-        bomNo: `BOM-${yearCode}-${String(Date.now()).slice(-3)}`,
+        bomNo: nextBomNo,
+        revisionNo: '',
+        batchQty: '',
+        mouldCode: '',
+        cavities: '',
+        cycleTimeSec: '',
       };
     }
     return {
       ...DEFAULT_BOM,
       ...bom,
-      batchQty: bom.batchQty?.toString() || '100',
-      cavities: bom.cavities?.toString() || '1',
-      cycleTimeSec: bom.cycleTimeSec?.toString() || '180',
+      bomNo: bom.bomNo || nextBomNo,
+      revisionNo: bom.revisionNo || '',
+      batchQty: bom.batchQty?.toString() || '',
+      mouldCode: bom.mouldCode || '',
+      cavities: bom.cavities?.toString() || '',
+      cycleTimeSec: bom.cycleTimeSec?.toString() || '',
       netWeight: bom.netWeight?.toString() || '',
       scrapPercent: bom.scrapPercent?.toString() || '10',
       grossWeight: bom.grossWeight?.toString() || '',
       compoundRate: bom.compoundRate?.toString() || '',
       overheadCost: bom.overheadCost?.toString() || '0',
     };
-  }, [bom]);
+  }, [bom, nextBomNo]);
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(bomSchema),
@@ -179,23 +205,254 @@ function BOMForm({ mode, bom, onBack }) {
     }
   }, [watchAll.netWeight, watchAll.scrapPercent, isView, setValue, watchAll.grossWeight]);
 
+  // Helper: Find matching tool in Tools Master based on Item details (item name, customer item code/part no, item code, drawing no)
+  const findMatchingTool = (item, toolsList) => {
+    if (!item || !toolsList || toolsList.length === 0) return null;
+
+    const itName = (item.itemName || item.customerItemName || item.item_name || item.partName || item.part_name || '').trim().toLowerCase();
+    const custCode = (item.customerItemCode || item.customer_item_code || item.partNo || item.part_no || item.customerPartNo || '').trim().toLowerCase();
+    const itCode = (item.itemCode || item.item_code || '').trim().toLowerCase();
+    const dwg = (item.drawingNo || item.drawing_no || '').trim().toLowerCase();
+
+    const getToolProps = (t) => {
+      const tName = (t.toolName || t.tool_name || t.linked_part_name || t.linkedPartName || '').trim().toLowerCase();
+      const tCode = (t.toolCode || t.tool_code || '').trim().toLowerCase();
+      const tRemarks = (t.remarks || '').trim().toLowerCase();
+      return { tName, tCode, tRemarks };
+    };
+
+    // 1. Exact match on itemName
+    if (itName) {
+      const match = toolsList.find(t => {
+        const { tName } = getToolProps(t);
+        return tName && tName === itName;
+      });
+      if (match) return match;
+    }
+
+    // 2. Exact match on customerItemCode / custom item name or code
+    if (custCode) {
+      const match = toolsList.find(t => {
+        const { tName, tCode } = getToolProps(t);
+        return (tName && tName === custCode) || (tCode && tCode === custCode);
+      });
+      if (match) return match;
+    }
+
+    // 3. Exact match on itemCode
+    if (itCode) {
+      const match = toolsList.find(t => {
+        const { tName, tCode } = getToolProps(t);
+        return (tName && tName === itCode) || (tCode && tCode === itCode);
+      });
+      if (match) return match;
+    }
+
+    // 4. Substring match on itemName (e.g. "Engine Mounting Bush")
+    if (itName && itName.length >= 3) {
+      const match = toolsList.find(t => {
+        const { tName } = getToolProps(t);
+        return tName && (itName.includes(tName) || tName.includes(itName));
+      });
+      if (match) return match;
+    }
+
+    // 5. Substring match on customerItemCode
+    if (custCode && custCode.length >= 3) {
+      const match = toolsList.find(t => {
+        const { tName, tCode } = getToolProps(t);
+        return (tName && (tName.includes(custCode) || custCode.includes(tName))) ||
+               (tCode && (tCode.includes(custCode) || custCode.includes(tCode)));
+      });
+      if (match) return match;
+    }
+
+    // 6. Substring match on drawing number
+    if (dwg && dwg.length >= 3) {
+      const match = toolsList.find(t => {
+        const { tName, tRemarks } = getToolProps(t);
+        return (tName && tName.includes(dwg)) || (tRemarks && tRemarks.includes(dwg));
+      });
+      if (match) return match;
+    }
+
+    return null;
+  };
+
+  // Helper: Apply matching Tool details (mouldCode, cavities, cycleTimeSec)
+  const applyMatchingTool = (tool) => {
+    if (!tool) {
+      setValue('mouldCode', '', { shouldDirty: true });
+      setValue('cavities', '', { shouldDirty: true });
+      setValue('cycleTimeSec', '', { shouldDirty: true });
+      return;
+    }
+    const code = tool.toolCode || tool.tool_code || '';
+    if (code) {
+      setValue('mouldCode', code, { shouldValidate: true, shouldDirty: true });
+    }
+    const cav = tool.numberOfCavities || tool.number_of_cavities;
+    if (cav !== undefined && cav !== null && Number(cav) > 0) {
+      setValue('cavities', String(cav), { shouldDirty: true });
+    }
+    const cycle = tool.cycleTime || tool.cycle_time;
+    if (cycle) {
+      setValue('cycleTimeSec', String(parseFloat(cycle) || 180), { shouldDirty: true });
+    }
+  };
+
+  // Helper to populate form fields from Item Master & Tools Master
+  const applyFinishedItemDetails = (item) => {
+    if (!item) return;
+    const itName = item.itemName || item.customerItemName || item.item_name || '';
+    if (itName) {
+      setValue('itemName', itName, { shouldValidate: true, shouldDirty: true });
+    }
+    const custPart = item.customerItemCode || item.customer_item_code || item.part_no || item.partNo || '';
+    setValue('customerPartNo', custPart, { shouldDirty: true });
+
+    const dwg = item.drawingNo || item.drawing_no || '';
+    setValue('drawingNo', dwg, { shouldDirty: true });
+
+    // Extract item revision number from item master: if item has revision, set it; if not, empty
+    const rawRev = item.revisionNo ?? item.revision_no ?? item.revision ?? item.rev_no ?? item.revNo ?? item.partRevision ?? item.part_revision;
+    const rev = (rawRev !== null && rawRev !== undefined && String(rawRev).trim() !== '') ? String(rawRev).trim() : '';
+    setValue('revisionNo', rev, { shouldValidate: true, shouldDirty: true });
+
+    // Extract batch quantity from item master
+    const rawBatch = item.batchQty ?? item.batch_qty;
+    if (rawBatch !== undefined && rawBatch !== null && Number(rawBatch) > 0) {
+      setValue('batchQty', String(rawBatch), { shouldValidate: true, shouldDirty: true });
+    } else {
+      setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
+    }
+
+    const netWt = item.itemNetWeight || item.net_weight || item.netWeight || item.item_std_weight || item.itemStdWeight;
+    if (netWt) {
+      setValue('netWeight', String(netWt), { shouldValidate: true, shouldDirty: true });
+    }
+    if (!watchAll.bomTitle && (itName || item.itemCode || item.item_code)) {
+      setValue('bomTitle', `${itName || item.itemCode || item.item_code} Standard BOM`, { shouldDirty: true });
+    }
+
+    // Auto-match and populate Tool / Mould from Tools Master
+    const matchedTool = findMatchingTool(item, masterTools);
+    if (matchedTool) {
+      applyMatchingTool(matchedTool);
+    } else if (currentOrg?.id) {
+      supabase
+        .from('tool_master')
+        .select('*')
+        .eq('org_id', currentOrg.id)
+        .then(({ data, error }) => {
+          if (!error && data && data.length > 0) {
+            const remoteMatch = findMatchingTool(item, data);
+            if (remoteMatch) {
+              applyMatchingTool(remoteMatch);
+            }
+          }
+        });
+    } else {
+      applyMatchingTool(null);
+    }
+  };
+
+  // Auto-fetch revision number, batch qty, tool no, and item details whenever itemCode is selected or loaded
+  useEffect(() => {
+    const code = watchAll.itemCode;
+    if (!code) {
+      if (!bom) {
+        if (watchAll.revisionNo) setValue('revisionNo', '', { shouldValidate: true, shouldDirty: true });
+        if (watchAll.batchQty) setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
+        if (watchAll.mouldCode) setValue('mouldCode', '', { shouldDirty: true });
+        if (watchAll.cavities) setValue('cavities', '', { shouldDirty: true });
+        if (watchAll.cycleTimeSec) setValue('cycleTimeSec', '', { shouldDirty: true });
+      }
+      return;
+    }
+
+    const found = masterItems?.find(it => (it.itemCode || it.item_code) === code);
+    if (found) {
+      const rawRev = found.revisionNo ?? found.revision_no ?? found.revision ?? found.rev_no ?? found.revNo ?? found.partRevision ?? found.part_revision;
+      const rev = (rawRev !== null && rawRev !== undefined && String(rawRev).trim() !== '') ? String(rawRev).trim() : '';
+      if (watchAll.revisionNo !== rev) {
+        setValue('revisionNo', rev, { shouldValidate: true, shouldDirty: true });
+      }
+
+      const rawBatch = found.batchQty ?? found.batch_qty;
+      const batchStr = (rawBatch !== undefined && rawBatch !== null && Number(rawBatch) > 0) ? String(rawBatch) : '';
+      if (watchAll.batchQty !== batchStr) {
+        setValue('batchQty', batchStr, { shouldValidate: true, shouldDirty: true });
+      }
+
+      // Auto-fetch matching tool from Tools Master if mouldCode not set or when syncing
+      const matchedTool = findMatchingTool(found, masterTools);
+      if (matchedTool) {
+        const tCode = matchedTool.toolCode || matchedTool.tool_code;
+        if (watchAll.mouldCode !== tCode) {
+          applyMatchingTool(matchedTool);
+        }
+      }
+    } else if (currentOrg?.id) {
+      supabase
+        .from('item_master')
+        .select('*')
+        .eq('org_id', currentOrg.id)
+        .eq('item_code', code)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            applyFinishedItemDetails(data);
+          } else if (!bom) {
+            setValue('revisionNo', '', { shouldValidate: true, shouldDirty: true });
+            setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
+            setValue('mouldCode', '', { shouldDirty: true });
+          }
+        });
+    }
+  }, [watchAll.itemCode, masterItems, masterTools, currentOrg?.id, setValue, watchAll.revisionNo, watchAll.batchQty, watchAll.mouldCode, bom]);
+
   // Handle Finished Item Selection
-  const handleItemSelect = (e, fieldOnChange) => {
+  const handleItemSelect = async (e, fieldOnChange) => {
     fieldOnChange?.(e);
     const itemCode = e.target.value;
     setValue('itemCode', itemCode, { shouldValidate: true, shouldDirty: true });
+    if (!itemCode) {
+      setValue('itemName', '', { shouldDirty: true });
+      setValue('customerPartNo', '', { shouldDirty: true });
+      setValue('drawingNo', '', { shouldDirty: true });
+      setValue('revisionNo', '', { shouldValidate: true, shouldDirty: true });
+      setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
+      setValue('mouldCode', '', { shouldDirty: true });
+      setValue('cavities', '', { shouldDirty: true });
+      setValue('cycleTimeSec', '', { shouldDirty: true });
+      setValue('netWeight', '', { shouldDirty: true });
+      return;
+    }
+
     const found = masterItems?.find(it => (it.itemCode || it.item_code) === itemCode);
     if (found) {
-      const itName = found.itemName || found.customerItemName || found.item_name || '';
-      setValue('itemName', itName, { shouldValidate: true, shouldDirty: true });
-      setValue('customerPartNo', found.customerItemCode || found.customer_item_code || '', { shouldDirty: true });
-      setValue('drawingNo', found.drawingNo || found.drawing_no || '', { shouldDirty: true });
-      if (found.revisionNo || found.revision_no) setValue('revisionNo', found.revisionNo || found.revision_no, { shouldDirty: true });
-      if (found.itemNetWeight || found.net_weight) {
-        setValue('netWeight', String(found.itemNetWeight || found.net_weight), { shouldValidate: true, shouldDirty: true });
-      }
-      if (!watchAll.bomTitle) {
-        setValue('bomTitle', `${itName || itemCode} Standard BOM`, { shouldDirty: true });
+      applyFinishedItemDetails(found);
+    } else {
+      setValue('revisionNo', '', { shouldValidate: true, shouldDirty: true });
+      setValue('batchQty', '', { shouldValidate: true, shouldDirty: true });
+      setValue('mouldCode', '', { shouldDirty: true });
+    }
+    
+    // Also query Supabase to ensure freshest revision data from item_master table
+    if (currentOrg?.id) {
+      try {
+        const { data, error } = await supabase
+          .from('item_master')
+          .select('*')
+          .eq('org_id', currentOrg.id)
+          .eq('item_code', itemCode)
+          .maybeSingle();
+        if (!error && data) {
+          applyFinishedItemDetails(data);
+        }
+      } catch (err) {
+        console.error('Error fetching item details from Supabase:', err);
       }
     }
   };
@@ -317,6 +574,7 @@ function BOMForm({ mode, bom, onBack }) {
   const onSubmit = (data) => {
     const payload = {
       ...data,
+      bomNo: data.bomNo || watchAll.bomNo || nextBomNo,
       inserts,
       packaging,
       routing,
@@ -360,7 +618,7 @@ function BOMForm({ mode, bom, onBack }) {
                 {isView ? 'View Bill of Materials' : mode === 'add' ? 'New Bill of Materials' : 'Edit Bill of Materials'}
               </h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">
-                {watchAll.bomNo ? `BOM No: ${watchAll.bomNo} · ${watchAll.revisionNo || 'Rev 1.0'}` : 'Fill the compound and production specifications'}
+                {watchAll.bomNo ? `BOM No: ${watchAll.bomNo}${watchAll.revisionNo ? ` · ${watchAll.revisionNo}` : ''}` : 'Fill the compound and production specifications'}
               </p>
             </div>
           </div>
@@ -407,7 +665,19 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <Controller name="bomNo" control={control} render={({ field }) => (
                 <Field label="BOM Number">
-                  <input {...field} disabled={isView} className={inputCls} placeholder="Auto-generated if blank" />
+                  <div className="relative">
+                    <input
+                      {...field}
+                      value={field.value || nextBomNo}
+                      disabled
+                      readOnly
+                      className={`${inputCls} bg-slate-100/80 text-slate-600 font-mono font-bold cursor-not-allowed border-slate-200 select-none pr-20`}
+                      placeholder="Auto-generated"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 pointer-events-none">
+                      Auto
+                    </span>
+                  </div>
                 </Field>
               )} />
 
@@ -474,7 +744,13 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="revisionNo" control={control} render={({ field }) => (
                 <Field label="Revision No.">
-                  <input {...field} disabled={isView} className={inputCls} placeholder="Rev 1.0" />
+                  <input
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={isView}
+                    className={inputCls}
+                    placeholder="Auto-fetched from Item Master"
+                  />
                 </Field>
               )} />
 
@@ -491,7 +767,14 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="batchQty" control={control} render={({ field }) => (
                 <Field label="Standard Batch Qty">
-                  <input {...field} disabled={isView} type="number" className={inputCls} placeholder="100" />
+                  <input
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={isView}
+                    type="number"
+                    className={inputCls}
+                    placeholder="Auto-fetched from Item Master"
+                  />
                 </Field>
               )} />
 
@@ -508,6 +791,7 @@ function BOMForm({ mode, bom, onBack }) {
                 <Field label="Mould / Tool No. (Tools Master)">
                   <select
                     {...field}
+                    value={field.value || ''}
                     onChange={(e) => handleToolSelect(e, field.onChange)}
                     disabled={isView}
                     className={selectCls}
@@ -1189,9 +1473,11 @@ export default function BillOfMaterialsPage() {
       render: (val, row) => (
         <div className="flex items-center gap-1.5">
           <span className="font-bold text-emerald-700 uppercase font-mono">{val}</span>
-          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
-            {row.revisionNo || 'Rev 1.0'}
-          </span>
+          {row.revisionNo ? (
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+              {row.revisionNo}
+            </span>
+          ) : null}
         </div>
       ),
     },
