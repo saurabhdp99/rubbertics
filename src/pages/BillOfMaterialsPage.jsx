@@ -465,7 +465,8 @@ function BOMForm({ mode, bom, onBack }) {
     const found = masterCompounds?.find(c => (c.compoundCode || c.compound_code) === compoundCode);
     if (found) {
       setValue('compoundName', found.compoundName || found.compound_name || '', { shouldValidate: true, shouldDirty: true });
-      if (found.polymer) setValue('polymer', found.polymer, { shouldDirty: true });
+      const polymerVal = found.basePolymer || found.base_polymer || found.polymer;
+      if (polymerVal) setValue('polymer', polymerVal, { shouldDirty: true });
       if (found.compoundColour || found.compound_colour) setValue('colour', found.compoundColour || found.compound_colour, { shouldDirty: true });
       if (found.hardnessShoreA || found.hardness) setValue('hardness', String(found.hardnessShoreA || found.hardness), { shouldDirty: true });
       if (found.specificGravity || found.specific_gravity) setValue('specificGravity', String(found.specificGravity || found.specific_gravity), { shouldDirty: true });

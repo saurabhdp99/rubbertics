@@ -148,6 +148,7 @@ export default function BOMModal() {
         ...prev,
         compoundCode: found.compoundCode || found.compound_code || '',
         compoundName: found.compoundName || found.compound_name || prev.compoundName,
+        polymer: found.basePolymer || found.base_polymer || found.polymer || prev.polymer,
         colour: found.compoundColour || found.compound_colour || prev.colour,
         hardness: found.hardnessShoreA || found.hardness || prev.hardness,
         specificGravity: found.specificGravity || found.specific_gravity || prev.specificGravity,

@@ -55,6 +55,7 @@ const EMPTY_COMPOUND = COMPOUND_MASTER_FIELDS.reduce((comp, field) => {
 const TABLE_COLUMNS = [
   { key: 'compoundCode', label: 'Compound Code', width: '130px', align: 'left' },
   { key: 'compoundName', label: 'Compound Name', width: '200px', align: 'left' },
+  { key: 'basePolymer', label: 'Base Polymer', width: '160px', align: 'left' },
   { key: 'compoundColour', label: 'Colour', width: '130px', align: 'center' },
   { key: 'hardnessShoreA', label: 'Hardness', width: '140px', align: 'left' },
   { key: 'specificGravity', label: 'Sp. Gravity', width: '130px', align: 'left' },
@@ -114,6 +115,7 @@ const compoundMasterSchema = z.object({
   lessWeightLoss: z.coerce.number().optional(),
   netWeight: z.coerce.number().optional(),
   grossWeight: z.coerce.number().optional(),
+  basePolymer: z.string().optional(),
   hardnessShoreA: z.string().optional(),
   specificGravity: z.string().optional(),
   mooneyViscosity: z.string().optional(),
@@ -836,7 +838,11 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                           <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                             <Activity size={14} className="text-indigo-600" /> Quality Parameters
                           </h5>
-                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Base Polymer</span>
+                              <span className="font-bold text-indigo-700 mt-0.5 block">{snap.basePolymer || '-'}</span>
+                            </div>
                             <div className="bg-white p-2.5 rounded-xl border border-slate-200">
                               <span className="text-[10px] font-bold text-slate-400 uppercase block">Hardness (Shore A)</span>
                               <span className="font-bold text-slate-800 mt-0.5 block">{snap.hardnessShoreA || '-'}</span>
@@ -849,7 +855,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                               <span className="text-[10px] font-bold text-slate-400 uppercase block">Mooney Viscosity</span>
                               <span className="font-bold text-slate-800 mt-0.5 block">{snap.mooneyViscosity || '-'}</span>
                             </div>
-                            <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 col-span-2 sm:col-span-1">
                               <span className="text-[10px] font-bold text-slate-400 uppercase block">Tensile Strength</span>
                               <span className="font-bold text-slate-800 mt-0.5 block">{snap.tensileStrengthMpa || '-'}</span>
                             </div>
@@ -1058,6 +1064,10 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                     control={control}
                     disabled={isView || isSubmitting}
                     error={errors[field.key]?.message}
+                    options={compoundMasterLookups[field.key]}
+                    onAddOption={(val) => addCompoundMasterLookupOption(field.key, val)}
+                    onRenameOption={(oldVal, newVal) => renameCompoundMasterLookupOption(field.key, oldVal, newVal)}
+                    onDeleteOption={(val) => deleteCompoundMasterLookupOption(field.key, val)}
                   />
                 ))}
               </div>
@@ -1241,9 +1251,9 @@ export default function CompoundMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = ['Compound Code', 'Compound Name', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Revision', 'Status'];
+    const headers = ['Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Revision', 'Status'];
     const rows = filtered.map(item => [
-      item.compoundCode, item.compoundName, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.revisionNumber, item.status
+      item.compoundCode, item.compoundName, item.basePolymer, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.revisionNumber, item.status
     ].map(cell => `"${String(cell ?? '').replaceAll('"', '""')}"`));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1277,6 +1287,14 @@ export default function CompoundMasterPage() {
       const colorStyle = OPTION_COLORS[value] || 'bg-slate-100 text-slate-700 border-slate-300';
       return (
         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${colorStyle}`}>
+          {value || '-'}
+        </span>
+      );
+    }
+
+    if (column.key === 'basePolymer') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
           {value || '-'}
         </span>
       );
@@ -1344,7 +1362,7 @@ export default function CompoundMasterPage() {
               <div className="relative flex-1 w-full min-w-0 group">
                 <Input
                   type="text"
-                  placeholder="Search by code, name, colour, hardness, ingredients..."
+                  placeholder="Search by code, name, polymer, colour, hardness, ingredients..."
                   value={compoundMasterSearchQuery}
                   onChange={event => setCompoundMasterSearchQuery(event.target.value)}
                   aria-label="Search compounds"

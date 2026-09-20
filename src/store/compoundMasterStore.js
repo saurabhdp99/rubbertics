@@ -26,6 +26,18 @@ const DEFAULT_LOOKUPS = {
     'Air-conditioned warehouse below 20°C',
     'Store in dry condition, sealed bags',
   ],
+  basePolymer: [
+    'Natural Rubber (NR)',
+    'Nitrile (NBR)',
+    'EPDM',
+    'Silicone (VMQ)',
+    'Fluoroelastomer (Viton / FKM)',
+    'Neoprene (CR)',
+    'SBR',
+    'Polyurethane (PU)',
+    'Butyl (IIR)',
+    'Polyacrylate (ACM)',
+  ],
 };
 
 export const useCompoundMasterStore = create((set, get) => ({
@@ -427,6 +439,7 @@ function mapFromDb(row) {
     lessWeightLoss: Number(row.less_weight_loss || 0),
     netWeight: Number(row.net_weight || 0),
     grossWeight: Number(row.gross_weight || 0),
+    basePolymer: row.base_polymer || '',
     hardnessShoreA: row.hardness_shore_a,
     specificGravity: row.specific_gravity,
     mooneyViscosity: row.mooney_viscosity,
@@ -461,6 +474,7 @@ function mapToDb(data, orgId, userId) {
     less_weight_loss: Number(data.lessWeightLoss || 0),
     net_weight: Number(data.netWeight || 0),
     gross_weight: Number(data.grossWeight || 0),
+    base_polymer: data.basePolymer || null,
     hardness_shore_a: data.hardnessShoreA,
     specific_gravity: data.specificGravity,
     mooney_viscosity: data.mooneyViscosity,

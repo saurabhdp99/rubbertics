@@ -40,6 +40,25 @@ export const COMPOUND_MASTER_FIELDS = [
 
   // Quality Tab
   {
+    key: 'basePolymer',
+    label: 'Base Polymer',
+    type: 'creatable-select',
+    options: [
+      'Natural Rubber (NR)',
+      'Nitrile (NBR)',
+      'EPDM',
+      'Silicone (VMQ)',
+      'Fluoroelastomer (Viton / FKM)',
+      'Neoprene (CR)',
+      'SBR',
+      'Polyurethane (PU)',
+      'Butyl (IIR)',
+      'Polyacrylate (ACM)',
+    ],
+    placeholder: 'Select or create Base Polymer',
+    section: 'Quality Tab',
+  },
+  {
     key: 'hardnessShoreA',
     label: 'Hardness (Shore A)',
     type: 'text',
