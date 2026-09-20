@@ -1,22 +1,36 @@
 import { create } from 'zustand';
-import { SAMPLE_BOMS, DEFAULT_BOM, calculateGrossWeight, calculateBOMCost } from '../data/bomTemplate';
+import { DEFAULT_BOM, calculateGrossWeight, calculateBOMCost } from '../data/bomTemplate';
 
 const STORAGE_KEY = 'rubbertics_boms_data';
 
-// Load stored BOMs or initialize with realistic sample data
+const DUMMY_BOM_IDS = new Set(['bom-001', 'bom-002', 'bom-003', 'bom-004']);
+const DUMMY_BOM_NOS = new Set(['BOM-26-001', 'BOM-26-002', 'BOM-26-003', 'BOM-26-004']);
+
+function isDummyBOM(b) {
+  if (!b) return false;
+  if (DUMMY_BOM_IDS.has(b.id) || DUMMY_BOM_NOS.has(b.bomNo)) return true;
+  if (typeof b.id === 'string' && (b.id.startsWith('bom-001') || b.id.startsWith('bom-002') || b.id.startsWith('bom-003') || b.id.startsWith('bom-004'))) return true;
+  return false;
+}
+
+// Load stored BOMs or return empty list
 function loadInitialBOMs() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.filter(b => !isDummyBOM(b));
+        if (cleaned.length !== parsed.length) {
+          saveBOMs(cleaned);
+        }
+        return cleaned;
       }
     }
   } catch (err) {
     console.error('Error loading BOMs from storage:', err);
   }
-  return SAMPLE_BOMS;
+  return [];
 }
 
 function saveBOMs(boms) {
@@ -196,9 +210,9 @@ export const useBOMStore = create((set, get) => ({
   },
 
   resetToSampleData: () => {
-    saveBOMs(SAMPLE_BOMS);
-    set({ boms: SAMPLE_BOMS });
-    get().addNotification('BOM records reset to standard industry templates');
+    saveBOMs([]);
+    set({ boms: [] });
+    get().addNotification('All BOM records cleared');
   },
 
   exportToCSV: () => {

@@ -457,19 +457,101 @@ function BOMForm({ mode, bom, onBack }) {
     }
   };
 
+  // Helper to populate form fields from Compound Master
+  const applyCompoundDetails = (compound) => {
+    if (!compound) return;
+    const name = compound.compoundName || compound.compound_name || '';
+    if (name) setValue('compoundName', name, { shouldValidate: true, shouldDirty: true });
+
+    const polymerVal = compound.basePolymer || compound.base_polymer || compound.polymer || '';
+    if (polymerVal) setValue('polymer', polymerVal, { shouldValidate: true, shouldDirty: true });
+
+    const colourVal = compound.compoundColour || compound.compound_colour || '';
+    if (colourVal) setValue('colour', colourVal, { shouldDirty: true });
+
+    const hardnessVal = compound.hardnessShoreA || compound.hardness_shore_a || compound.hardness || '';
+    if (hardnessVal) setValue('hardness', String(hardnessVal), { shouldDirty: true });
+
+    const sgVal = compound.specificGravity || compound.specific_gravity || '';
+    if (sgVal) setValue('specificGravity', String(sgVal), { shouldDirty: true });
+  };
+
+  // Auto-fetch compound details whenever compoundCode is selected or loaded
+  useEffect(() => {
+    const code = watchAll.compoundCode;
+    if (!code) return;
+
+    const found = masterCompounds?.find(c => (c.compoundCode || c.compound_code) === code);
+    if (found) {
+      const pol = found.basePolymer || found.base_polymer || found.polymer;
+      if (pol && !watchAll.polymer) {
+        setValue('polymer', pol, { shouldValidate: true, shouldDirty: true });
+      }
+      const cName = found.compoundName || found.compound_name;
+      if (cName && !watchAll.compoundName) {
+        setValue('compoundName', cName, { shouldValidate: true, shouldDirty: true });
+      }
+      const col = found.compoundColour || found.compound_colour;
+      if (col && !watchAll.colour) {
+        setValue('colour', col, { shouldDirty: true });
+      }
+      const hard = found.hardnessShoreA || found.hardness_shore_a || found.hardness;
+      if (hard && !watchAll.hardness) {
+        setValue('hardness', String(hard), { shouldDirty: true });
+      }
+      const sp = found.specificGravity || found.specific_gravity;
+      if (sp && !watchAll.specificGravity) {
+        setValue('specificGravity', String(sp), { shouldDirty: true });
+      }
+    } else if (currentOrg?.id) {
+      supabase
+        .from('compound_master')
+        .select('*')
+        .eq('org_id', currentOrg.id)
+        .eq('compound_code', code)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            applyCompoundDetails(data);
+          }
+        });
+    }
+  }, [watchAll.compoundCode, masterCompounds, currentOrg?.id]);
+
   // Handle Compound Selection
-  const handleCompoundSelect = (e, fieldOnChange) => {
+  const handleCompoundSelect = async (e, fieldOnChange) => {
     fieldOnChange?.(e);
     const compoundCode = e.target.value;
     setValue('compoundCode', compoundCode, { shouldValidate: true, shouldDirty: true });
+    if (!compoundCode) {
+      setValue('compoundName', '', { shouldDirty: true });
+      setValue('polymer', '', { shouldDirty: true });
+      setValue('colour', '', { shouldDirty: true });
+      setValue('hardness', '', { shouldDirty: true });
+      setValue('specificGravity', '', { shouldDirty: true });
+      return;
+    }
+
     const found = masterCompounds?.find(c => (c.compoundCode || c.compound_code) === compoundCode);
     if (found) {
-      setValue('compoundName', found.compoundName || found.compound_name || '', { shouldValidate: true, shouldDirty: true });
-      const polymerVal = found.basePolymer || found.base_polymer || found.polymer;
-      if (polymerVal) setValue('polymer', polymerVal, { shouldDirty: true });
-      if (found.compoundColour || found.compound_colour) setValue('colour', found.compoundColour || found.compound_colour, { shouldDirty: true });
-      if (found.hardnessShoreA || found.hardness) setValue('hardness', String(found.hardnessShoreA || found.hardness), { shouldDirty: true });
-      if (found.specificGravity || found.specific_gravity) setValue('specificGravity', String(found.specificGravity || found.specific_gravity), { shouldDirty: true });
+      applyCompoundDetails(found);
+    }
+
+    // Query Supabase directly to ensure freshest compound data including base_polymer
+    if (currentOrg?.id) {
+      try {
+        const { data, error } = await supabase
+          .from('compound_master')
+          .select('*')
+          .eq('org_id', currentOrg.id)
+          .eq('compound_code', compoundCode)
+          .maybeSingle();
+        if (!error && data) {
+          applyCompoundDetails(data);
+        }
+      } catch (err) {
+        console.error('Error fetching compound details from Supabase:', err);
+      }
     }
   };
 
@@ -885,11 +967,19 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="polymer" control={control} render={({ field }) => (
                 <Field label="Base Polymer">
-                  <select {...field} disabled={isView} className={selectCls}>
+                  <input
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={isView}
+                    list="bom-page-polymer-options"
+                    className={inputCls}
+                    placeholder="e.g. Natural Rubber (NR), Butyl (IIR)..."
+                  />
+                  <datalist id="bom-page-polymer-options">
                     {POLYMER_OPTIONS.map(p => (
-                      <option key={p} value={p}>{p}</option>
+                      <option key={p} value={p} />
                     ))}
-                  </select>
+                  </datalist>
                 </Field>
               )} />
 

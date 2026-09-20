@@ -140,21 +140,65 @@ export default function BOMModal() {
   };
 
   // Handle Compound Selection from Compound Master
-  const handleCompoundSelect = (e) => {
+  const handleCompoundSelect = async (e) => {
     const compoundCode = e.target.value;
+    if (!compoundCode) {
+      setFormData(prev => ({
+        ...prev,
+        compoundCode: '',
+        compoundName: '',
+        polymer: '',
+        colour: '',
+        hardness: '',
+        specificGravity: '',
+      }));
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, compoundCode }));
+
     const found = masterCompounds?.find(c => (c.compoundCode || c.compound_code) === compoundCode);
     if (found) {
       setFormData(prev => ({
         ...prev,
-        compoundCode: found.compoundCode || found.compound_code || '',
         compoundName: found.compoundName || found.compound_name || prev.compoundName,
         polymer: found.basePolymer || found.base_polymer || found.polymer || prev.polymer,
         colour: found.compoundColour || found.compound_colour || prev.colour,
-        hardness: found.hardnessShoreA || found.hardness || prev.hardness,
+        hardness: found.hardnessShoreA || found.hardness_shore_a || found.hardness || prev.hardness,
         specificGravity: found.specificGravity || found.specific_gravity || prev.specificGravity,
       }));
-    } else {
-      setFormData(prev => ({ ...prev, compoundCode }));
+    }
+
+    const orgId = currentOrg?.id || (() => {
+      try {
+        const raw = localStorage.getItem('rubbertics_current_org');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch (err) {
+        return null;
+      }
+    })();
+
+    if (orgId) {
+      try {
+        const { data, error } = await supabase
+          .from('compound_master')
+          .select('*')
+          .eq('org_id', orgId)
+          .eq('compound_code', compoundCode)
+          .maybeSingle();
+        if (!error && data) {
+          setFormData(prev => ({
+            ...prev,
+            compoundName: data.compound_name || prev.compoundName,
+            polymer: data.base_polymer || prev.polymer,
+            colour: data.compound_colour || prev.colour,
+            hardness: data.hardness_shore_a || prev.hardness,
+            specificGravity: data.specific_gravity || prev.specificGravity,
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching compound details from Supabase:', err);
+      }
     }
   };
 
@@ -630,17 +674,21 @@ export default function BOMModal() {
 
                   <div>
                     <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-                      Base Polymer Family
+                      Base Polymer
                     </label>
-                    <select
-                      value={formData.polymer}
+                    <input
+                      type="text"
+                      value={formData.polymer || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, polymer: e.target.value }))}
+                      list="bom-modal-polymer-options"
+                      placeholder="e.g. Natural Rubber (NR), Butyl (IIR)..."
                       className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white"
-                    >
+                    />
+                    <datalist id="bom-modal-polymer-options">
                       {POLYMER_OPTIONS.map(p => (
-                        <option key={p} value={p}>{p}</option>
+                        <option key={p} value={p} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
 
                   <div>
