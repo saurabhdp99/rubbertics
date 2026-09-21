@@ -5,7 +5,7 @@ import {
   ArrowLeft, X, Save, Package, Beaker, Wrench, Boxes, Calculator,
   ShieldCheck, FileSpreadsheet, Building2, Factory
 } from 'lucide-react';
-import { Input, Spinner, Select } from '@heroui/react';
+import { Input, Spinner, Select, ListBox } from '@heroui/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -33,7 +33,6 @@ import {
 const baseInputClass =
   'w-full text-[13px] font-medium rounded-xl text-slate-800 border bg-white transition-all outline-none border-slate-200 focus:border-emerald-500/50 input-glow disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed';
 const inputCls = `${baseInputClass} px-4 py-3 h-[46px]`;
-const selectCls = `${baseInputClass} px-4 py-3 h-[46px] cursor-pointer`;
 
 // ─── Reusable Form Sub-Components ─────────────────────────────────────────────
 function Section({ title, icon: Icon, children, subtitle }) {
@@ -115,7 +114,7 @@ function BOMForm({ mode, bom, onBack }) {
   const { boms, addBOM, updateBOM } = useBOMStore();
   const { items: masterItems, fetchItems, isLoading: isItemsLoading } = useItemMasterStore();
   const { compounds: masterCompounds, fetchCompounds, isLoading: isCompoundsLoading } = useCompoundMasterStore();
-  const { tools: masterTools, fetchTools, isLoading: isToolsLoading } = useToolsMasterStore();
+  const { tools: masterTools, fetchTools } = useToolsMasterStore();
   const { machines: masterMachines, fetchMachines, isLoading: isMachinesLoading } = useMachineMasterStore();
   const { employees, fetchEmployees, isLoading: isEmployeesLoading } = useEmployeeMasterStore();
 
@@ -435,11 +434,8 @@ function BOMForm({ mode, bom, onBack }) {
     }
   }, [watchAll.itemCode, masterItems, masterTools, currentOrg?.id, setValue, watchAll.revisionNo, watchAll.batchQty, watchAll.mouldCode, bom]);
 
-  // Handle Finished Item Selection
-  const handleItemSelect = async (e, fieldOnChange) => {
-    fieldOnChange?.(e);
-    const itemCode = e.target.value;
-    setValue('itemCode', itemCode, { shouldValidate: true, shouldDirty: true });
+  // Handle Finished Item Selection (HeroUI Select passes the item code directly)
+  const handleItemSelectByCode = async (itemCode) => {
     if (!itemCode) {
       setValue('itemName', '', { shouldDirty: true });
       setValue('customerPartNo', '', { shouldDirty: true });
@@ -561,11 +557,8 @@ function BOMForm({ mode, bom, onBack }) {
     }
   }, [watchAll.compoundCode, masterCompounds, currentOrg?.id, watchAll.netCompoundWeight, watchAll.netWeight]);
 
-  // Handle Compound Selection
-  const handleCompoundSelect = async (e, fieldOnChange) => {
-    fieldOnChange?.(e);
-    const compoundCode = e.target.value;
-    setValue('compoundCode', compoundCode, { shouldValidate: true, shouldDirty: true });
+  // Handle Compound Selection (HeroUI Select passes the compound code directly)
+  const handleCompoundSelectByCode = async (compoundCode) => {
     if (!compoundCode) {
       setValue('compoundName', '', { shouldDirty: true });
       setValue('polymer', '', { shouldDirty: true });
@@ -596,37 +589,6 @@ function BOMForm({ mode, bom, onBack }) {
         }
       } catch (err) {
         console.error('Error fetching compound details from Supabase:', err);
-      }
-    }
-  };
-
-  // Handle Tool / Mould Selection
-  const handleToolSelect = (e, fieldOnChange) => {
-    fieldOnChange?.(e);
-    const toolCode = e.target.value;
-    setValue('mouldCode', toolCode, { shouldValidate: true, shouldDirty: true });
-    if (!toolCode) {
-      setValue('cavities', '', { shouldDirty: true });
-      setValue('cycleTimeSec', '', { shouldDirty: true });
-      setValue('toolItemNetWeight', '', { shouldDirty: true });
-      setValue('toolSortWeight', '', { shouldDirty: true });
-      return;
-    }
-    const found = masterTools?.find(t => (t.toolCode || t.tool_code) === toolCode);
-    if (found) {
-      if (found.numberOfCavities || found.number_of_cavities) {
-        setValue('cavities', String(found.numberOfCavities || found.number_of_cavities), { shouldDirty: true });
-      }
-      if (found.cycleTime) {
-        setValue('cycleTimeSec', String(parseFloat(found.cycleTime) || 180), { shouldDirty: true });
-      }
-      const inw = found.itemNetWeight ?? found.item_net_weight;
-      if (inw !== undefined && inw !== null && inw !== '') {
-        setValue('toolItemNetWeight', String(inw), { shouldDirty: true });
-      }
-      const sw = found.sortWeight ?? found.sort_weight;
-      if (sw !== undefined && sw !== null && sw !== '') {
-        setValue('toolSortWeight', String(sw), { shouldDirty: true });
       }
     }
   };
@@ -834,38 +796,66 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="status" control={control} render={({ field }) => (
                 <Field label="Status">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="Active">Active</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Under Review">Under Review</option>
-                    <option value="Obsolete">Obsolete</option>
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Status"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder="Select Status" />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {['Active', 'Draft', 'Under Review', 'Obsolete'].map(s => (
+                          <ListBox.Item key={s} id={s} textValue={s}>
+                            <span className="font-bold text-slate-800">{s}</span>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
               {/* Finished Item link */}
               <Controller name="itemCode" control={control} render={({ field }) => (
                 <Field label="Finished Item Code (Item Master)">
-                  <select
-                    {...field}
-                    onChange={(e) => handleItemSelect(e, field.onChange)}
-                    disabled={isView}
-                    className={selectCls}
+                  <Select
+                    value={field.value || null}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      handleItemSelectByCode(val);
+                    }}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Finished Item Code"
                   >
-                    <option value="">{isItemsLoading ? 'Loading items...' : 'Select Item from Master'}</option>
-                    {field.value && !masterItems?.some(it => (it.itemCode || it.item_code) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {masterItems?.map(it => {
-                      const code = it.itemCode || it.item_code;
-                      const name = it.itemName || it.customerItemName || it.item_name || '';
-                      return (
-                        <option key={it.id || code} value={code}>
-                          {code} - {name}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isItemsLoading ? 'Loading items...' : 'Select Item from Master'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !masterItems?.some(it => (it.itemCode || it.item_code) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {masterItems?.map(it => {
+                          const code = it.itemCode || it.item_code;
+                          const name = it.itemName || it.customerItemName || it.item_name || '';
+                          return (
+                            <ListBox.Item key={it.id || code} id={code} textValue={`${code} ${name}`}>
+                              <div className="flex flex-col gap-0.5 py-0.5">
+                                <span className="font-bold text-slate-800">{code} - {name}</span>
+                              </div>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
@@ -901,12 +891,26 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="outputUom" control={control} render={({ field }) => (
                 <Field label="Output UOM">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="Pcs">Pcs</option>
-                    <option value="Kgs">Kgs</option>
-                    <option value="Mtrs">Mtrs</option>
-                    <option value="Sets">Sets</option>
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Output UOM"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder="Select UOM" />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {['Pcs', 'Kgs', 'Mtrs', 'Sets'].map(u => (
+                          <ListBox.Item key={u} id={u} textValue={u}>
+                            <span className="font-bold text-slate-800">{u}</span>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
@@ -934,28 +938,13 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mt-4 pt-4 border-t border-slate-100">
               <Controller name="mouldCode" control={control} render={({ field }) => (
                 <Field label="Mould / Tool No. (Tools Master)">
-                  <select
+                  <input
                     {...field}
                     value={field.value || ''}
-                    onChange={(e) => handleToolSelect(e, field.onChange)}
-                    disabled={isView}
-                    className={selectCls}
-                  >
-                    <option value="">{isToolsLoading ? 'Loading tools...' : 'Select Tool / Mould'}</option>
-                    {field.value && !masterTools?.some(t => (t.toolCode || t.tool_code) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {masterTools?.map(t => {
-                      const code = t.toolCode || t.tool_code;
-                      const name = t.toolName || t.tool_name;
-                      const cav = t.numberOfCavities || t.number_of_cavities || 1;
-                      return (
-                        <option key={t.id || code} value={code}>
-                          {code} {name ? `- ${name}` : ''} ({cav} Cav)
-                        </option>
-                      );
-                    })}
-                  </select>
+                    readOnly
+                    className={`${inputCls} bg-slate-50 cursor-default`}
+                    placeholder="Auto-filled from Tools Master"
+                  />
                 </Field>
               )} />
 
@@ -985,21 +974,37 @@ function BOMForm({ mode, bom, onBack }) {
 
               <Controller name="machinePress" control={control} render={({ field }) => (
                 <Field label="Machine / Press (Machine Master)">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">{isMachinesLoading ? 'Loading machines...' : 'Select Press / Extruder'}</option>
-                    {field.value && !masterMachines?.some(m => (m.machineCode || m.machine_code) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {masterMachines?.map(m => {
-                      const code = m.machineCode || m.machine_code;
-                      const name = m.machineName || m.machine_name;
-                      return (
-                        <option key={m.id || code} value={code}>
-                          {code} - {name}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Machine Press"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isMachinesLoading ? 'Loading machines...' : 'Select Press / Extruder'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !masterMachines?.some(m => (m.machineCode || m.machine_code) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {masterMachines?.map(m => {
+                          const code = m.machineCode || m.machine_code;
+                          const name = m.machineName || m.machine_name;
+                          return (
+                            <ListBox.Item key={m.id || code} id={code} textValue={`${code} ${name}`}>
+                              <div className="flex flex-col gap-0.5 py-0.5">
+                                <span className="font-bold text-slate-800">{code} - {name}</span>
+                              </div>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
             </div>
@@ -1010,27 +1015,41 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <Controller name="compoundCode" control={control} render={({ field }) => (
                 <Field label="Compound Code (Compound Master)">
-                  <select
-                    {...field}
-                    onChange={(e) => handleCompoundSelect(e, field.onChange)}
-                    disabled={isView}
-                    className={selectCls}
+                  <Select
+                    value={field.value || null}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      handleCompoundSelectByCode(val);
+                    }}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Compound Code"
                   >
-                    <option value="">{isCompoundsLoading ? 'Loading compounds...' : 'Select Compound'}</option>
-                    {field.value && !masterCompounds?.some(c => (c.compoundCode || c.compound_code) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {masterCompounds?.map(c => {
-                      const code = c.compoundCode || c.compound_code;
-                      const name = c.compoundName || c.compound_name;
-                      const net = c.netWeight ?? c.net_weight;
-                      return (
-                        <option key={c.id || code} value={code}>
-                          {code} - {name}{net ? ` (${net} kg)` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isCompoundsLoading ? 'Loading compounds...' : 'Select Compound'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !masterCompounds?.some(c => (c.compoundCode || c.compound_code) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {masterCompounds?.map(c => {
+                          const code = c.compoundCode || c.compound_code;
+                          const name = c.compoundName || c.compound_name;
+                          const net = c.netWeight ?? c.net_weight;
+                          return (
+                            <ListBox.Item key={c.id || code} id={code} textValue={`${code} ${name}`}>
+                              <div className="flex flex-col gap-0.5 py-0.5">
+                                <span className="font-bold text-slate-800">{code} - {name}{net ? ` (${net} kg)` : ''}</span>
+                              </div>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
@@ -1470,58 +1489,100 @@ function BOMForm({ mode, bom, onBack }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
               <Controller name="prepared_by" control={control} render={({ field }) => (
                 <Field label="Prepared By">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
-                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {employees?.map(e => {
-                      const name = e.employeeName || e.employee_name;
-                      return (
-                        <option key={e.id || e.employeeId || name} value={name}>
-                          {name}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Prepared By"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isEmployeesLoading ? 'Loading employees...' : 'Select Employee'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {employees?.map(e => {
+                          const name = e.employeeName || e.employee_name;
+                          return (
+                            <ListBox.Item key={e.id || e.employeeId || name} id={name} textValue={name}>
+                              <span className="font-bold text-slate-800">{name}</span>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
               <Controller name="checked_by" control={control} render={({ field }) => (
                 <Field label="Checked By (QA)">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
-                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {employees?.map(e => {
-                      const name = e.employeeName || e.employee_name;
-                      return (
-                        <option key={e.id || e.employeeId || name} value={name}>
-                          {name}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Checked By"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isEmployeesLoading ? 'Loading employees...' : 'Select Employee'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {employees?.map(e => {
+                          const name = e.employeeName || e.employee_name;
+                          return (
+                            <ListBox.Item key={e.id || e.employeeId || name} id={name} textValue={name}>
+                              <span className="font-bold text-slate-800">{name}</span>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
 
               <Controller name="approved_by" control={control} render={({ field }) => (
                 <Field label="Approved By (Plant Lead)">
-                  <select {...field} disabled={isView} className={selectCls}>
-                    <option value="">{isEmployeesLoading ? 'Loading employees...' : 'Select Employee'}</option>
-                    {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
-                      <option value={field.value}>{field.value} (Current)</option>
-                    )}
-                    {employees?.map(e => {
-                      const name = e.employeeName || e.employee_name;
-                      return (
-                        <option key={e.id || e.employeeId || name} value={name}>
-                          {name}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <Select
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    isDisabled={isView}
+                    className="w-full"
+                    aria-label="Approved By"
+                  >
+                    <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
+                      <Select.Value placeholder={isEmployeesLoading ? 'Loading employees...' : 'Select Employee'} />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {field.value && !employees?.some(e => (e.employeeName || e.employee_name) === field.value) && (
+                          <ListBox.Item key={`current-${field.value}`} id={field.value} textValue={field.value}>
+                            <span className="font-bold text-slate-800">{field.value} (Current)</span>
+                          </ListBox.Item>
+                        )}
+                        {employees?.map(e => {
+                          const name = e.employeeName || e.employee_name;
+                          return (
+                            <ListBox.Item key={e.id || e.employeeId || name} id={name} textValue={name}>
+                              <span className="font-bold text-slate-800">{name}</span>
+                            </ListBox.Item>
+                          );
+                        })}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </Field>
               )} />
             </div>
