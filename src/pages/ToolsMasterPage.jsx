@@ -104,6 +104,8 @@ const toolsMasterSchema = z.object({
   dimensions: z.string().nullish(),
   moldType: z.string().nullish(),
   shrinkageFactor: z.string().nullish(),
+  itemNetWeight: z.coerce.number().nullish().or(z.literal('')),
+  sortWeight: z.coerce.number().nullish().or(z.literal('')),
   lastMaintenanceDate: z.string().min(1, 'Last maintenance date is required'),
   nextMaintenanceDue: z.string().min(1, 'Next maintenance due date is required'),
   maintenanceFrequency: z.string().min(1, 'Maintenance frequency is required'),

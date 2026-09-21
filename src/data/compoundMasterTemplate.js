@@ -37,8 +37,6 @@ export const COMPOUND_MASTER_FIELDS = [
     placeholder: 'e.g. 1000x1000x2mm',
     section: 'Compound Details',
   },
-
-  // Quality Tab
   {
     key: 'basePolymer',
     label: 'Base Polymer',
@@ -56,8 +54,10 @@ export const COMPOUND_MASTER_FIELDS = [
       'Polyacrylate (ACM)',
     ],
     placeholder: 'Select or create Base Polymer',
-    section: 'Quality Tab',
+    section: 'Compound Details',
   },
+
+  // Quality Tab
   {
     key: 'hardnessShoreA',
     label: 'Hardness (Shore A)',

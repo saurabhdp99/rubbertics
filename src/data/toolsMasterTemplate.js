@@ -102,6 +102,20 @@ export const TOOLS_MASTER_FIELDS = [
     type: 'text',
     section: 'Technical',
   },
+  {
+    key: 'itemNetWeight',
+    label: 'Item Net Weight (kg)',
+    type: 'number',
+    placeholder: 'e.g. 0.2500',
+    section: 'Technical',
+  },
+  {
+    key: 'sortWeight',
+    label: 'Sort Weight (kg)',
+    type: 'number',
+    placeholder: 'e.g. 0.2600',
+    section: 'Technical',
+  },
 
   // Maintenance
   {

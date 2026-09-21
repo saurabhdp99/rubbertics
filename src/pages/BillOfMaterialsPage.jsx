@@ -83,6 +83,8 @@ const bomSchema = z.object({
   mouldCode: z.string().optional(),
   cavities: z.any().optional(),
   cycleTimeSec: z.any().optional(),
+  toolItemNetWeight: z.any().optional(),
+  toolSortWeight: z.any().optional(),
   machinePress: z.string().optional(),
 
   compoundCode: z.string().optional(),
@@ -168,6 +170,10 @@ function BOMForm({ mode, bom, onBack }) {
         mouldCode: '',
         cavities: '',
         cycleTimeSec: '',
+        toolItemNetWeight: '',
+        toolSortWeight: '',
+        weightLossFlyLossPercent: '',
+        scrapPercent: '',
       };
     }
     return {
@@ -179,10 +185,12 @@ function BOMForm({ mode, bom, onBack }) {
       mouldCode: bom.mouldCode || '',
       cavities: bom.cavities?.toString() || '',
       cycleTimeSec: bom.cycleTimeSec?.toString() || '',
+      toolItemNetWeight: bom.toolItemNetWeight?.toString() || '',
+      toolSortWeight: bom.toolSortWeight?.toString() || '',
       netCompoundWeight: (bom.netCompoundWeight ?? bom.netWeight)?.toString() || '',
       netWeight: (bom.netCompoundWeight ?? bom.netWeight)?.toString() || '',
-      weightLossFlyLossPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '10',
-      scrapPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '10',
+      weightLossFlyLossPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '',
+      scrapPercent: (bom.weightLossFlyLossPercent ?? bom.scrapPercent)?.toString() || '',
       grossWeight: bom.grossWeight?.toString() || '',
       compoundRate: bom.compoundRate?.toString() || '',
       overheadCost: bom.overheadCost?.toString() || '0',
@@ -283,12 +291,14 @@ function BOMForm({ mode, bom, onBack }) {
     return null;
   };
 
-  // Helper: Apply matching Tool details (mouldCode, cavities, cycleTimeSec)
+  // Helper: Apply matching Tool details (mouldCode, cavities, cycleTimeSec, itemNetWeight, sortWeight)
   const applyMatchingTool = (tool) => {
     if (!tool) {
       setValue('mouldCode', '', { shouldDirty: true });
       setValue('cavities', '', { shouldDirty: true });
       setValue('cycleTimeSec', '', { shouldDirty: true });
+      setValue('toolItemNetWeight', '', { shouldDirty: true });
+      setValue('toolSortWeight', '', { shouldDirty: true });
       return;
     }
     const code = tool.toolCode || tool.tool_code || '';
@@ -302,6 +312,14 @@ function BOMForm({ mode, bom, onBack }) {
     const cycle = tool.cycleTime || tool.cycle_time;
     if (cycle) {
       setValue('cycleTimeSec', String(parseFloat(cycle) || 180), { shouldDirty: true });
+    }
+    const inw = tool.itemNetWeight ?? tool.item_net_weight;
+    if (inw !== undefined && inw !== null && inw !== '') {
+      setValue('toolItemNetWeight', String(inw), { shouldDirty: true });
+    }
+    const sw = tool.sortWeight ?? tool.sort_weight;
+    if (sw !== undefined && sw !== null && sw !== '') {
+      setValue('toolSortWeight', String(sw), { shouldDirty: true });
     }
   };
 
@@ -480,6 +498,15 @@ function BOMForm({ mode, bom, onBack }) {
 
     const sgVal = compound.specificGravity || compound.specific_gravity || '';
     if (sgVal) setValue('specificGravity', String(sgVal), { shouldDirty: true });
+
+    // Auto-fetch Net Weight (kg) from Compound Master
+    const rawNet = compound.netWeight ?? compound.net_weight ?? compound.totalOutput ?? compound.total_output;
+    const netNum = parseFloat(rawNet);
+    if (!isNaN(netNum) && netNum > 0) {
+      const netStr = String(netNum);
+      setValue('netCompoundWeight', netStr, { shouldValidate: true, shouldDirty: true });
+      setValue('netWeight', netStr, { shouldValidate: true, shouldDirty: true });
+    }
   };
 
   // Auto-fetch compound details whenever compoundCode is selected or loaded
@@ -509,6 +536,16 @@ function BOMForm({ mode, bom, onBack }) {
       if (sp && !watchAll.specificGravity) {
         setValue('specificGravity', String(sp), { shouldDirty: true });
       }
+      // Always sync Net Weight (kg) from Compound Master when compound changes
+      const rawNet = found.netWeight ?? found.net_weight;
+      const netNum = parseFloat(rawNet);
+      if (!isNaN(netNum) && netNum > 0) {
+        const netStr = String(netNum);
+        if (String(watchAll.netCompoundWeight ?? watchAll.netWeight ?? '') !== netStr) {
+          setValue('netCompoundWeight', netStr, { shouldValidate: true, shouldDirty: true });
+          setValue('netWeight', netStr, { shouldValidate: true, shouldDirty: true });
+        }
+      }
     } else if (currentOrg?.id) {
       supabase
         .from('compound_master')
@@ -522,7 +559,7 @@ function BOMForm({ mode, bom, onBack }) {
           }
         });
     }
-  }, [watchAll.compoundCode, masterCompounds, currentOrg?.id]);
+  }, [watchAll.compoundCode, masterCompounds, currentOrg?.id, watchAll.netCompoundWeight, watchAll.netWeight]);
 
   // Handle Compound Selection
   const handleCompoundSelect = async (e, fieldOnChange) => {
@@ -535,6 +572,8 @@ function BOMForm({ mode, bom, onBack }) {
       setValue('colour', '', { shouldDirty: true });
       setValue('hardness', '', { shouldDirty: true });
       setValue('specificGravity', '', { shouldDirty: true });
+      setValue('netCompoundWeight', '', { shouldDirty: true });
+      setValue('netWeight', '', { shouldDirty: true });
       return;
     }
 
@@ -566,6 +605,13 @@ function BOMForm({ mode, bom, onBack }) {
     fieldOnChange?.(e);
     const toolCode = e.target.value;
     setValue('mouldCode', toolCode, { shouldValidate: true, shouldDirty: true });
+    if (!toolCode) {
+      setValue('cavities', '', { shouldDirty: true });
+      setValue('cycleTimeSec', '', { shouldDirty: true });
+      setValue('toolItemNetWeight', '', { shouldDirty: true });
+      setValue('toolSortWeight', '', { shouldDirty: true });
+      return;
+    }
     const found = masterTools?.find(t => (t.toolCode || t.tool_code) === toolCode);
     if (found) {
       if (found.numberOfCavities || found.number_of_cavities) {
@@ -573,6 +619,14 @@ function BOMForm({ mode, bom, onBack }) {
       }
       if (found.cycleTime) {
         setValue('cycleTimeSec', String(parseFloat(found.cycleTime) || 180), { shouldDirty: true });
+      }
+      const inw = found.itemNetWeight ?? found.item_net_weight;
+      if (inw !== undefined && inw !== null && inw !== '') {
+        setValue('toolItemNetWeight', String(inw), { shouldDirty: true });
+      }
+      const sw = found.sortWeight ?? found.sort_weight;
+      if (sw !== undefined && sw !== null && sw !== '') {
+        setValue('toolSortWeight', String(sw), { shouldDirty: true });
       }
     }
   };
@@ -624,11 +678,11 @@ function BOMForm({ mode, bom, onBack }) {
     setRouting(copy);
   };
 
-  // Live Costing Engine
+  // Live Costing Engine (weights in kg)
   const liveCost = useMemo(() => {
-    const grossGrams = parseFloat(watchAll.grossWeight) || 0;
+    const grossKg = parseFloat(watchAll.grossWeight) || 0;
     const ratePerKg = parseFloat(watchAll.compoundRate) || 0;
-    const rubberCost = (grossGrams / 1000) * ratePerKg;
+    const rubberCost = grossKg * ratePerKg;
 
     const insertsCost = inserts.reduce((acc, ins) => {
       const q = parseFloat(ins.qty) || 0;
@@ -911,6 +965,18 @@ function BOMForm({ mode, bom, onBack }) {
                 </Field>
               )} />
 
+              <Controller name="toolItemNetWeight" control={control} render={({ field }) => (
+                <Field label="Item Net Weight (kg)">
+                  <input {...field} readOnly className={`${inputCls} bg-slate-50 cursor-default`} placeholder="Auto-filled from Tool" />
+                </Field>
+              )} />
+
+              <Controller name="toolSortWeight" control={control} render={({ field }) => (
+                <Field label="Sort Weight (kg)">
+                  <input {...field} readOnly className={`${inputCls} bg-slate-50 cursor-default`} placeholder="Auto-filled from Tool" />
+                </Field>
+              )} />
+
               <Controller name="cycleTimeSec" control={control} render={({ field }) => (
                 <Field label="Cycle Time (Seconds)">
                   <input {...field} disabled={isView} type="number" className={inputCls} placeholder="180" />
@@ -957,9 +1023,10 @@ function BOMForm({ mode, bom, onBack }) {
                     {masterCompounds?.map(c => {
                       const code = c.compoundCode || c.compound_code;
                       const name = c.compoundName || c.compound_name;
+                      const net = c.netWeight ?? c.net_weight;
                       return (
                         <option key={c.id || code} value={code}>
-                          {code} - {name}
+                          {code} - {name}{net ? ` (${net} kg)` : ''}
                         </option>
                       );
                     })}
@@ -1004,7 +1071,7 @@ function BOMForm({ mode, bom, onBack }) {
               )} />
 
               <Controller name="netCompoundWeight" control={control} render={({ field }) => (
-                <Field label="Net Compound Weight (g)">
+                <Field label="Net Compound Weight (kg)">
                   <input
                     {...field}
                     disabled={isView}
@@ -1028,7 +1095,7 @@ function BOMForm({ mode, bom, onBack }) {
                     type="number"
                     step="0.5"
                     className={inputCls}
-                    placeholder="10"
+                    placeholder="Enter %"
                     onChange={(e) => {
                       field.onChange(e);
                       setValue('scrapPercent', e.target.value, { shouldDirty: true });
@@ -1038,7 +1105,7 @@ function BOMForm({ mode, bom, onBack }) {
               )} />
 
               <Controller name="grossWeight" control={control} render={({ field }) => (
-                <Field label="Gross Weight per Piece (g)">
+                <Field label="Gross Weight per Piece (kg)">
                   <input {...field} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-extrabold`} placeholder="Auto calculated" />
                 </Field>
               )} />
@@ -1183,8 +1250,92 @@ function BOMForm({ mode, bom, onBack }) {
             </div>
           </Section>
 
-          {/* 4. PACKAGING MATERIALS */}
-          <Section title="4. PACKAGING MATERIALS" icon={Boxes} subtitle="Corrugated boxes, poly liner bags, and barcode shipping labels">
+          {/* 4. MANUFACTURING PROCESS ROUTING */}
+          <Section title="4. MANUFACTURING PROCESS ROUTING" icon={Clock} subtitle="Sequential shop-floor operations from slug preparation to 100% final QC">
+            <div className="space-y-3">
+              {!isView && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={addRoutingStep}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    Add Operation Step
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-2.5">
+                {routing.map((step, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 font-extrabold text-xs flex items-center justify-center shrink-0 mt-1">
+                      {step.stepNo || (idx + 1) * 10}
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Operation</label>
+                        <input
+                          disabled={isView}
+                          value={step.operation}
+                          onChange={(e) => updateRouting(idx, 'operation', e.target.value)}
+                          placeholder="e.g. Moulding Press Cycle"
+                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Work Center</label>
+                        <input
+                          disabled={isView}
+                          value={step.workCenter}
+                          onChange={(e) => updateRouting(idx, 'workCenter', e.target.value)}
+                          placeholder="e.g. Press Shop"
+                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Cycle Time (Mins)</label>
+                        <input
+                          disabled={isView}
+                          type="number"
+                          step="0.5"
+                          value={step.cycleTimeMin}
+                          onChange={(e) => updateRouting(idx, 'cycleTimeMin', e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div className="md:col-span-4">
+                        <input
+                          disabled={isView}
+                          value={step.notes || ''}
+                          onChange={(e) => updateRouting(idx, 'notes', e.target.value)}
+                          placeholder="Special instructions, cure temp, inspection criteria..."
+                          className="w-full px-3 py-1 text-xs text-slate-600 border border-slate-100 rounded-md outline-none bg-slate-50/50"
+                        />
+                      </div>
+                    </div>
+
+                    {!isView && (
+                      <button
+                        type="button"
+                        onClick={() => removeRouting(idx)}
+                        className="text-slate-400 hover:text-red-600 p-1 mt-1 cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Section>
+
+          {/* 5. PACKAGING MATERIALS */}
+          <Section title="5. PACKAGING MATERIALS" icon={Boxes} subtitle="Corrugated boxes, poly liner bags, and barcode shipping labels">
             <div className="space-y-3">
               {!isView && (
                 <div className="flex justify-end">
@@ -1279,97 +1430,13 @@ function BOMForm({ mode, bom, onBack }) {
             </div>
           </Section>
 
-          {/* 5. MANUFACTURING PROCESS ROUTING */}
-          <Section title="5. MANUFACTURING PROCESS ROUTING" icon={Clock} subtitle="Sequential shop-floor operations from slug preparation to 100% final QC">
-            <div className="space-y-3">
-              {!isView && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={addRoutingStep}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    Add Operation Step
-                  </button>
-                </div>
-              )}
-
-              <div className="space-y-2.5">
-                {routing.map((step, idx) => (
-                  <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 font-extrabold text-xs flex items-center justify-center shrink-0 mt-1">
-                      {step.stepNo || (idx + 1) * 10}
-                    </div>
-
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Operation</label>
-                        <input
-                          disabled={isView}
-                          value={step.operation}
-                          onChange={(e) => updateRouting(idx, 'operation', e.target.value)}
-                          placeholder="e.g. Moulding Press Cycle"
-                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Work Center</label>
-                        <input
-                          disabled={isView}
-                          value={step.workCenter}
-                          onChange={(e) => updateRouting(idx, 'workCenter', e.target.value)}
-                          placeholder="e.g. Press Shop"
-                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Cycle Time (Mins)</label>
-                        <input
-                          disabled={isView}
-                          type="number"
-                          step="0.5"
-                          value={step.cycleTimeMin}
-                          onChange={(e) => updateRouting(idx, 'cycleTimeMin', e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-emerald-500"
-                        />
-                      </div>
-
-                      <div className="md:col-span-4">
-                        <input
-                          disabled={isView}
-                          value={step.notes || ''}
-                          onChange={(e) => updateRouting(idx, 'notes', e.target.value)}
-                          placeholder="Special instructions, cure temp, inspection criteria..."
-                          className="w-full px-3 py-1 text-xs text-slate-600 border border-slate-100 rounded-md outline-none bg-slate-50/50"
-                        />
-                      </div>
-                    </div>
-
-                    {!isView && (
-                      <button
-                        type="button"
-                        onClick={() => removeRouting(idx)}
-                        className="text-slate-400 hover:text-red-600 p-1 mt-1 cursor-pointer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Section>
-
           {/* 6. STANDARD COST & YIELD ANALYSIS */}
           <Section title="6. STANDARD COST & YIELD ANALYSIS" icon={Calculator} subtitle="Reconciliation of material, inserts, packaging, and factory machine overhead">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Rubber Material</span>
                 <span className="text-xl font-black text-slate-800 mt-1 block">₹{liveCost.rubberCost.toFixed(2)}</span>
-                <span className="text-[11px] text-slate-500 mt-0.5 block">{watchAll.grossWeight || 0}g @ ₹{watchAll.compoundRate || 0}/kg</span>
+                <span className="text-[11px] text-slate-500 mt-0.5 block">{watchAll.grossWeight || 0}kg @ ₹{watchAll.compoundRate || 0}/kg</span>
               </div>
 
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40">
@@ -1624,12 +1691,12 @@ export default function BillOfMaterialsPage() {
     },
     {
       accessor: 'netWeight',
-      header: 'Net Compound / Gross (g)',
+      header: 'Net Compound / Gross (kg)',
       align: 'right',
       render: (_, row) => (
         <div className="text-right font-medium">
-          <span className="font-bold text-slate-900">{row.netCompoundWeight ?? row.netWeight}g</span>
-          <span className="text-slate-400 text-[11px] block">Gross: {row.grossWeight}g</span>
+          <span className="font-bold text-slate-900">{row.netCompoundWeight ?? row.netWeight}kg</span>
+          <span className="text-slate-400 text-[11px] block">Gross: {row.grossWeight}kg</span>
         </div>
       ),
     },

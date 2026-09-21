@@ -777,7 +777,7 @@ export default function BOMModal() {
                       step="0.5"
                       value={formData.weightLossFlyLossPercent ?? formData.scrapPercent ?? ''}
                       onChange={(e) => handleWeightLossChange(e.target.value)}
-                      placeholder="10"
+                      placeholder="Enter %"
                       className="w-full px-3 py-2 text-[14px] font-bold border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">Weight loss / fly loss allowance</p>

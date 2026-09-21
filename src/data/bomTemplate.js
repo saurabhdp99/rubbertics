@@ -28,11 +28,11 @@ export function calculateMaterialYield(netWeight, grossWeight) {
  * Calculate Total Cost Breakdown for a BOM.
  */
 export function calculateBOMCost(bom) {
-  const grossWeightGrams = parseFloat(bom.grossWeight) || 0;
+  const grossWeightKg = parseFloat(bom.grossWeight) || 0;
   const compoundRatePerKg = parseFloat(bom.compoundRate) || 0;
-  
-  // Rubber cost per piece: (Gross weight in grams / 1000) * Rate per kg
-  const rubberCost = (grossWeightGrams / 1000) * compoundRatePerKg;
+
+  // Rubber cost per piece: Gross weight (kg) * Rate per kg
+  const rubberCost = grossWeightKg * compoundRatePerKg;
 
   // Inserts & Sub-components cost
   const insertsCost = (bom.inserts || []).reduce((acc, ins) => {
@@ -93,11 +93,11 @@ export const DEFAULT_BOM = {
   colour: '',
   hardness: '',
   specificGravity: '1.20',
-  netCompoundWeight: '', // in grams
-  netWeight: '', // backwards compatibility
-  weightLossFlyLossPercent: 12, // 12% standard weight loss / fly loss
-  scrapPercent: 12, // backwards compatibility
-  grossWeight: '', // in grams
+  netCompoundWeight: '', // in kg (auto-fetched from Compound Master net_weight)
+  netWeight: '', // backwards compatibility (kg)
+  weightLossFlyLossPercent: '', // no default - user must enter
+  scrapPercent: '', // backwards compatibility (no default)
+  grossWeight: '', // in kg
   compoundRate: '', // $/kg or ₹/kg
 
   // Multi-item tables
