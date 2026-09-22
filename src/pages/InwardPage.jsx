@@ -78,6 +78,7 @@ const EMPTY_ENTRY = {
       pack_size_qty: "",
       no_of_packs: "",
       po_qty: "",
+      price: "",
       received_qty: "",
       accepted_qty: "",
       rejected_qty: "",
@@ -118,18 +119,19 @@ const EMPTY_ENTRY = {
 };
 
 const materialSchema = z.object({
-  item_code: z.string().optional(),
-  description: z.string().optional(),
-  batch_no: z.string().optional(),
-  mfg_date: z.string().optional(),
-  uom: z.string().optional(),
-  pack_size_qty: z.string().optional(),
-  no_of_packs: z.string().optional(),
-  po_qty: z.string().optional(),
-  received_qty: z.string().optional(),
-  accepted_qty: z.string().optional(),
-  rejected_qty: z.string().optional(),
-  remarks: z.string().optional(),
+  item_code: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  batch_no: z.string().optional().nullable(),
+  mfg_date: z.string().optional().nullable(),
+  uom: z.string().optional().nullable(),
+  pack_size_qty: z.union([z.string(), z.number()]).optional().nullable(),
+  no_of_packs: z.union([z.string(), z.number()]).optional().nullable(),
+  po_qty: z.union([z.string(), z.number()]).optional().nullable(),
+  price: z.union([z.string(), z.number()]).optional().nullable(),
+  received_qty: z.union([z.string(), z.number()]).optional().nullable(),
+  accepted_qty: z.union([z.string(), z.number()]).optional().nullable(),
+  rejected_qty: z.union([z.string(), z.number()]).optional().nullable(),
+  remarks: z.string().optional().nullable(),
 });
 
 const inwardSchema = z.object({
@@ -410,7 +412,7 @@ function MaterialDetailsTable({
 
   return (
     <div className="overflow-x-auto w-full rounded-lg border border-slate-200">
-      <table className="w-full text-left border-collapse min-w-[1200px]">
+      <table className="w-full text-left border-collapse min-w-[1300px]">
         <thead>
           <tr className="bg-slate-100/70 border-b border-slate-200">
             <th className="py-2.5 px-3 text-[11px] font-bold text-slate-600 uppercase border-r border-slate-200 w-[50px] text-center">
@@ -439,6 +441,9 @@ function MaterialDetailsTable({
             </th>
             <th className="py-2.5 px-3 text-[11px] font-bold text-emerald-700 uppercase border-r border-emerald-100 bg-emerald-50">
               PO Qty
+            </th>
+            <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase border-r border-slate-200 bg-slate-50 min-w-[90px] text-right">
+              Price
             </th>
             <th className="py-2.5 px-3 text-[11px] font-bold text-emerald-700 uppercase border-r border-emerald-100 bg-emerald-100/50">
               Received Qty
@@ -513,6 +518,17 @@ function MaterialDetailsTable({
                                 matchedItem.orderQty.toString(),
                                 { shouldValidate: true, shouldDirty: true },
                               );
+                            if (
+                              matchedItem.price !== undefined &&
+                              matchedItem.price !== null &&
+                              matchedItem.price !== ""
+                            ) {
+                              setValue(
+                                `materials.${index}.price`,
+                                matchedItem.price.toString(),
+                                { shouldValidate: true, shouldDirty: true },
+                              );
+                            }
                           }
                         }}
                         className="w-full h-9 px-2 text-[12px] font-medium border border-transparent hover:border-slate-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 bg-white cursor-pointer"
@@ -594,6 +610,20 @@ function MaterialDetailsTable({
                   )}
                 />
               </td>
+              <td className="p-1 border-r border-slate-100">
+                <Controller
+                  control={control}
+                  name={`materials.${index}.price`}
+                  render={({ field }) => (
+                    <TableInput
+                      field={field}
+                      isView={isView}
+                      align="right"
+                      placeholder="0.00"
+                    />
+                  )}
+                />
+              </td>
               <td className="p-1 border-r border-slate-100 bg-emerald-50/20">
                 <Controller
                   control={control}
@@ -658,6 +688,9 @@ function MaterialDetailsTable({
             <td className="p-2 text-right border-r border-slate-200 text-emerald-700">
               {totalPoQty.toFixed(2)}
             </td>
+            <td className="p-2 text-right border-r border-slate-200 text-slate-400">
+              -
+            </td>
             <td className="p-2 text-right border-r border-slate-200 text-emerald-700">
               {totalReceivedQty.toFixed(2)}
             </td>
@@ -675,7 +708,7 @@ function MaterialDetailsTable({
         <div className="p-3 bg-white border-t border-slate-200">
           <button
             type="button"
-            onClick={() => append({ uom: "KG" })}
+            onClick={() => append({ uom: "KG", price: "" })}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-xl hover:bg-emerald-100 border border-emerald-200 transition-colors"
           >
             <Plus size={14} /> Add Material Row
@@ -941,8 +974,12 @@ function InwardForm({ mode, entry, onBack }) {
       qty_verified_datetime: sanitizeDate(data.qty_verified_datetime),
       recv_verified_datetime: sanitizeDate(data.recv_verified_datetime),
       auth_verified_datetime: sanitizeDate(data.auth_verified_datetime),
-      materials: data.materials.map((m) => ({
+      materials: (data.materials || []).map((m) => ({
         ...m,
+        price:
+          m.price !== undefined && m.price !== null
+            ? String(m.price).trim()
+            : "",
         mfg_date: sanitizeDate(m.mfg_date),
       })),
     };

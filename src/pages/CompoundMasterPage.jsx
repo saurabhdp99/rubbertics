@@ -6,6 +6,7 @@ import {
   Beaker,
   Check,
   ChevronRight,
+  ChevronDown,
   Clock,
   Edit,
   Eye,
@@ -44,7 +45,9 @@ import EditableCreatableSelect from '../components/common/EditableCreatableSelec
 import StatsCard from '../components/common/StatsCard';
 import { COMPOUND_MASTER_FIELDS } from '../data/compoundMasterTemplate';
 import { useCompoundMasterStore } from '../store/compoundMasterStore';
+import { useItemMasterStore } from '../store/itemMasterStore';
 import { useAuthStore } from '../store/authStore';
+import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
 
 const EMPTY_COMPOUND = COMPOUND_MASTER_FIELDS.reduce((comp, field) => {
@@ -106,6 +109,7 @@ const compoundMasterSchema = z.object({
   standardSheetSize: z.string().optional(),
   formulation: z.array(z.object({
     id: z.string(),
+    itemCode: z.string().optional(),
     particular: z.string().min(1, 'Ingredient required'),
     quantity: z.coerce.number().min(0, 'Min 0'),
     phr: z.coerce.number().min(0, 'Min 0').optional(),
@@ -457,6 +461,137 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
   );
 }
 
+// ── Formulation Combobox Components ───────────────────────────────────────
+function IngredientCombobox({
+  value,
+  disabled,
+  items = [],
+  onChange,
+  onSelectMatchedItem,
+  placeholder = "Select or enter ingredient name..."
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) return items;
+    return items.filter(i => 
+      (i.itemName && i.itemName.toLowerCase().includes(q)) ||
+      (i.itemCode && i.itemCode.toLowerCase().includes(q))
+    );
+  }, [items, query]);
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange(val);
+    if (!val.trim()) {
+      onSelectMatchedItem?.({ itemName: '', itemCode: '' });
+      return;
+    }
+    const matched = items.find(i => (i.itemName || '').trim().toLowerCase() === val.trim().toLowerCase());
+    if (matched) {
+      onSelectMatchedItem?.(matched);
+    }
+  };
+
+  const handleSelectItem = (item) => {
+    onChange(item.itemName);
+    onSelectMatchedItem?.(item);
+    setQuery('');
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value || ''}
+          disabled={disabled}
+          placeholder={placeholder}
+          onFocus={() => {
+            if (!disabled) {
+              setQuery(value || '');
+              setIsOpen(true);
+            }
+          }}
+          onChange={handleInputChange}
+          className="w-full text-xs h-9 rounded-lg border border-slate-200 pl-3 pr-7 bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 outline-none text-slate-800 font-medium transition-all"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) {
+              setQuery('');
+              setIsOpen(!isOpen);
+            }
+          }}
+          className="absolute right-1.5 p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+        >
+          <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[280px] max-w-[420px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span>Raw Material Ingredients ({filteredItems.length})</span>
+            <span className="text-[10px] text-slate-400 font-normal">Category: Raw Material</span>
+          </div>
+          <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 p-1">
+            {filteredItems.length === 0 ? (
+              <div className="py-3 px-3 text-center text-xs text-slate-400 italic">
+                No matching item found. Custom name allowed.
+              </div>
+            ) : (
+              filteredItems.map((item, idx) => (
+                <div
+                  key={`${item.itemCode}-${item.itemName}-${idx}`}
+                  onClick={() => handleSelectItem(item)}
+                  className="px-3 py-2 rounded-lg hover:bg-emerald-50/70 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
+                >
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate">
+                      {item.itemName}
+                    </span>
+                    {item.category && (
+                      <span className="text-[10px] text-slate-400">
+                        {item.category}
+                      </span>
+                    )}
+                  </div>
+                  {item.itemCode && (
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 group-hover:bg-emerald-100 group-hover:text-emerald-800 group-hover:border-emerald-200 shrink-0">
+                      {item.itemCode}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 // ── Formulation Table Component ──────────────────────────────────────────
 function FormulationSection({ control, disabled, watch, setValue }) {
   const { fields, append, remove } = useFieldArray({
@@ -464,9 +599,78 @@ function FormulationSection({ control, disabled, watch, setValue }) {
     name: "formulation",
   });
 
+  const { items: itemMasterItems, fetchItems: fetchItemMasterItems } = useItemMasterStore();
+  const { currentOrg } = useAuthStore();
+  const [rawItems, setRawItems] = useState([]);
+
+  useEffect(() => {
+    if (currentOrg?.id) {
+      fetchItemMasterItems(currentOrg.id);
+      supabase
+        .from('item_master')
+        .select('item_code, item_name, customer_item_code, part_name, item_category')
+        .eq('org_id', currentOrg.id)
+        .ilike('item_category', '%raw%')
+        .order('item_name')
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setRawItems(data);
+          }
+        });
+    }
+  }, [currentOrg?.id]);
+
+  const availableItems = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    
+    const isRawMaterial = (cat) => {
+      const c = String(cat || '').trim().toLowerCase();
+      return c === 'raw material' || c === 'raw materials' || c.includes('raw');
+    };
+
+    const processItem = (code, name, category) => {
+      // Only include items from Item Master with category "Raw Material"
+      if (!isRawMaterial(category)) return;
+
+      const cleanName = (name || '').trim();
+      const cleanCode = (code || '').trim();
+      if (!cleanName && !cleanCode) return;
+      const key = `${cleanName.toLowerCase()}|${cleanCode.toLowerCase()}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push({
+        itemCode: cleanCode,
+        itemName: cleanName,
+        category: category || 'Raw Material'
+      });
+    };
+
+    (rawItems || []).forEach(r => processItem(r.item_code, r.item_name, r.item_category));
+    (itemMasterItems || []).forEach(i => processItem(i.itemCode, i.itemName, i.itemCategory));
+
+    return list.sort((a, b) => a.itemName.localeCompare(b.itemName));
+  }, [rawItems, itemMasterItems]);
+
   const formulationItems = watch("formulation") || [];
   const lessWeightLoss = watch("lessWeightLoss") || 0;
   const grossWeight = watch("grossWeight") || 0;
+
+  // Auto-fill itemCode for existing rows that have particular but missing itemCode once items are available
+  useEffect(() => {
+    if (disabled || availableItems.length === 0) return;
+    const currentFormulation = watch("formulation") || [];
+    currentFormulation.forEach((f, idx) => {
+      if (!f.itemCode && f.particular) {
+        const matched = availableItems.find(
+          i => (i.itemName || '').trim().toLowerCase() === f.particular.trim().toLowerCase()
+        );
+        if (matched?.itemCode) {
+          setValue(`formulation.${idx}.itemCode`, matched.itemCode, { shouldDirty: false });
+        }
+      }
+    });
+  }, [availableItems, disabled, watch, setValue]);
 
   // Calculate totals
   const totalOutput = useMemo(() => {
@@ -494,13 +698,13 @@ function FormulationSection({ control, disabled, watch, setValue }) {
           </div>
           <div>
             <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Formulation</h3>
-            <p className="text-xs text-slate-400 font-medium">Add ingredients and quantities to calculate compound weights</p>
+            <p className="text-xs text-slate-400 font-medium">Add ingredients, auto-fetch item codes, and calculate compound weights</p>
           </div>
         </div>
         {!disabled && (
           <button
             type="button"
-            onClick={() => append({ id: crypto.randomUUID(), particular: '', quantity: 0, phr: 0, uom: 'kg' })}
+            onClick={() => append({ id: crypto.randomUUID(), itemCode: '', particular: '', quantity: 0, phr: 0, uom: 'kg' })}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-sm"
           >
             <Plus size={14} strokeWidth={2.5} /> Add Ingredient
@@ -513,18 +717,19 @@ function FormulationSection({ control, disabled, watch, setValue }) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4">#</th>
+                <th className="py-3 px-4 w-[50px]">#</th>
                 <th className="py-3 px-4 min-w-[240px]">Particular (Ingredient Name)</th>
-                <th className="py-3 px-4 w-[160px]">Quantity</th>
+                <th className="py-3 px-4 w-[160px]">Item Code</th>
+                <th className="py-3 px-4 w-[150px]">Quantity</th>
                 <th className="py-3 px-4 w-[120px]">PHR</th>
-                <th className="py-3 px-4 w-[140px]">UOM</th>
+                <th className="py-3 px-4 w-[130px]">UOM</th>
                 {!disabled && <th className="py-3 px-4 w-[60px] text-center">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {fields.length === 0 ? (
                 <tr>
-                  <td colSpan={disabled ? 5 : 6} className="py-8 text-center text-slate-400 italic">
+                  <td colSpan={disabled ? 6 : 7} className="py-8 text-center text-slate-400 italic">
                     No ingredients added. {!disabled && 'Click "Add Ingredient" above to start building formulation.'}
                   </td>
                 </tr>
@@ -537,11 +742,43 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                         name={`formulation.${index}.particular`}
                         control={control}
                         render={({ field }) => (
-                          <Input
-                            {...field}
+                          <IngredientCombobox
+                            value={field.value}
                             disabled={disabled}
-                            placeholder="e.g. Silicon 20H 3420"
-                            className="w-full text-xs h-9 rounded-lg border border-slate-200 px-3 bg-white focus:border-emerald-500 outline-none"
+                            items={availableItems}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              const cleanVal = String(val || '').trim().toLowerCase();
+                              if (!cleanVal) {
+                                setValue(`formulation.${index}.itemCode`, '', { shouldValidate: true, shouldDirty: true });
+                              } else {
+                                const matched = availableItems.find(i => (i.itemName || '').trim().toLowerCase() === cleanVal);
+                                if (matched?.itemCode) {
+                                  setValue(`formulation.${index}.itemCode`, matched.itemCode, { shouldValidate: true, shouldDirty: true });
+                                }
+                              }
+                            }}
+                            onSelectMatchedItem={(matched) => {
+                              field.onChange(matched.itemName);
+                              setValue(`formulation.${index}.itemCode`, matched.itemCode || '', { shouldValidate: true, shouldDirty: true });
+                            }}
+                          />
+                        )}
+                      />
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <Controller
+                        name={`formulation.${index}.itemCode`}
+                        control={control}
+                        render={({ field }) => (
+                          <input
+                            type="text"
+                            value={field.value || ''}
+                            readOnly
+                            disabled={disabled}
+                            placeholder="Auto-fetched"
+                            className="w-full text-xs h-9 rounded-lg border border-slate-200 px-3 bg-slate-50/80 font-mono font-bold text-slate-700 outline-none cursor-default select-none placeholder:font-sans placeholder:font-normal placeholder:text-slate-400"
+                            title={field.value ? `Item Code: ${field.value}` : 'Item Code is auto-fetched when ingredient is selected'}
                           />
                         )}
                       />
@@ -611,7 +848,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
 
               {/* Summary Rows matching spreadsheet */}
               <tr className="bg-slate-100/80 font-black text-slate-800 border-t-2 border-slate-200">
-                <td colSpan={2} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
+                <td colSpan={3} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">{totalOutput.toFixed(4)}</td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs">
@@ -620,7 +857,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-slate-50 font-bold text-slate-700">
-                <td colSpan={2} className="py-2.5 px-4 text-right text-xs">Less Weight loss (%)</td>
+                <td colSpan={3} className="py-2.5 px-4 text-right text-xs">Less Weight loss (%)</td>
                 <td className="py-2.5 px-4">
                   <Controller
                     name="lessWeightLoss"
@@ -643,7 +880,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-emerald-50/50 font-black text-slate-800 border-t border-emerald-100">
-                <td colSpan={2} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
+                <td colSpan={3} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-800 text-sm">{netWeight.toFixed(4)}</td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs font-bold">
@@ -652,7 +889,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-white font-bold text-slate-700">
-                <td colSpan={2} className="py-2.5 px-4 text-right text-xs">Gross Weight</td>
+                <td colSpan={3} className="py-2.5 px-4 text-right text-xs">Gross Weight</td>
                 <td className="py-2.5 px-4">
                   <Controller
                     name="grossWeight"
@@ -803,6 +1040,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                             <table className="w-full text-left">
                               <thead className="bg-slate-100 text-[10px] font-bold text-slate-500 uppercase">
                                 <tr>
+                                  <th className="py-2 px-3">Item Code</th>
                                   <th className="py-2 px-3">Particular</th>
                                   <th className="py-2 px-3 text-right">Qty</th>
                                   <th className="py-2 px-3 text-right">PHR</th>
@@ -811,10 +1049,11 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {(snap.formulation || []).length === 0 ? (
-                                  <tr><td colSpan={4} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
+                                  <tr><td colSpan={5} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
                                 ) : (
                                   snap.formulation.map((fItem, i) => (
                                     <tr key={fItem.id || i}>
+                                      <td className="py-2 px-3 font-mono font-bold text-emerald-700">{fItem.itemCode || '-'}</td>
                                       <td className="py-2 px-3 font-semibold text-slate-800">{fItem.particular}</td>
                                       <td className="py-2 px-3 text-right font-bold text-emerald-700">{Number(fItem.quantity || 0).toFixed(4)}</td>
                                       <td className="py-2 px-3 text-right font-bold text-emerald-700">{fItem.phr !== undefined ? Number(fItem.phr || 0).toFixed(2) : '-'}</td>
@@ -823,7 +1062,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                   ))
                                 )}
                                 <tr className="bg-slate-50 font-black border-t border-slate-200">
-                                  <td className="py-2 px-3 text-right">Total Output:</td>
+                                  <td colSpan={2} className="py-2 px-3 text-right">Total Output:</td>
                                   <td className="py-2 px-3 text-right text-emerald-800">{Number(snap.totalOutput || 0).toFixed(4)}</td>
                                   <td className="py-2 px-3"></td>
                                   <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
@@ -919,12 +1158,14 @@ function CompoundMasterForm({ mode, compound, onBack }) {
         return max;
       }, 0) + 1;
       initialForm.compoundCode = `C-${String(nextNumber).padStart(3, '0')}`;
-      initialForm.formulation = [
-        { id: crypto.randomUUID(), particular: 'Silicon 20H 3420', quantity: 5, uom: 'kg' },
-        { id: crypto.randomUUID(), particular: 'Silicon 30H 3430', quantity: 5, uom: 'kg' },
-      ];
+      initialForm.formulation = [];
       initialForm.status = 'Active';
       initialForm.revisionNumber = 0;
+    } else if (initialForm.formulation) {
+      initialForm.formulation = initialForm.formulation.map(item => ({
+        ...item,
+        itemCode: item.itemCode || ''
+      }));
     }
     return initialForm;
   };
@@ -1217,11 +1458,15 @@ export default function CompoundMasterPage() {
     getStats: getCompoundMasterStats,
     fetchCompounds, isLoading,
   } = useCompoundMasterStore();
+  const { fetchItems: fetchItemMasterItems } = useItemMasterStore();
   const { currentOrg } = useAuthStore();
 
   useEffect(() => {
-    if (currentOrg?.id) fetchCompounds(currentOrg.id);
-  }, [currentOrg?.id, fetchCompounds]);
+    if (currentOrg?.id) {
+      fetchCompounds(currentOrg.id);
+      fetchItemMasterItems(currentOrg.id);
+    }
+  }, [currentOrg?.id, fetchCompounds, fetchItemMasterItems]);
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, item: null });
   const [historyModalItem, setHistoryModalItem] = useState(null);
