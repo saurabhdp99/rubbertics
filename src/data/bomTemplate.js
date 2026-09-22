@@ -110,6 +110,7 @@ export const DEFAULT_BOM = {
     { stepNo: 40, operation: '100% Visual & Dimensional QC', workCenter: 'Quality Assurance', cycleTimeMin: 1, notes: 'Check for air traps, non-fills and cracks' },
     { stepNo: 50, operation: 'Standard Packing & Labeling', workCenter: 'Dispatch Packing', cycleTimeMin: 1, notes: 'Pack in approved corrugated boxes with QA stamp' }
   ],
+  images: [],
 
   overheadCost: 0,
   remarks: ''

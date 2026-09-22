@@ -387,7 +387,7 @@ function SaleOrderForm({ mode, order, onBack }) {
     addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
     openDeleteConfirm,
   } = useSaleOrderStore();
-  const { parties: partyMasterItems } = usePartyMasterStore();
+  const { parties: partyMasterItems, fetchParties } = usePartyMasterStore();
   const { items: itemMasterItems } = useItemMasterStore();
   const { items: hsnSacItems, fetchItems: fetchHsnSacItems } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
@@ -405,10 +405,36 @@ function SaleOrderForm({ mode, order, onBack }) {
           setFreshItems(data);
         }
         fetchHsnSacItems(currentOrg.id);
+        fetchParties(currentOrg.id);
       }
     };
     fetchItems();
   }, [currentOrg]);
+
+  const productOptions = useMemo(() => {
+    const options = [];
+    const seen = new Set();
+    (freshItems || []).forEach(itm => {
+      const primaryName = itm.item_name || itm.part_name;
+      if (primaryName && !seen.has(primaryName)) {
+        seen.add(primaryName);
+        options.push({
+          name: primaryName,
+          code: itm.item_code || itm.part_no || '',
+          altName: itm.part_name && itm.part_name !== itm.item_name ? itm.part_name : ''
+        });
+      }
+      if (itm.part_name && !seen.has(itm.part_name)) {
+        seen.add(itm.part_name);
+        options.push({
+          name: itm.part_name,
+          code: itm.item_code || itm.part_no || '',
+          altName: itm.item_name && itm.item_name !== itm.part_name ? itm.item_name : ''
+        });
+      }
+    });
+    return options;
+  }, [freshItems]);
 
   const hsnCodeOptions = useMemo(() => {
     const codes = (hsnSacItems || []).map(item => item.hsnCode || item.hsn_code).filter(Boolean);
@@ -503,7 +529,13 @@ function SaleOrderForm({ mode, order, onBack }) {
   const isView = mode === 'view';
   const isAdd = mode === 'add';
 
-  const customerParties = (partyMasterItems || []).filter(p => p.partyCategory === 'Customer');
+  const allParties = useMemo(() => {
+    return [...(partyMasterItems || [])].sort((a, b) => {
+      if (a.partyCategory === 'Customer' && b.partyCategory !== 'Customer') return -1;
+      if (a.partyCategory !== 'Customer' && b.partyCategory === 'Customer') return 1;
+      return (a.partyName || '').localeCompare(b.partyName || '');
+    });
+  }, [partyMasterItems]);
 
   const onSubmit = async (data) => {
     const finalForm = { ...data };
@@ -764,14 +796,14 @@ function SaleOrderForm({ mode, order, onBack }) {
                               payTerms = data.payment_terms || '';
                               delTerms = data.delivery_terms || '';
                             } else {
-                              const party = customerParties.find(p => p.partyName === val);
+                              const party = allParties.find(p => p.partyName === val);
                               billAddr = party?.address || '';
                               shipAddr = party?.shippingAddress || billAddr;
                               payTerms = party?.paymentTerms || '';
                               delTerms = party?.deliveryTerms || '';
                             }
                           } else {
-                            const party = customerParties.find(p => p.partyName === val);
+                            const party = allParties.find(p => p.partyName === val);
                             billAddr = party?.address || '';
                             shipAddr = party?.shippingAddress || billAddr;
                             payTerms = party?.paymentTerms || '';
@@ -791,14 +823,23 @@ function SaleOrderForm({ mode, order, onBack }) {
                         aria-label="Party Name"
                       >
                         <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                          <Select.Value placeholder="Select Customer Party" />
+                          <Select.Value placeholder="Select Party Name" />
                         </Select.Trigger>
                         <Select.Popover>
                           <ListBox>
-                            {customerParties.map(p => (
+                            {allParties.map(p => (
                               <ListBox.Item key={p.partyName} id={p.partyName} textValue={p.partyName}>
-                                <div className="flex flex-col gap-0.5 py-0.5">
-                                  <span className="font-bold text-slate-800">{p.partyName}</span>
+                                <div className="flex items-center justify-between py-0.5 w-full gap-2">
+                                  <span className="font-bold text-slate-800 truncate">{p.partyName}</span>
+                                  {p.partyCategory && (
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                      p.partyCategory === 'Customer'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                    }`}>
+                                      {p.partyCategory}
+                                    </span>
+                                  )}
                                 </div>
                               </ListBox.Item>
                             ))}
@@ -963,16 +1004,20 @@ function SaleOrderForm({ mode, order, onBack }) {
                                   </Select.Trigger>
                                   <Select.Popover>
                                     <ListBox>
-                                      {Array.from(
-                                        new Set(
-                                          freshItems
-                                            .map(itm => itm.item_name || itm.part_name)
-                                            .filter(Boolean)
-                                        )
-                                      ).map(name => (
-                                        <ListBox.Item key={name} id={name} textValue={name}>
-                                          <div className="flex flex-col gap-0.5 py-0.5">
-                                            <span className="font-bold text-slate-800">{name}</span>
+                                      {productOptions.map(opt => (
+                                        <ListBox.Item key={opt.name} id={opt.name} textValue={opt.name}>
+                                          <div className="flex items-center justify-between py-0.5 w-full gap-2">
+                                            <div className="flex flex-col">
+                                              <span className="font-bold text-slate-800">{opt.name}</span>
+                                              {opt.altName && (
+                                                <span className="text-[11px] text-slate-400">{opt.altName}</span>
+                                              )}
+                                            </div>
+                                            {opt.code && (
+                                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                                {opt.code}
+                                              </span>
+                                            )}
                                           </div>
                                         </ListBox.Item>
                                       ))}

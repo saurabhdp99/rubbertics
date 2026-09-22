@@ -3,7 +3,8 @@ import {
   Layers, Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2,
   RefreshCw, CheckCircle2, Clock, AlertCircle, FileText, Printer,
   ArrowLeft, X, Save, Package, Beaker, Wrench, Boxes, Calculator,
-  ShieldCheck, FileSpreadsheet, Building2, Factory
+  ShieldCheck, FileSpreadsheet, Building2, Factory, Image as ImageIcon,
+  UploadCloud, ZoomIn, ExternalLink
 } from 'lucide-react';
 import { Input, Spinner, Select, ListBox } from '@heroui/react';
 import { useForm, Controller } from 'react-hook-form';
@@ -102,6 +103,8 @@ const bomSchema = z.object({
   overheadCost: z.any().optional(),
   remarks: z.string().optional(),
 
+  images: z.array(z.any()).optional(),
+
   prepared_by: z.string().optional(),
   checked_by: z.string().optional(),
   approved_by: z.string().optional(),
@@ -110,8 +113,8 @@ const bomSchema = z.object({
 // ─── Full-Page BOM Form Component ─────────────────────────────────────────────
 function BOMForm({ mode, bom, onBack }) {
   const isView = mode === 'view';
-  const { currentOrg } = useAuthStore();
-  const { boms, addBOM, updateBOM } = useBOMStore();
+  const { currentOrg, currentUser } = useAuthStore();
+  const { boms, addBOM, updateBOM, fetchBOMs } = useBOMStore();
   const { items: masterItems, fetchItems, isLoading: isItemsLoading } = useItemMasterStore();
   const { compounds: masterCompounds, fetchCompounds, isLoading: isCompoundsLoading } = useCompoundMasterStore();
   const { tools: masterTools, fetchTools } = useToolsMasterStore();
@@ -129,17 +132,68 @@ function BOMForm({ mode, bom, onBack }) {
     })();
 
     if (orgId) {
+      if (!boms || boms.length === 0) fetchBOMs(orgId);
       if (!masterItems || masterItems.length === 0) fetchItems(orgId);
       if (!masterCompounds || masterCompounds.length === 0) fetchCompounds(orgId);
       if (!masterTools || masterTools.length === 0) fetchTools(orgId);
       if (!masterMachines || masterMachines.length === 0) fetchMachines(orgId);
       if (!employees || employees.length === 0) fetchEmployees(orgId);
     }
-  }, [currentOrg?.id, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length, employees?.length]);
+  }, [currentOrg?.id, fetchBOMs, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees, boms?.length, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length, employees?.length]);
 
   const [inserts, setInserts] = useState(bom?.inserts ? [...bom.inserts] : []);
   const [packaging, setPackaging] = useState(bom?.packaging ? [...bom.packaging] : []);
   const [routing, setRouting] = useState(bom?.routing ? [...bom.routing] : [...DEFAULT_BOM.routing]);
+  const [images, setImages] = useState(bom?.images ? [...bom.images] : []);
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState(null);
+
+  // Dynamic Image Helpers
+  const addImageRow = () => {
+    setImages(prev => [
+      ...prev,
+      {
+        id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        title: '',
+        name: '',
+        fileName: '',
+        fileType: '',
+        fileData: '',
+        url: '',
+        fileObject: null,
+      }
+    ]);
+  };
+
+  const updateImage = (id, field, val) => {
+    setImages(prev => prev.map(img => img.id === id ? { ...img, [field]: val, ...(field === 'title' ? { name: val } : {}) } : img));
+  };
+
+  const handleImageFileChange = (id, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setImages(prev => prev.map(img => {
+      if (img.id === id) {
+        const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        return {
+          ...img,
+          fileObject: file,
+          fileName: file.name,
+          fileType: file.type,
+          fileData: previewUrl,
+          url: previewUrl,
+          title: img.title || cleanTitle,
+          name: img.name || cleanTitle,
+        };
+      }
+      return img;
+    }));
+    e.target.value = null;
+  };
+
+  const removeImage = (id) => {
+    setImages(prev => prev.filter(img => img.id !== id));
+  };
 
   // Compute next sequential BOM Number (e.g. BOM-26-005)
   const nextBomNo = useMemo(() => {
@@ -173,6 +227,8 @@ function BOMForm({ mode, bom, onBack }) {
         toolSortWeight: '',
         weightLossFlyLossPercent: '',
         scrapPercent: '',
+        grossWeight: '',
+        images: [],
       };
     }
     return {
@@ -193,6 +249,7 @@ function BOMForm({ mode, bom, onBack }) {
       grossWeight: bom.grossWeight?.toString() || '',
       compoundRate: bom.compoundRate?.toString() || '',
       overheadCost: bom.overheadCost?.toString() || '0',
+      images: bom.images || [],
     };
   }, [bom, nextBomNo]);
 
@@ -203,15 +260,17 @@ function BOMForm({ mode, bom, onBack }) {
 
   const watchAll = watch();
 
-  // Auto Calculations for Gross Weight & Rubber Cost
+  // Auto Calculations for Gross Weight fallback
   useEffect(() => {
     if (isView) return;
     const net = parseFloat(watchAll.netCompoundWeight ?? watchAll.netWeight) || 0;
     const loss = parseFloat(watchAll.weightLossFlyLossPercent ?? watchAll.scrapPercent) || 0;
-    if (net > 0) {
+    const currentGross = parseFloat(watchAll.grossWeight) || 0;
+    // Auto-calculate fallback gross weight only if grossWeight is empty or 0
+    if (net > 0 && currentGross === 0) {
       const gross = calculateGrossWeight(net, loss);
-      if (watchAll.grossWeight !== gross.toString()) {
-        setValue('grossWeight', gross.toString());
+      if (gross > 0 && watchAll.grossWeight !== gross.toString()) {
+        setValue('grossWeight', gross.toString(), { shouldDirty: true });
       }
     }
   }, [watchAll.netCompoundWeight, watchAll.netWeight, watchAll.weightLossFlyLossPercent, watchAll.scrapPercent, isView, setValue, watchAll.grossWeight]);
@@ -503,6 +562,34 @@ function BOMForm({ mode, bom, onBack }) {
       setValue('netCompoundWeight', netStr, { shouldValidate: true, shouldDirty: true });
       setValue('netWeight', netStr, { shouldValidate: true, shouldDirty: true });
     }
+
+    // Auto-fetch Weight Loss / Fly Loss (%) from Compound Master
+    const rawLoss = compound.lessWeightLoss ?? compound.less_weight_loss;
+    if (rawLoss !== undefined && rawLoss !== null && rawLoss !== '') {
+      const lossNum = parseFloat(rawLoss);
+      if (!isNaN(lossNum)) {
+        const lossStr = String(lossNum);
+        setValue('weightLossFlyLossPercent', lossStr, { shouldValidate: true, shouldDirty: true });
+        setValue('scrapPercent', lossStr, { shouldDirty: true });
+      }
+    }
+
+    // Auto-fetch Compound Gross Weight (kg) from Compound Master
+    const rawGross = compound.grossWeight ?? compound.gross_weight;
+    const grossNum = parseFloat(rawGross);
+    if (!isNaN(grossNum) && grossNum > 0) {
+      setValue('grossWeight', String(grossNum), { shouldValidate: true, shouldDirty: true });
+    } else {
+      // Fallback: calculate gross weight from net weight and weight loss %
+      const net = (!isNaN(netNum) && netNum > 0) ? netNum : (parseFloat(watchAll.netCompoundWeight ?? watchAll.netWeight) || 0);
+      const loss = (rawLoss !== undefined && rawLoss !== null && rawLoss !== '') ? parseFloat(rawLoss) : (parseFloat(watchAll.weightLossFlyLossPercent ?? watchAll.scrapPercent) || 0);
+      if (net > 0) {
+        const calcGross = calculateGrossWeight(net, loss);
+        if (calcGross > 0) {
+          setValue('grossWeight', String(calcGross), { shouldValidate: true, shouldDirty: true });
+        }
+      }
+    }
   };
 
   // Auto-fetch compound details whenever compoundCode is selected or loaded
@@ -532,14 +619,35 @@ function BOMForm({ mode, bom, onBack }) {
       if (sp && !watchAll.specificGravity) {
         setValue('specificGravity', String(sp), { shouldDirty: true });
       }
-      // Always sync Net Weight (kg) from Compound Master when compound changes
+      // Sync Net Weight (kg) from Compound Master
       const rawNet = found.netWeight ?? found.net_weight;
       const netNum = parseFloat(rawNet);
       if (!isNaN(netNum) && netNum > 0) {
         const netStr = String(netNum);
-        if (String(watchAll.netCompoundWeight ?? watchAll.netWeight ?? '') !== netStr) {
+        if (String(watchAll.netCompoundWeight ?? watchAll.netWeight ?? '') !== netStr && (!watchAll.netCompoundWeight || !bom)) {
           setValue('netCompoundWeight', netStr, { shouldValidate: true, shouldDirty: true });
           setValue('netWeight', netStr, { shouldValidate: true, shouldDirty: true });
+        }
+      }
+      // Sync Weight Loss / Fly Loss (%) from Compound Master
+      const rawLoss = found.lessWeightLoss ?? found.less_weight_loss;
+      if (rawLoss !== undefined && rawLoss !== null && rawLoss !== '') {
+        const lossNum = parseFloat(rawLoss);
+        if (!isNaN(lossNum)) {
+          const lossStr = String(lossNum);
+          if (String(watchAll.weightLossFlyLossPercent ?? watchAll.scrapPercent ?? '') !== lossStr && (!watchAll.weightLossFlyLossPercent || !bom)) {
+            setValue('weightLossFlyLossPercent', lossStr, { shouldValidate: true, shouldDirty: true });
+            setValue('scrapPercent', lossStr, { shouldDirty: true });
+          }
+        }
+      }
+      // Sync Compound Gross Weight (kg) from Compound Master
+      const rawGross = found.grossWeight ?? found.gross_weight;
+      const grossNum = parseFloat(rawGross);
+      if (!isNaN(grossNum) && grossNum > 0) {
+        const grossStr = String(grossNum);
+        if (String(watchAll.grossWeight ?? '') !== grossStr && (!watchAll.grossWeight || !bom)) {
+          setValue('grossWeight', grossStr, { shouldValidate: true, shouldDirty: true });
         }
       }
     } else if (currentOrg?.id) {
@@ -555,7 +663,7 @@ function BOMForm({ mode, bom, onBack }) {
           }
         });
     }
-  }, [watchAll.compoundCode, masterCompounds, currentOrg?.id, watchAll.netCompoundWeight, watchAll.netWeight]);
+  }, [watchAll.compoundCode, masterCompounds, currentOrg?.id, watchAll.netCompoundWeight, watchAll.netWeight, watchAll.weightLossFlyLossPercent, watchAll.grossWeight, bom]);
 
   // Handle Compound Selection (HeroUI Select passes the compound code directly)
   const handleCompoundSelectByCode = async (compoundCode) => {
@@ -567,6 +675,9 @@ function BOMForm({ mode, bom, onBack }) {
       setValue('specificGravity', '', { shouldDirty: true });
       setValue('netCompoundWeight', '', { shouldDirty: true });
       setValue('netWeight', '', { shouldDirty: true });
+      setValue('weightLossFlyLossPercent', '', { shouldDirty: true });
+      setValue('scrapPercent', '', { shouldDirty: true });
+      setValue('grossWeight', '', { shouldDirty: true });
       return;
     }
 
@@ -676,13 +787,14 @@ function BOMForm({ mode, bom, onBack }) {
     return calculateMaterialYield(watchAll.netCompoundWeight ?? watchAll.netWeight, watchAll.grossWeight);
   }, [watchAll.netCompoundWeight, watchAll.netWeight, watchAll.grossWeight]);
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     const payload = {
       ...data,
       bomNo: data.bomNo || watchAll.bomNo || nextBomNo,
       inserts,
       packaging,
       routing,
+      images,
       netCompoundWeight: parseFloat(data.netCompoundWeight ?? data.netWeight) || 0,
       netWeight: parseFloat(data.netCompoundWeight ?? data.netWeight) || 0,
       weightLossFlyLossPercent: parseFloat(data.weightLossFlyLossPercent ?? data.scrapPercent) || 0,
@@ -695,10 +807,19 @@ function BOMForm({ mode, bom, onBack }) {
       overheadCost: parseFloat(data.overheadCost) || 0,
     };
 
+    const orgId = currentOrg?.id || (() => {
+      try {
+        const raw = localStorage.getItem('rubbertics_current_org');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+
     if (mode === 'edit') {
-      updateBOM(bom.id, payload);
+      await updateBOM(bom.id, payload, orgId, currentUser?.id);
     } else {
-      addBOM(payload);
+      await addBOM(payload, orgId, currentUser?.id);
     }
     onBack();
   };
@@ -1011,7 +1132,7 @@ function BOMForm({ mode, bom, onBack }) {
           </Section>
 
           {/* 2. RUBBER COMPOUND & WEIGHT CALCULATIONS */}
-          <Section title="2. RUBBER COMPOUND & WEIGHT CALCULATIONS" icon={Beaker} subtitle="Gross weight and rubber cost are auto-calculated from net weight and weight loss / fly loss">
+          <Section title="2. RUBBER COMPOUND & WEIGHT CALCULATIONS" icon={Beaker} subtitle="Compound gross weight, weight loss / fly loss and specifications auto-fetched from Compound Master">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <Controller name="compoundCode" control={control} render={({ field }) => (
                 <Field label="Compound Code (Compound Master)">
@@ -1095,12 +1216,18 @@ function BOMForm({ mode, bom, onBack }) {
                     {...field}
                     disabled={isView}
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     className={inputCls}
                     placeholder="0.00"
                     onChange={(e) => {
                       field.onChange(e);
                       setValue('netWeight', e.target.value, { shouldDirty: true });
+                      const net = parseFloat(e.target.value) || 0;
+                      const loss = parseFloat(watchAll.weightLossFlyLossPercent ?? watchAll.scrapPercent) || 0;
+                      if (net > 0 && loss > 0) {
+                        const calcGross = calculateGrossWeight(net, loss);
+                        setValue('grossWeight', String(calcGross), { shouldDirty: true });
+                      }
                     }}
                   />
                 </Field>
@@ -1112,20 +1239,33 @@ function BOMForm({ mode, bom, onBack }) {
                     {...field}
                     disabled={isView}
                     type="number"
-                    step="0.5"
+                    step="0.01"
                     className={inputCls}
-                    placeholder="Enter %"
+                    placeholder="Auto-fetched from Compound Master"
                     onChange={(e) => {
                       field.onChange(e);
                       setValue('scrapPercent', e.target.value, { shouldDirty: true });
+                      const net = parseFloat(watchAll.netCompoundWeight ?? watchAll.netWeight) || 0;
+                      const loss = parseFloat(e.target.value) || 0;
+                      if (net > 0) {
+                        const calcGross = calculateGrossWeight(net, loss);
+                        setValue('grossWeight', String(calcGross), { shouldDirty: true });
+                      }
                     }}
                   />
                 </Field>
               )} />
 
               <Controller name="grossWeight" control={control} render={({ field }) => (
-                <Field label="Gross Weight per Piece (kg)">
-                  <input {...field} disabled readOnly className={`${inputCls} bg-emerald-50 text-emerald-800 font-extrabold`} placeholder="Auto calculated" />
+                <Field label="Compound Gross Weight (kg)">
+                  <input
+                    {...field}
+                    disabled={isView}
+                    type="number"
+                    step="0.0001"
+                    className={inputCls}
+                    placeholder="Auto-fetched from Compound Master"
+                  />
                 </Field>
               )} />
 
@@ -1449,8 +1589,149 @@ function BOMForm({ mode, bom, onBack }) {
             </div>
           </Section>
 
-          {/* 6. STANDARD COST & YIELD ANALYSIS */}
-          <Section title="6. STANDARD COST & YIELD ANALYSIS" icon={Calculator} subtitle="Reconciliation of material, inserts, packaging, and factory machine overhead">
+          {/* 6. PRODUCT & PART IMAGES */}
+          <Section
+            title="6. PRODUCT & PART IMAGES"
+            icon={ImageIcon}
+            subtitle="Upload finished product photos, technical 2D/3D CAD drawings, flash inspection views, and QA reference images"
+          >
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-500">
+                  {images.length === 0 ? 'No images uploaded' : `${images.length} image${images.length > 1 ? 's' : ''} attached`}
+                </span>
+                {!isView && (
+                  <button
+                    type="button"
+                    onClick={addImageRow}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    Add Image
+                  </button>
+                )}
+              </div>
+
+              {images.length === 0 ? (
+                <div className="p-8 border-2 border-dashed border-slate-200 rounded-2xl text-center bg-slate-50/50 flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
+                    <ImageIcon size={22} />
+                  </div>
+                  <div className="max-w-sm">
+                    <p className="text-sm font-bold text-slate-700">No images or drawings uploaded yet</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Upload part photographs, 2D engineering drawings, or tooling reference images
+                    </p>
+                  </div>
+                  {!isView && (
+                    <button
+                      type="button"
+                      onClick={addImageRow}
+                      className="mt-1 flex items-center gap-2 px-4 py-2 text-xs font-bold text-emerald-700 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition-all shadow-sm cursor-pointer"
+                    >
+                      <Plus size={14} /> Add Image
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {images.map((img, idx) => {
+                    const displaySrc = img.fileData || img.url;
+                    return (
+                      <div
+                        key={img.id || idx}
+                        className="group relative rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
+                      >
+                        {/* Preview Area */}
+                        <div className="relative aspect-video w-full bg-slate-100 flex items-center justify-center overflow-hidden border-b border-slate-100">
+                          {displaySrc ? (
+                            <img
+                              src={displaySrc}
+                              alt={img.title || `BOM Image ${idx + 1}`}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400 p-4 text-center">
+                              <UploadCloud size={24} className="opacity-60 text-slate-400" />
+                              <span className="text-[11px] font-semibold text-slate-500">Click icon to select image</span>
+                            </div>
+                          )}
+
+                          {/* Overlay Actions */}
+                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            {displaySrc && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPreviewImage(img)}
+                                className="w-8 h-8 rounded-lg bg-white/95 text-slate-800 hover:bg-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                                title="View Fullscreen"
+                              >
+                                <ZoomIn size={15} />
+                              </button>
+                            )}
+                            {!isView && (
+                              <>
+                                <label
+                                  className="w-8 h-8 rounded-lg bg-white/95 text-slate-800 hover:bg-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                                  title="Upload / Replace Image"
+                                >
+                                  <UploadCloud size={15} />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleImageFileChange(img.id, e)}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(img.id)}
+                                  className="w-8 h-8 rounded-lg bg-red-500 text-white hover:bg-red-600 flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                                  title="Remove Image"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Card Body - Title & Details */}
+                        <div className="p-3.5 flex flex-col gap-2 flex-1 justify-between bg-white">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Image Title / Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              disabled={isView}
+                              value={img.title || ''}
+                              onChange={(e) => updateImage(img.id, 'title', e.target.value)}
+                              placeholder="e.g. Finished Product View, 2D Drawing"
+                              className="w-full px-3 py-1.5 text-xs font-semibold text-slate-800 border border-slate-200 rounded-lg outline-none focus:border-emerald-500 transition-colors"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-50">
+                            <span className="truncate max-w-[150px]" title={img.fileName || 'Pending upload'}>
+                              {img.fileName || (displaySrc ? 'Image attached' : 'No file chosen')}
+                            </span>
+                            {displaySrc && (
+                              <span className="text-emerald-600 font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-[9px] uppercase">
+                                {img.fileType ? img.fileType.split('/')[1] || 'IMG' : 'READY'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Section>
+
+          {/* 7. STANDARD COST & YIELD ANALYSIS */}
+          <Section title="7. STANDARD COST & YIELD ANALYSIS" icon={Calculator} subtitle="Reconciliation of material, inserts, packaging, and factory machine overhead">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Rubber Material</span>
@@ -1484,8 +1765,8 @@ function BOMForm({ mode, bom, onBack }) {
             </div>
           </Section>
 
-          {/* 7. AUTHORIZATION & REMARKS */}
-          <Section title="7. AUTHORIZATION & REMARKS" icon={ShieldCheck}>
+          {/* 8. AUTHORIZATION & REMARKS */}
+          <Section title="8. AUTHORIZATION & REMARKS" icon={ShieldCheck}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
               <Controller name="prepared_by" control={control} render={({ field }) => (
                 <Field label="Prepared By">
@@ -1600,6 +1881,63 @@ function BOMForm({ mode, bom, onBack }) {
           </Section>
 
         </form>
+
+        {/* Fullscreen Image Lightbox Preview Modal */}
+        {selectedPreviewImage && (
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fadeIn"
+            onClick={() => setSelectedPreviewImage(null)}
+          >
+            <div
+              className="relative max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <ImageIcon size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800">
+                      {selectedPreviewImage.title || selectedPreviewImage.fileName || 'Product Image Preview'}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      {selectedPreviewImage.fileName || 'BOM Reference Image'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {(selectedPreviewImage.url || selectedPreviewImage.fileData) && (
+                    <a
+                      href={selectedPreviewImage.url || selectedPreviewImage.fileData}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                      title="Open full image in new tab"
+                    >
+                      <ExternalLink size={17} />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPreviewImage(null)}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                    title="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 overflow-auto flex items-center justify-center bg-slate-950/5 min-h-[300px]">
+                <img
+                  src={selectedPreviewImage.url || selectedPreviewImage.fileData}
+                  alt={selectedPreviewImage.title || 'Product Image'}
+                  className="max-h-[70vh] w-auto max-w-full object-contain rounded-xl shadow-lg border border-slate-200/50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1608,6 +1946,7 @@ function BOMForm({ mode, bom, onBack }) {
 // ─── Main Page Component ──────────────────────────────────────────────────────
 export default function BillOfMaterialsPage() {
   const { currentOrg } = useAuthStore();
+  const { fetchBOMs } = useBOMStore();
   const { fetchItems } = useItemMasterStore();
   const { fetchCompounds } = useCompoundMasterStore();
   const { fetchTools } = useToolsMasterStore();
@@ -1625,13 +1964,14 @@ export default function BillOfMaterialsPage() {
     })();
 
     if (orgId) {
+      fetchBOMs(orgId);
       fetchItems(orgId);
       fetchCompounds(orgId);
       fetchTools(orgId);
       fetchMachines(orgId);
       fetchEmployees(orgId);
     }
-  }, [currentOrg?.id, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees]);
+  }, [currentOrg?.id, fetchBOMs, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees]);
 
   const {
     boms,
@@ -1734,9 +2074,22 @@ export default function BillOfMaterialsPage() {
       accessor: 'itemName',
       header: 'Finished Product',
       render: (val, row) => (
-        <div>
-          <span className="font-bold text-slate-800 block">{val}</span>
-          <span className="text-[11px] text-slate-500 font-mono">{row.itemCode || '-'} {row.customerPartNo ? `· ${row.customerPartNo}` : ''}</span>
+        <div className="flex items-center gap-3">
+          {row.images && row.images.length > 0 && (row.images[0]?.url || row.images[0]?.fileData) ? (
+            <img
+              src={row.images[0].url || row.images[0].fileData}
+              alt={row.images[0].title || val}
+              className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm shrink-0 bg-slate-50"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/70 text-slate-400 flex items-center justify-center shrink-0">
+              <Package size={18} />
+            </div>
+          )}
+          <div>
+            <span className="font-bold text-slate-800 block">{val}</span>
+            <span className="text-[11px] text-slate-500 font-mono">{row.itemCode || '-'} {row.customerPartNo ? `· ${row.customerPartNo}` : ''}</span>
+          </div>
         </div>
       ),
     },
