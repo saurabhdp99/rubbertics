@@ -46,6 +46,7 @@ import StatsCard from '../components/common/StatsCard';
 import { COMPOUND_MASTER_FIELDS } from '../data/compoundMasterTemplate';
 import { useCompoundMasterStore } from '../store/compoundMasterStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
+import { useInwardStore } from '../store/inwardStore';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
@@ -111,6 +112,7 @@ const compoundMasterSchema = z.object({
     id: z.string(),
     itemCode: z.string().optional(),
     particular: z.string().min(1, 'Ingredient required'),
+    price: z.union([z.string(), z.number()]).optional().nullable(),
     quantity: z.coerce.number().min(0, 'Min 0'),
     phr: z.coerce.number().min(0, 'Min 0').optional(),
     uom: z.string().min(1, 'UOM required')
@@ -600,15 +602,17 @@ function FormulationSection({ control, disabled, watch, setValue }) {
   });
 
   const { items: itemMasterItems, fetchItems: fetchItemMasterItems } = useItemMasterStore();
+  const { entries: inwardEntries, fetchEntries: fetchInwardEntries } = useInwardStore();
   const { currentOrg } = useAuthStore();
   const [rawItems, setRawItems] = useState([]);
 
   useEffect(() => {
     if (currentOrg?.id) {
       fetchItemMasterItems(currentOrg.id);
+      fetchInwardEntries(currentOrg.id);
       supabase
         .from('item_master')
-        .select('item_code, item_name, customer_item_code, part_name, item_category')
+        .select('item_code, item_name, customer_item_code, part_name, item_category, item_price')
         .eq('org_id', currentOrg.id)
         .ilike('item_category', '%raw%')
         .order('item_name')
@@ -618,7 +622,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
           }
         });
     }
-  }, [currentOrg?.id]);
+  }, [currentOrg?.id, fetchItemMasterItems, fetchInwardEntries]);
 
   const availableItems = useMemo(() => {
     const list = [];
@@ -629,7 +633,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
       return c === 'raw material' || c === 'raw materials' || c.includes('raw');
     };
 
-    const processItem = (code, name, category) => {
+    const processItem = (code, name, category, price) => {
       // Only include items from Item Master with category "Raw Material"
       if (!isRawMaterial(category)) return;
 
@@ -642,12 +646,13 @@ function FormulationSection({ control, disabled, watch, setValue }) {
       list.push({
         itemCode: cleanCode,
         itemName: cleanName,
-        category: category || 'Raw Material'
+        category: category || 'Raw Material',
+        itemPrice: price || null
       });
     };
 
-    (rawItems || []).forEach(r => processItem(r.item_code, r.item_name, r.item_category));
-    (itemMasterItems || []).forEach(i => processItem(i.itemCode, i.itemName, i.itemCategory));
+    (rawItems || []).forEach(r => processItem(r.item_code, r.item_name, r.item_category, r.item_price));
+    (itemMasterItems || []).forEach(i => processItem(i.itemCode, i.itemName, i.itemCategory, i.itemPrice));
 
     return list.sort((a, b) => a.itemName.localeCompare(b.itemName));
   }, [rawItems, itemMasterItems]);
@@ -656,21 +661,79 @@ function FormulationSection({ control, disabled, watch, setValue }) {
   const lessWeightLoss = watch("lessWeightLoss") || 0;
   const grossWeight = watch("grossWeight") || 0;
 
-  // Auto-fill itemCode for existing rows that have particular but missing itemCode once items are available
+  // Helper to fetch price from inward entries (latest receipt first) with fallback to item master
+  const getInwardPriceForItem = (itemCode, itemName) => {
+    const cleanCode = String(itemCode || '').trim().toLowerCase();
+    const cleanName = String(itemName || '').trim().toLowerCase();
+
+    // 1. Primary: match from inward entries (ordered newest receipt first)
+    if (inwardEntries && inwardEntries.length > 0) {
+      for (const entry of inwardEntries) {
+        if (entry.materials && Array.isArray(entry.materials)) {
+          if (cleanCode) {
+            const mat = entry.materials.find(
+              (m) =>
+                String(m.item_code || m.itemCode || '').trim().toLowerCase() === cleanCode &&
+                m.price !== undefined &&
+                m.price !== null &&
+                String(m.price).trim() !== ''
+            );
+            if (mat) return String(mat.price).trim();
+          }
+          if (cleanName) {
+            const mat = entry.materials.find(
+              (m) =>
+                String(m.description || m.particular || m.itemName || '').trim().toLowerCase() === cleanName &&
+                m.price !== undefined &&
+                m.price !== null &&
+                String(m.price).trim() !== ''
+            );
+            if (mat) return String(mat.price).trim();
+          }
+        }
+      }
+    }
+
+    // 2. Secondary fallback: check item master price
+    if (cleanCode) {
+      const im = (itemMasterItems || []).find(
+        (i) => String(i.itemCode || '').trim().toLowerCase() === cleanCode && i.itemPrice
+      );
+      if (im?.itemPrice) return String(im.itemPrice).trim();
+
+      const raw = (rawItems || []).find(
+        (r) => String(r.item_code || '').trim().toLowerCase() === cleanCode && r.item_price
+      );
+      if (raw?.item_price) return String(raw.item_price).trim();
+    }
+
+    return null;
+  };
+
+  // Auto-fill itemCode and price for existing rows that have particular/itemCode
   useEffect(() => {
-    if (disabled || availableItems.length === 0) return;
+    if (disabled) return;
     const currentFormulation = watch("formulation") || [];
     currentFormulation.forEach((f, idx) => {
-      if (!f.itemCode && f.particular) {
+      let resolvedCode = f.itemCode;
+      if (!resolvedCode && f.particular && availableItems.length > 0) {
         const matched = availableItems.find(
           i => (i.itemName || '').trim().toLowerCase() === f.particular.trim().toLowerCase()
         );
         if (matched?.itemCode) {
+          resolvedCode = matched.itemCode;
           setValue(`formulation.${idx}.itemCode`, matched.itemCode, { shouldDirty: false });
         }
       }
+
+      if ((resolvedCode || f.particular) && (f.price === undefined || f.price === null || String(f.price).trim() === '')) {
+        const inwardPrice = getInwardPriceForItem(resolvedCode, f.particular);
+        if (inwardPrice !== null && inwardPrice !== undefined) {
+          setValue(`formulation.${idx}.price`, inwardPrice, { shouldDirty: false });
+        }
+      }
     });
-  }, [availableItems, disabled, watch, setValue]);
+  }, [availableItems, inwardEntries, disabled, watch, setValue]);
 
   // Calculate totals
   const totalOutput = useMemo(() => {
@@ -698,13 +761,13 @@ function FormulationSection({ control, disabled, watch, setValue }) {
           </div>
           <div>
             <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Formulation</h3>
-            <p className="text-xs text-slate-400 font-medium">Add ingredients, auto-fetch item codes, and calculate compound weights</p>
+            <p className="text-xs text-slate-400 font-medium">Add ingredients, auto-fetch item codes & inward price, and calculate compound weights</p>
           </div>
         </div>
         {!disabled && (
           <button
             type="button"
-            onClick={() => append({ id: crypto.randomUUID(), itemCode: '', particular: '', quantity: 0, phr: 0, uom: 'kg' })}
+            onClick={() => append({ id: crypto.randomUUID(), itemCode: '', particular: '', price: '', quantity: 0, phr: 0, uom: 'kg' })}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-sm"
           >
             <Plus size={14} strokeWidth={2.5} /> Add Ingredient
@@ -719,17 +782,18 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
                 <th className="py-3 px-4 w-[50px]">#</th>
                 <th className="py-3 px-4 min-w-[240px]">Particular (Ingredient Name)</th>
-                <th className="py-3 px-4 w-[160px]">Item Code</th>
-                <th className="py-3 px-4 w-[150px]">Quantity</th>
-                <th className="py-3 px-4 w-[120px]">PHR</th>
-                <th className="py-3 px-4 w-[130px]">UOM</th>
+                <th className="py-3 px-4 w-[150px]">Item Code</th>
+                <th className="py-3 px-4 w-[130px] text-right">Price</th>
+                <th className="py-3 px-4 w-[140px]">Quantity</th>
+                <th className="py-3 px-4 w-[110px]">PHR</th>
+                <th className="py-3 px-4 w-[120px]">UOM</th>
                 {!disabled && <th className="py-3 px-4 w-[60px] text-center">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {fields.length === 0 ? (
                 <tr>
-                  <td colSpan={disabled ? 6 : 7} className="py-8 text-center text-slate-400 italic">
+                  <td colSpan={disabled ? 7 : 8} className="py-8 text-center text-slate-400 italic">
                     No ingredients added. {!disabled && 'Click "Add Ingredient" above to start building formulation.'}
                   </td>
                 </tr>
@@ -751,16 +815,24 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                               const cleanVal = String(val || '').trim().toLowerCase();
                               if (!cleanVal) {
                                 setValue(`formulation.${index}.itemCode`, '', { shouldValidate: true, shouldDirty: true });
+                                setValue(`formulation.${index}.price`, '', { shouldValidate: true, shouldDirty: true });
                               } else {
                                 const matched = availableItems.find(i => (i.itemName || '').trim().toLowerCase() === cleanVal);
                                 if (matched?.itemCode) {
                                   setValue(`formulation.${index}.itemCode`, matched.itemCode, { shouldValidate: true, shouldDirty: true });
+                                  const inwardPrice = getInwardPriceForItem(matched.itemCode, matched.itemName);
+                                  setValue(`formulation.${index}.price`, inwardPrice || '', { shouldValidate: true, shouldDirty: true });
+                                } else {
+                                  setValue(`formulation.${index}.itemCode`, '', { shouldValidate: true, shouldDirty: true });
+                                  setValue(`formulation.${index}.price`, '', { shouldValidate: true, shouldDirty: true });
                                 }
                               }
                             }}
                             onSelectMatchedItem={(matched) => {
                               field.onChange(matched.itemName);
                               setValue(`formulation.${index}.itemCode`, matched.itemCode || '', { shouldValidate: true, shouldDirty: true });
+                              const inwardPrice = getInwardPriceForItem(matched.itemCode, matched.itemName);
+                              setValue(`formulation.${index}.price`, inwardPrice || '', { shouldValidate: true, shouldDirty: true });
                             }}
                           />
                         )}
@@ -775,12 +847,41 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                             type="text"
                             value={field.value || ''}
                             readOnly
+                            tabIndex={-1}
                             disabled={disabled}
                             placeholder="Auto-fetched"
                             className="w-full text-xs h-9 rounded-lg border border-slate-200 px-3 bg-slate-50/80 font-mono font-bold text-slate-700 outline-none cursor-default select-none placeholder:font-sans placeholder:font-normal placeholder:text-slate-400"
                             title={field.value ? `Item Code: ${field.value}` : 'Item Code is auto-fetched when ingredient is selected'}
                           />
                         )}
+                      />
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <Controller
+                        name={`formulation.${index}.price`}
+                        control={control}
+                        render={({ field }) => {
+                          const hasPrice = field.value !== undefined && field.value !== null && String(field.value).trim() !== '';
+                          const displayValue = hasPrice
+                            ? (isNaN(Number(field.value)) ? field.value : `₹${Number(field.value).toFixed(2)}`)
+                            : '';
+                          return (
+                            <input
+                              type="text"
+                              value={displayValue}
+                              readOnly
+                              tabIndex={-1}
+                              disabled={disabled}
+                              placeholder="No price"
+                              className={`w-full text-xs h-9 rounded-lg border border-slate-200 px-3 text-right outline-none cursor-default select-none transition-colors ${
+                                hasPrice
+                                  ? 'bg-slate-50/80 font-mono font-bold text-slate-700'
+                                  : 'bg-slate-50/40 font-normal text-slate-400 placeholder:italic placeholder:text-slate-400 placeholder:text-right'
+                              }`}
+                              title={hasPrice ? `Inward Price: ${displayValue}` : 'No inward price found for this item'}
+                            />
+                          );
+                        }}
                       />
                     </td>
                     <td className="py-2.5 px-4">
@@ -848,7 +949,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
 
               {/* Summary Rows matching spreadsheet */}
               <tr className="bg-slate-100/80 font-black text-slate-800 border-t-2 border-slate-200">
-                <td colSpan={3} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
+                <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">{totalOutput.toFixed(4)}</td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs">
@@ -857,7 +958,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-slate-50 font-bold text-slate-700">
-                <td colSpan={3} className="py-2.5 px-4 text-right text-xs">Less Weight loss (%)</td>
+                <td colSpan={4} className="py-2.5 px-4 text-right text-xs">Less Weight loss (%)</td>
                 <td className="py-2.5 px-4">
                   <Controller
                     name="lessWeightLoss"
@@ -880,7 +981,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-emerald-50/50 font-black text-slate-800 border-t border-emerald-100">
-                <td colSpan={3} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
+                <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-800 text-sm">{netWeight.toFixed(4)}</td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs font-bold">
@@ -889,7 +990,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               </tr>
 
               <tr className="bg-white font-bold text-slate-700">
-                <td colSpan={3} className="py-2.5 px-4 text-right text-xs">Gross Weight</td>
+                <td colSpan={4} className="py-2.5 px-4 text-right text-xs">Gross Weight</td>
                 <td className="py-2.5 px-4">
                   <Controller
                     name="grossWeight"
@@ -1042,6 +1143,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                 <tr>
                                   <th className="py-2 px-3">Item Code</th>
                                   <th className="py-2 px-3">Particular</th>
+                                  <th className="py-2 px-3 text-right">Price</th>
                                   <th className="py-2 px-3 text-right">Qty</th>
                                   <th className="py-2 px-3 text-right">PHR</th>
                                   <th className="py-2 px-3">UOM</th>
@@ -1049,12 +1151,13 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {(snap.formulation || []).length === 0 ? (
-                                  <tr><td colSpan={5} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
+                                  <tr><td colSpan={6} className="py-4 text-center text-slate-400 italic">No formulation items recorded</td></tr>
                                 ) : (
                                   snap.formulation.map((fItem, i) => (
                                     <tr key={fItem.id || i}>
                                       <td className="py-2 px-3 font-mono font-bold text-emerald-700">{fItem.itemCode || '-'}</td>
                                       <td className="py-2 px-3 font-semibold text-slate-800">{fItem.particular}</td>
+                                      <td className="py-2 px-3 text-right font-mono text-slate-700">{fItem.price !== undefined && fItem.price !== null && fItem.price !== '' ? `₹${Number(fItem.price).toFixed(2)}` : <span className="text-slate-400 italic font-sans">No price</span>}</td>
                                       <td className="py-2 px-3 text-right font-bold text-emerald-700">{Number(fItem.quantity || 0).toFixed(4)}</td>
                                       <td className="py-2 px-3 text-right font-bold text-emerald-700">{fItem.phr !== undefined ? Number(fItem.phr || 0).toFixed(2) : '-'}</td>
                                       <td className="py-2 px-3 text-slate-500">{fItem.uom}</td>
@@ -1062,7 +1165,7 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                   ))
                                 )}
                                 <tr className="bg-slate-50 font-black border-t border-slate-200">
-                                  <td colSpan={2} className="py-2 px-3 text-right">Total Output:</td>
+                                  <td colSpan={3} className="py-2 px-3 text-right">Total Output:</td>
                                   <td className="py-2 px-3 text-right text-emerald-800">{Number(snap.totalOutput || 0).toFixed(4)}</td>
                                   <td className="py-2 px-3"></td>
                                   <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
@@ -1164,7 +1267,8 @@ function CompoundMasterForm({ mode, compound, onBack }) {
     } else if (initialForm.formulation) {
       initialForm.formulation = initialForm.formulation.map(item => ({
         ...item,
-        itemCode: item.itemCode || ''
+        itemCode: item.itemCode || '',
+        price: item.price !== undefined && item.price !== null ? item.price : ''
       }));
     }
     return initialForm;
