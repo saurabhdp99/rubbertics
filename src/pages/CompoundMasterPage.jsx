@@ -54,7 +54,7 @@ import { formatTableDate } from '../utils/dateFormatter';
 const EMPTY_COMPOUND = COMPOUND_MASTER_FIELDS.reduce((comp, field) => {
   comp[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
   return comp;
-}, { formulation: [], totalOutput: 0, lessWeightLoss: 0, netWeight: 0, grossWeight: 0, changeSummary: '' });
+}, { formulation: [], totalOutput: 0, lessWeightLoss: 0, netWeight: 0, grossWeight: 0, totalCost: 0, changeSummary: '' });
 
 const TABLE_COLUMNS = [
   { key: 'compoundCode', label: 'Compound Code', width: '130px', align: 'left' },
@@ -64,6 +64,7 @@ const TABLE_COLUMNS = [
   { key: 'hardnessShoreA', label: 'Hardness', width: '140px', align: 'left' },
   { key: 'specificGravity', label: 'Sp. Gravity', width: '130px', align: 'left' },
   { key: 'totalOutput', label: 'Formulation Qty', width: '150px', align: 'right', type: 'number' },
+  { key: 'totalCost', label: 'Total Cost', width: '140px', align: 'right', type: 'currency' },
   { key: 'revisionNumber', label: 'Revision', width: '100px', align: 'center' },
   { key: 'revisionDate', label: 'Rev. Date', width: '120px', align: 'center', type: 'date' },
   { key: 'status', label: 'Status', width: '130px', align: 'center', type: 'select' },
@@ -121,6 +122,7 @@ const compoundMasterSchema = z.object({
   lessWeightLoss: z.coerce.number().optional(),
   netWeight: z.coerce.number().optional(),
   grossWeight: z.coerce.number().optional(),
+  totalCost: z.coerce.number().optional(),
   basePolymer: z.string().optional(),
   hardnessShoreA: z.string().optional(),
   specificGravity: z.string().optional(),
@@ -446,10 +448,12 @@ function FormField({ field, control, disabled, error, options, onAddOption, onRe
                 type={field.type === 'number' ? 'number' : 'text'}
                 step={field.type === 'number' ? '0.01' : undefined}
                 value={value ?? ''}
-                disabled={disabled}
+                disabled={disabled || field.readOnly}
+                readOnly={field.readOnly}
+                tabIndex={field.readOnly ? -1 : undefined}
                 onChange={onChange}
                 onBlur={onBlur}
-                className={customClass}
+                className={`${customClass} ${field.readOnly ? 'bg-slate-50 font-mono font-bold text-emerald-800 cursor-default select-none' : ''}`}
                 placeholder={field.placeholder || field.label}
                 aria-label={field.label}
                 ref={ref}
@@ -745,10 +749,26 @@ function FormulationSection({ control, disabled, watch, setValue }) {
     return totalOutput * (1 - loss / 100);
   }, [totalOutput, lessWeightLoss]);
 
+  // Calculate total cost of compound: sum of all ingredients that have a price
+  const totalCostOfCompound = useMemo(() => {
+    const hasQuantities = formulationItems.some(item => parseFloat(item.quantity) > 0);
+    return formulationItems.reduce((sum, item) => {
+      const p = parseFloat(item.price);
+      if (isNaN(p) || p <= 0) return sum;
+      if (hasQuantities) {
+        const q = parseFloat(item.quantity);
+        return sum + ((!isNaN(q) && q > 0) ? q * p : 0);
+      } else {
+        return sum + p;
+      }
+    }, 0);
+  }, [formulationItems]);
+
   useEffect(() => {
     setValue("totalOutput", Number(totalOutput.toFixed(4)));
     setValue("netWeight", Number(netWeight.toFixed(4)));
-  }, [totalOutput, netWeight, setValue]);
+    setValue("totalCost", Number(totalCostOfCompound.toFixed(2)));
+  }, [totalOutput, netWeight, totalCostOfCompound, setValue]);
 
   const uomOptions = ['kg', 'ltr'];
 
@@ -1013,6 +1033,42 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                   {formulationItems[0]?.uom || 'kg'}
                 </td>
               </tr>
+
+              <tr className="bg-emerald-50/70 font-bold text-slate-800 border-t-2 border-emerald-200">
+                <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs font-black text-emerald-900">
+                  Total Cost of Compound
+                </td>
+                <td className="py-2.5 px-4">
+                  <Controller
+                    name="totalCost"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700 select-none">₹</span>
+                        <input
+                          type="text"
+                          readOnly
+                          tabIndex={-1}
+                          value={totalCostOfCompound > 0 ? Number(totalCostOfCompound.toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                          placeholder="0.00"
+                          className="w-full text-xs h-9 rounded-lg border border-emerald-300 pl-6 pr-3 bg-white font-black font-mono text-emerald-800 text-right outline-none cursor-default shadow-sm select-none"
+                          title={`Total Cost of Compound: ₹${totalCostOfCompound.toFixed(2)}`}
+                        />
+                      </div>
+                    )}
+                  />
+                </td>
+                <td className="py-2.5 px-4">
+                  {totalOutput > 0 && totalCostOfCompound > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-700 whitespace-nowrap bg-white/90 px-2 py-1 rounded-md border border-emerald-300 shadow-xs" title="Calculated Rate per Unit Output">
+                      ₹{(totalCostOfCompound / totalOutput).toFixed(2)} / {formulationItems[0]?.uom || 'kg'}
+                    </span>
+                  )}
+                </td>
+                <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-emerald-800 text-xs font-black">
+                  INR (₹)
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1170,6 +1226,14 @@ function RevisionHistoryModal({ isOpen, onClose, compoundId, compoundName }) {
                                   <td className="py-2 px-3"></td>
                                   <td className="py-2 px-3 text-slate-500">{(snap.formulation && snap.formulation[0]?.uom) || 'kg'}</td>
                                 </tr>
+                                {snap.totalCost !== undefined && snap.totalCost !== null && Number(snap.totalCost) > 0 && (
+                                  <tr className="bg-emerald-50/60 font-black border-t border-emerald-100 text-emerald-900">
+                                    <td colSpan={3} className="py-2 px-3 text-right">Total Cost of Compound:</td>
+                                    <td className="py-2 px-3 text-right text-emerald-800 font-mono">₹{Number(snap.totalCost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className="py-2 px-3"></td>
+                                    <td className="py-2 px-3 text-emerald-700 font-semibold">INR (₹)</td>
+                                  </tr>
+                                )}
                               </tbody>
                             </table>
                           </div>
@@ -1600,9 +1664,9 @@ export default function CompoundMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = ['Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Revision', 'Status'];
+    const headers = ['Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Total Cost', 'Revision', 'Status'];
     const rows = filtered.map(item => [
-      item.compoundCode, item.compoundName, item.basePolymer, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.revisionNumber, item.status
+      item.compoundCode, item.compoundName, item.basePolymer, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.totalCost || 0, item.revisionNumber, item.status
     ].map(cell => `"${String(cell ?? '').replaceAll('"', '""')}"`));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1669,6 +1733,17 @@ export default function CompoundMasterPage() {
       return (
         <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${badgeClass}`}>
           {value || 'Inactive'}
+        </span>
+      );
+    }
+
+    if (column.key === 'totalCost' || column.type === 'currency') {
+      const numericValue = value === '' || value === null || value === undefined ? null : Number(value);
+      return (
+        <span className="font-mono font-bold text-emerald-700">
+          {numericValue === null || Number.isNaN(numericValue) || numericValue === 0
+            ? '-'
+            : `₹${numericValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         </span>
       );
     }

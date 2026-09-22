@@ -56,6 +56,14 @@ export const COMPOUND_MASTER_FIELDS = [
     placeholder: 'Select or create Base Polymer',
     section: 'Compound Details',
   },
+  {
+    key: 'totalCost',
+    label: 'Total Cost of Compound (₹)',
+    type: 'number',
+    readOnly: true,
+    placeholder: 'Auto-calculated from formulation',
+    section: 'Compound Details',
+  },
 
   // Quality Tab
   {
