@@ -17,3 +17,11 @@ export const formatTableDate = (value, columnKey) => {
   
   return null; // Return null if it's not a date column, so the caller can continue with other formatting
 };
+
+export const todayIsoDate = () => {
+  const d = new Date();
+  // Adjust for local timezone offset to get correct local date string
+  const offset = d.getTimezoneOffset();
+  const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+  return localDate.toISOString().split('T')[0];
+};

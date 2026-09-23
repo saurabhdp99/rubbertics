@@ -1,3 +1,4 @@
+import { todayIsoDate } from '../utils/dateFormatter';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layers, Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2,
@@ -68,6 +69,7 @@ function Field({ label, children, required, error, colClass = 'col-span-1' }) {
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 const bomSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   bomNo: z.string().optional(),
   bomTitle: z.string().optional(),
   itemCode: z.string().optional(),
@@ -891,6 +893,18 @@ function BOMForm({ mode, bom, onBack }) {
           {/* 1. GENERAL & FINISHED ITEM DETAILS */}
           <Section title="1. GENERAL & FINISHED ITEM DETAILS" icon={Package}>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+              <Controller name="creationDate" control={control} render={({ field }) => (
+                <Field label="Creation Date">
+                  <div className="relative">
+                    <input
+                      {...field}
+                      disabled
+                      readOnly
+                      className={`${inputCls} bg-slate-100/80 text-slate-600 font-bold cursor-not-allowed border-slate-200 select-none`}
+                    />
+                  </div>
+                </Field>
+              )} />
               <Controller name="bomNo" control={control} render={({ field }) => (
                 <Field label="BOM Number">
                   <div className="relative">
@@ -2056,6 +2070,11 @@ export default function BillOfMaterialsPage() {
 
   // DataTable Columns matching exact Rubbertics layout
   const columns = [
+    {
+      accessor: 'creationDate',
+      header: 'Creation Date',
+      render: (val) => val ? formatTableDate(val, 'creationDate') : '-',
+    },
     {
       accessor: 'bomNo',
       header: 'BOM No.',

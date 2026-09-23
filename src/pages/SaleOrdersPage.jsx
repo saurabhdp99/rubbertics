@@ -550,6 +550,15 @@ function SaleOrderForm({ mode, order, onBack }) {
     // Ensure root orderQty is the sum of all item quantities
     finalForm.orderQty = finalForm.items.reduce((sum, item) => sum + Number(item.orderQty || 0), 0);
 
+    // Sync poDocumentUrl with attachments
+    const validAttachments = (finalForm.attachments || []).filter(att => 
+      att && (att.fileObject || att.url || att.fileData || (att.name && att.name.trim()))
+    );
+    finalForm.attachments = validAttachments;
+    finalForm.poDocumentUrl = validAttachments.length > 0 
+      ? (validAttachments[0].url || validAttachments[0].fileData || null) 
+      : null;
+
     delete finalForm.partNos;
     delete finalForm.partNo;
     delete finalForm.productName;
@@ -1237,8 +1246,14 @@ export default function SaleOrdersPage() {
   };
 
   const exportCsv = () => {
-    const headers = COLUMNS.map(field => field.label);
-    const rows = filtered.map(order => COLUMNS.map(field => String(order[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', ...COLUMNS.map(field => field.label)];
+    const rows = filtered.map((order, index) => [
+      String(index + 1),
+      ...COLUMNS.map(field => {
+        if (field.key === 'created_at') return formatTableDate(order.created_at, 'created_at') || '';
+        return String(order[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

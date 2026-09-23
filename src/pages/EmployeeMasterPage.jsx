@@ -39,6 +39,8 @@ import { formatTableDate } from '../utils/dateFormatter';
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_EMPLOYEE = EMPLOYEE_MASTER_FIELDS.reduce((emp, field) => {
+  if (field.key === 'creationDate') emp[field.key] = todayIsoDate();
+  else
   if (field.type === 'creatable-select' || field.type === 'select') emp[field.key] = field.options?.[0] || '';
   else if (field.type === 'checkbox' || field.type === 'switch') emp[field.key] = false;
   else if (field.type === 'attachments') emp[field.key] = [];
@@ -61,7 +63,7 @@ const createInitialEmployeeForm = (employee) => {
 };
 
 const TABLE_COLUMNS = EMPLOYEE_MASTER_FIELDS
-  .filter(field => ['employeeCode', 'employeeName', 'department', 'designation', 'dateOfJoining', 'mobileNo', 'netSalary', 'bankName', 'skillCategory'].includes(field.key))
+  .filter(field => ['creationDate', 'employeeCode', 'employeeName', 'department', 'designation', 'dateOfJoining', 'mobileNo', 'netSalary', 'bankName', 'skillCategory'].includes(field.key))
   .map(field => ({
     ...field,
     width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' ? '160px' : '190px',
@@ -69,6 +71,7 @@ const TABLE_COLUMNS = EMPLOYEE_MASTER_FIELDS
   }));
 
 const employeeMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   employeeCode: z.string().nullish(),
   employeeName: z.string().min(1, 'Employee name is required'),
   employeeType: z.string().nullish(),
@@ -855,8 +858,14 @@ export default function EmployeeMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = EMPLOYEE_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(emp => EMPLOYEE_MASTER_FIELDS.map(field => String(emp[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', ...EMPLOYEE_MASTER_FIELDS.map(c => c.label)];
+    const rows = filtered.map((emp, index) => [
+      String(index + 1),
+      ...EMPLOYEE_MASTER_FIELDS.map(field => {
+        if (field.key === 'creationDate') return formatTableDate(emp.creationDate, 'creationDate') || '';
+        return String(emp[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

@@ -4,6 +4,12 @@ export const TRANSPORT_MASTER_SECTIONS = [
 
 export const TRANSPORT_MASTER_FIELDS = [
   {
+    "key": "creationDate",
+    "label": "Creation Date",
+    "type": "date",
+    "section": "Basic Details"
+  },
+  {
     key: 'transporterCode',
     label: 'Transporter Code',
     type: 'text',

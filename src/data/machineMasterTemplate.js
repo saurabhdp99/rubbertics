@@ -1,4 +1,10 @@
 export const MACHINE_MASTER_FIELDS = [
+  {
+    "key": "creationDate",
+    "label": "Creation Date",
+    "type": "date",
+    "section": "Basic Details"
+  },
   // Basic Details
   {
     key: 'machineCode',

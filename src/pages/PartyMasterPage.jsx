@@ -38,6 +38,8 @@ import { formatTableDate } from '../utils/dateFormatter';
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_PARTY = PARTY_MASTER_FIELDS.reduce((party, field) => {
+  if (field.key === 'creationDate') party[field.key] = todayIsoDate();
+  else
   if (field.type === 'select') party[field.key] = field.options?.[0] || '';
   else if (field.key === 'partyEnrollmentDate') party[field.key] = todayIsoDate();
   else if (field.key === 'detailsSharedVia') party[field.key] = 'WhatsApp / Email';
@@ -63,7 +65,7 @@ const createInitialPartyForm = (party, defaultCategory, getNextPartyCode) => {
 };
 
 const TABLE_COLUMNS = PARTY_MASTER_FIELDS
-  .filter(field => ['partyName', 'partyCode', 'aliasName'].includes(field.key))
+  .filter(field => ['creationDate', 'partyName', 'partyCode', 'aliasName'].includes(field.key))
   .map(field => ({
     ...field,
     width: field.wide ? '260px' : field.type === 'date' ? '150px' : field.type === 'select' ? '160px' : '190px',
@@ -71,6 +73,7 @@ const TABLE_COLUMNS = PARTY_MASTER_FIELDS
   }));
 
 const partyMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   partyCategory: z.string().min(1, 'Party category is required'),
   partyName: z.string().min(1, 'Party name is required'),
   partyCode: z.string().optional(),
@@ -727,8 +730,12 @@ export default function PartyMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = PARTY_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(party => PARTY_MASTER_FIELDS.map(field => String(party[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', 'Creation Date', ...PARTY_MASTER_FIELDS.map(field => field.label)];
+    const rows = filtered.map((party, index) => [
+      String(index + 1),
+      formatTableDate(party.created_at, 'created_at') || '',
+      ...PARTY_MASTER_FIELDS.map(field => String(party[field.key] ?? '').replaceAll('"', '""'))
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

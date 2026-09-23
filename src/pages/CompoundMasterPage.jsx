@@ -49,14 +49,17 @@ import { useItemMasterStore } from '../store/itemMasterStore';
 import { useInwardStore } from '../store/inwardStore';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
-import { formatTableDate } from '../utils/dateFormatter';
+import { formatTableDate, todayIsoDate } from '../utils/dateFormatter';
 
 const EMPTY_COMPOUND = COMPOUND_MASTER_FIELDS.reduce((comp, field) => {
+  if (field.key === 'creationDate') comp[field.key] = todayIsoDate();
+  else
   comp[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : field.type === 'number' ? '' : '';
   return comp;
 }, { formulation: [], totalOutput: 0, lessWeightLoss: 0, netWeight: 0, grossWeight: 0, totalCost: 0, changeSummary: '' });
 
 const TABLE_COLUMNS = [
+  { key: 'creationDate', label: 'Creation Date', width: '130px', align: 'left', type: 'date' },
   { key: 'compoundCode', label: 'Compound Code', width: '130px', align: 'left' },
   { key: 'compoundName', label: 'Compound Name', width: '200px', align: 'left' },
   { key: 'basePolymer', label: 'Base Polymer', width: '160px', align: 'left' },
@@ -105,6 +108,7 @@ const attachmentSchema = z.object({
 });
 
 const compoundMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   compoundCode: z.string().min(1, 'Compound code is required'),
   compoundName: z.string().min(1, 'Compound name is required'),
   compoundColour: z.string().min(1, 'Compound colour is required'),
@@ -1455,7 +1459,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
             </section>
 
             {/* 2. Formulation Table */}
-            <FormulationSection control={control} disabled={isView || isSubmitting} watch={watch} setValue={setValue} />
+            <FormulationSection control={control} disabled={isView || isSubmitting || field.key === 'creationDate'} watch={watch} setValue={setValue} />
 
             {/* 3. Quality Tab */}
             <section className="border-b border-slate-100 pb-7">
@@ -1471,7 +1475,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                     key={field.key}
                     field={field}
                     control={control}
-                    disabled={isView || isSubmitting}
+                    disabled={isView || isSubmitting || field.key === 'creationDate'}
                     error={errors[field.key]?.message}
                     options={compoundMasterLookups[field.key]}
                     onAddOption={(val) => addCompoundMasterLookupOption(field.key, val)}
@@ -1496,7 +1500,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                     key={field.key}
                     field={field}
                     control={control}
-                    disabled={isView || isSubmitting}
+                    disabled={isView || isSubmitting || field.key === 'creationDate'}
                     error={errors[field.key]?.message}
                     options={compoundMasterLookups[field.key]}
                     onAddOption={(val) => addCompoundMasterLookupOption(field.key, val)}
@@ -1513,7 +1517,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                 <div>
                   <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">Special Instruction</h4>
                   {specialFields.map(field => (
-                    <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting} />
+                    <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting || field.key === 'creationDate'} />
                   ))}
                 </div>
                 <div>
@@ -1550,7 +1554,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
             {/* 7. Attachments */}
             <section>
               {attachmentFields.map(field => (
-                <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting} />
+                <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting || field.key === 'creationDate'} />
               ))}
             </section>
           </div>

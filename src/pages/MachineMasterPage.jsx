@@ -27,9 +27,11 @@ import StatsCard from '../components/common/StatsCard';
 import { MACHINE_MASTER_FIELDS } from '../data/machineMasterTemplate';
 import { useMachineMasterStore } from '../store/machineMasterStore';
 import { useAuthStore } from '../store/authStore';
-import { formatTableDate } from '../utils/dateFormatter';
+import { formatTableDate, todayIsoDate } from '../utils/dateFormatter';
 
 const EMPTY_MACHINE = MACHINE_MASTER_FIELDS.reduce((machine, field) => {
+  if (field.key === 'creationDate') machine[field.key] = todayIsoDate();
+  else
   machine[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Active' : '';
   return machine;
 }, {});
@@ -52,6 +54,7 @@ const attachmentSchema = z.object({
 });
 
 const machineMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   machineCode: z.string().min(1, 'Machine code is required'),
   machineName: z.string().min(1, 'Machine name is required'),
   machineMake: z.string().optional(),
@@ -699,8 +702,14 @@ export default function MachineMasterPage() {
 
 
   const exportCsv = () => {
-    const headers = MACHINE_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => MACHINE_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', ...MACHINE_MASTER_FIELDS.map(c => c.label)];
+    const rows = filtered.map((item, index) => [
+      String(index + 1),
+      ...MACHINE_MASTER_FIELDS.map(field => {
+        if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
+        return String(item[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

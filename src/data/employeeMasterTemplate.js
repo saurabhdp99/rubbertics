@@ -10,6 +10,12 @@ export const EMPLOYEE_MASTER_SECTIONS = [
 ];
 
 export const EMPLOYEE_MASTER_FIELDS = [
+  {
+    "key": "creationDate",
+    "label": "Creation Date",
+    "type": "date",
+    "section": "Basic Details"
+  },
   // Employee Details
   {
     key: 'employeeCode',

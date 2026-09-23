@@ -860,11 +860,15 @@ export default function PurchaseOrdersPage() {
   const clearFilters = () => { setSearchQuery(''); setFilterStatus('All'); };
 
   const exportCsv = () => {
-    const headers = COLUMNS.map(c => c.label);
-    const rows = filtered.map(order => COLUMNS.map(col => {
-      const val = renderCellText(order, col);
-      return String(val ?? '').replaceAll('"', '""');
-    }));
+    const headers = ['Sr. No.', ...COLUMNS.map(c => c.label)];
+    const rows = filtered.map((order, index) => [
+      String(index + 1),
+      ...COLUMNS.map(col => {
+        if (col.key === 'created_at') return formatTableDate(order.created_at, 'created_at') || '';
+        const val = renderCellText(order, col);
+        return String(val ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

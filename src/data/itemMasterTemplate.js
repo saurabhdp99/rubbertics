@@ -1,5 +1,11 @@
 export const ITEM_MASTER_FIELDS = [
   {
+    "key": "creationDate",
+    "label": "Creation Date",
+    "type": "date",
+    "section": "Basic Details"
+  },
+  {
     "key": "itemCategory",
     "label": "Item Category",
     "type": "creatable-select",
@@ -111,26 +117,20 @@ export const ITEM_MASTER_FIELDS = [
     "section": "Planning & Stock"
   },
   {
-    "key": "batchQty",
-    "label": "Batch Qty",
-    "type": "number",
-    "section": "Planning & Stock"
-  },
-  {
     "key": "minimumQty",
-    "label": "Minimum Qty",
+    "label": "Minimum Stock Qty",
     "type": "number",
     "section": "Planning & Stock"
   },
   {
     "key": "maximumQty",
-    "label": "Maximum Qty",
+    "label": "Maximum Stock Qty",
     "type": "number",
     "section": "Planning & Stock"
   },
   {
     "key": "reorderLevelQty",
-    "label": "Reorder Level Qty",
+    "label": "Reorder Level / Quantity",
     "type": "number",
     "section": "Planning & Stock"
   },

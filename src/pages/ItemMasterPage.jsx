@@ -29,10 +29,14 @@ import { useItemMasterStore } from '../store/itemMasterStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useHsnSacStore } from '../store/hsnSacStore';
-import { formatTableDate } from '../utils/dateFormatter';
+import { formatTableDate, todayIsoDate } from '../utils/dateFormatter';
 
 const EMPTY_ITEM = ITEM_MASTER_FIELDS.reduce((item, field) => {
-  item[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Yes' : '';
+  if (field.key === 'creationDate') {
+    item[field.key] = todayIsoDate();
+  } else {
+    item[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? 'Yes' : '';
+  }
   if (field.uomKey) item[field.uomKey] = '';
   return item;
 }, {});
@@ -55,6 +59,7 @@ const attachmentSchema = z.object({
 });
 
 const itemMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   itemCategory: z.string().nullable().optional(),
   subCategory: z.string().nullable().optional(),
   itemCode: z.string().min(1, 'NPPL Item No. is required'),
@@ -654,7 +659,7 @@ function ItemMasterForm({ mode, item, onBack }) {
                       key={field.key}
                       field={field}
                       control={control}
-                      disabled={isView || isSubmitting}
+                      disabled={isView || isSubmitting || field.key === 'creationDate'}
                       error={errors[field.key]?.message}
                       options={
                         field.key === 'itemCategory' ? uniqueCategories :
@@ -779,8 +784,14 @@ export default function ItemMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = ITEM_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => ITEM_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', ...ITEM_MASTER_FIELDS.map(field => field.label)];
+    const rows = filtered.map((item, index) => [
+      String(index + 1),
+      ...ITEM_MASTER_FIELDS.map(field => {
+        if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
+        return String(item[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

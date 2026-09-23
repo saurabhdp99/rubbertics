@@ -36,6 +36,8 @@ import { formatTableDate } from '../utils/dateFormatter';
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_TRANSPORTER = TRANSPORT_MASTER_FIELDS.reduce((transporter, field) => {
+  if (field.key === 'creationDate') transporter[field.key] = todayIsoDate();
+  else
   if (field.type === 'select') transporter[field.key] = field.options?.[0] || '';
   else if (field.type === 'contacts') transporter[field.key] = [];
   else if (field.key === 'createdDate') transporter[field.key] = todayIsoDate();
@@ -70,6 +72,7 @@ const contactSchema = z.object({
 });
 
 const transportMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   transporterCode: z.string().min(1, 'Transporter code is required'),
   transporterName: z.string().min(1, 'Transporter name is required'),
   trasnporterAdd: z.string().optional(),
@@ -413,7 +416,7 @@ function TransportMasterForm({ mode, transporter, onBack }) {
                       key={field.key}
                       field={field}
                       control={control}
-                      disabled={isView || isSubmitting}
+                      disabled={isView || isSubmitting || field.key === 'creationDate'}
                       error={errors[field.key]?.message}
                       options={transportMasterLookups[field.key] || field.options}
                       onAddOption={(value) => addTransportMasterLookupOption(field.key, value)}
@@ -528,8 +531,14 @@ export default function TransportMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = TRANSPORT_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(transporter => TRANSPORT_MASTER_FIELDS.map(field => String(transporter[field.key] ?? '').replaceAll('"', '""')));
+    const headers = ['Sr. No.', ...TRANSPORT_MASTER_FIELDS.map(c => c.label)];
+    const rows = filtered.map((transporter, index) => [
+      String(index + 1),
+      ...TRANSPORT_MASTER_FIELDS.map(field => {
+        if (field.key === 'creationDate') return formatTableDate(transporter.creationDate, 'creationDate') || '';
+        return String(transporter[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

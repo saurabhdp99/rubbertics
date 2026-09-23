@@ -9,6 +9,12 @@ export const PARTY_MASTER_SECTIONS = [
 
 export const PARTY_MASTER_FIELDS = [
   {
+    "key": "creationDate",
+    "label": "Creation Date",
+    "type": "date",
+    "section": "Basic Details"
+  },
+  {
     key: 'partyCategory',
     label: 'Party Category',
     type: 'creatable-select',

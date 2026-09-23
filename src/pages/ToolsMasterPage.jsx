@@ -39,10 +39,12 @@ import StatsCard from '../components/common/StatsCard';
 import { TOOLS_MASTER_FIELDS } from '../data/toolsMasterTemplate';
 import { useToolsMasterStore } from '../store/toolsMasterStore';
 import { useAuthStore } from '../store/authStore';
-import { formatTableDate } from '../utils/dateFormatter';
+import { formatTableDate, todayIsoDate } from '../utils/dateFormatter';
 import { useItemMasterStore } from '../store/itemMasterStore';
 
 const EMPTY_TOOL = TOOLS_MASTER_FIELDS.reduce((tool, field) => {
+  if (field.key === 'creationDate') tool[field.key] = todayIsoDate();
+  else
   tool[field.key] = field.type === 'attachments' ? [] : field.type === 'select' ? (field.key === 'status' ? 'Active' : '') : field.type === 'number' ? '' : '';
   return tool;
 }, { cycleTimeUnit: 'Sec' });
@@ -91,6 +93,7 @@ const attachmentSchema = z.object({
 });
 
 const toolsMasterSchema = z.object({
+  creationDate: z.string().min(1, 'Creation Date is required'),
   toolCode: z.string().min(1, 'Tool code is required'),
   toolName: z.string().min(1, 'Tool name is required'),
   partRevision: z.string().min(1, 'Part revision is required'),
@@ -807,10 +810,14 @@ export default function ToolsMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = TOOLS_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => TOOLS_MASTER_FIELDS.map(field => {
-      if (field.key === 'cycleTime' || field.type === 'value-unit') {
-        const val = item[field.key] ?? '';
+    const headers = ['Sr. No.', ...TOOLS_MASTER_FIELDS.map(c => c.label)];
+    const rows = filtered.map((item, index) => [
+      String(index + 1),
+      ...TOOLS_MASTER_FIELDS.map(field => {
+        if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
+        return String(item[field.key] ?? '').replaceAll('"', '""');
+      })
+    ]);
         if (!val && val !== 0 && val !== '0') return '';
         const unit = item.cycleTimeUnit || 'Sec';
         const strVal = String(val).trim();

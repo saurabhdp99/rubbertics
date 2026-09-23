@@ -70,6 +70,7 @@ export function calculateBOMCost(bom) {
  * Default empty BOM blueprint
  */
 export const DEFAULT_BOM = {
+  creationDate: new Date().toISOString().split('T')[0],
   bomNo: '',
   bomTitle: '',
   itemCode: '',

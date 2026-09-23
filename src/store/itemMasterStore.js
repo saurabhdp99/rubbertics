@@ -401,6 +401,7 @@ export const useItemMasterStore = create((set, get) => ({
 function mapFromDb(row) {
   return {
     id: row.id,
+    creationDate: row.creation_date,
     orgId: row.org_id,
     itemCategory: row.item_category || '',
     subCategory: row.sub_category || '',
@@ -463,6 +464,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate,
     item_category: data.itemCategory,
     item_code: data.itemCode,
     customer_item_code: data.customerItemCode,

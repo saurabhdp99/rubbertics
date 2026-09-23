@@ -118,6 +118,7 @@ export const useHsnSacStore = create((set, get) => ({
 
 function mapFromDb(row) {
   return {
+    creationDate: row.creation_date,
     id: row.id,
     orgId: row.org_id,
     hsnCode: row.hsn_code,

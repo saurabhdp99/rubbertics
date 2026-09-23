@@ -23,10 +23,14 @@ import { useAuthStore } from '../store/authStore';
 
 import { Table, Input, Label, DatePicker, DateField, Calendar, Select, ListBox, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
-import { formatTableDate } from '../utils/dateFormatter';
+import { formatTableDate, todayIsoDate } from '../utils/dateFormatter';
 
 const EMPTY_ITEM = HSN_SAC_MASTER_FIELDS.reduce((item, field) => {
-  item[field.key] = '';
+  if (field.key === 'creationDate') {
+    item[field.key] = todayIsoDate();
+  } else {
+    item[field.key] = '';
+  }
   return item;
 }, {});
 
@@ -210,7 +214,7 @@ function HsnSacMasterForm({ mode, item, onBack }) {
                 key={field.key}
                 field={field}
                 control={control}
-                disabled={isView || isSubmitting}
+                disabled={isView || isSubmitting || field.key === 'creationDate'}
                 error={errors[field.key]?.message}
               />
             ))}

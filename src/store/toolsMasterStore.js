@@ -400,6 +400,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate,
     tool_code: data.toolCode || 'Auto-generated',
     tool_name: data.toolName,
     linked_part_name: data.toolName || null,

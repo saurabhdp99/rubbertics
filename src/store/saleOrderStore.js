@@ -238,9 +238,15 @@ export const useSaleOrderStore = create((set, get) => ({
       }
     }
 
-    const primaryDocUrl = finalAttachments.length > 0 
-      ? (finalAttachments[0].url || finalAttachments[0].fileData)
-      : (orderData.poDocumentUrl !== undefined ? orderData.poDocumentUrl : null);
+    const attachmentsSpecified = orderData.attachments !== undefined;
+    let primaryDocUrl = null;
+    if (finalAttachments.length > 0) {
+      primaryDocUrl = finalAttachments[0].url || finalAttachments[0].fileData || null;
+    } else if (!attachmentsSpecified) {
+      primaryDocUrl = orderData.poDocumentUrl !== undefined ? orderData.poDocumentUrl : null;
+    } else {
+      primaryDocUrl = null;
+    }
 
     const payload = { 
       ...mapToDb({ ...orderData, attachments: finalAttachments, poDocumentUrl: primaryDocUrl }), 
@@ -616,7 +622,7 @@ function mapToDb(data, orgId, userId) {
     items: data.items || [],
     attachments: data.attachments || [],
     date: data.date || new Date().toISOString().split('T')[0],
-    po_document_url: data.poDocumentUrl || (data.attachments && data.attachments[0]?.url) || null,
+    po_document_url: data.poDocumentUrl !== undefined ? data.poDocumentUrl : ((data.attachments && data.attachments[0]?.url) || null),
   };
   if (orgId) payload.org_id = orgId;
   if (userId) payload.created_by = userId;
