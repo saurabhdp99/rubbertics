@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const getCategoryPrefix = (category) => {
   if (!category) return 'CU-';
@@ -358,6 +359,7 @@ function mapFromDb(row) {
 
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     partyName: row.party_name,
     partyCode: row.party_code,
@@ -421,6 +423,7 @@ function mapToDb(data, orgId, userId) {
   });
 
   const payload = {
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     party_name: data.partyName,
     party_code: data.partyCode,
     customer_vendor_code: data.customerVendorCode || '',

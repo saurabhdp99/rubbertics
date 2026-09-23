@@ -41,6 +41,7 @@ const TABLE_COLUMNS = HSN_SAC_MASTER_FIELDS.map(field => ({
 }));
 
 const hsnSacSchema = z.object({
+  creationDate: z.string().optional(),
   hsnCode: z.string().min(1, 'HSN/SAC Code is required'),
   description: z.string().optional(),
   gstPercentage: z.coerce.number().optional().or(z.literal('')),
@@ -150,11 +151,11 @@ function HsnSacMasterForm({ mode, item, onBack }) {
 
   const { control, handleSubmit: hookFormSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(hsnSacSchema),
-    defaultValues: item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM }
+    defaultValues: item ? { ...EMPTY_ITEM, ...item, creationDate: item.creationDate || (item.createdAt ? item.createdAt.split('T')[0] : todayIsoDate()) } : { ...EMPTY_ITEM }
   });
 
   useEffect(() => {
-    reset(item ? { ...EMPTY_ITEM, ...item } : { ...EMPTY_ITEM });
+    reset(item ? { ...EMPTY_ITEM, ...item, creationDate: item.creationDate || (item.createdAt ? item.createdAt.split('T')[0] : todayIsoDate()) } : { ...EMPTY_ITEM });
   }, [item, mode, reset]);
 
   const onSubmit = async (data) => {

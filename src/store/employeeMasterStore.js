@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const DEFAULT_LOOKUPS = {
   employeeType: ['Permanent', 'Contract', 'Temporary', 'Trainee'],
@@ -331,6 +332,7 @@ export const useEmployeeMasterStore = create((set, get) => ({
 function mapFromDb(row) {
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     employeeCode: row.employee_code,
     employeeName: row.employee_name,
@@ -406,6 +408,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     employee_code: data.employeeCode,
     employee_name: data.employeeName,
     employee_type: data.employeeType || 'Permanent',

@@ -22,6 +22,17 @@ import {
 } from 'lucide-react';
 import { Table, Input, Select, Label, ListBox, DatePicker, DateField, Calendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
+
+const safeParseDate = (val) => {
+  if (!val) return null;
+  try {
+    const cleanStr = String(val).split('T')[0].split(' ')[0];
+    return parseDate(cleanStr);
+  } catch (e) {
+    return null;
+  }
+};
+
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,22 +48,25 @@ const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_TRANSPORTER = TRANSPORT_MASTER_FIELDS.reduce((transporter, field) => {
   if (field.key === 'creationDate') transporter[field.key] = todayIsoDate();
-  else
-  if (field.type === 'select') transporter[field.key] = field.options?.[0] || '';
+  else if (field.type === 'select') transporter[field.key] = field.options?.[0] || '';
   else if (field.type === 'contacts') transporter[field.key] = [];
-  else if (field.key === 'createdDate') transporter[field.key] = todayIsoDate();
   else transporter[field.key] = '';
   return transporter;
 }, {});
 
 const createInitialTransporterForm = (transporter, getNextTransporterCode) => {
-  if (transporter) return { ...EMPTY_TRANSPORTER, ...transporter };
+  if (transporter) {
+    return {
+      ...EMPTY_TRANSPORTER,
+      ...transporter,
+      creationDate: transporter.creationDate || (transporter.createdAt ? transporter.createdAt.split('T')[0] : todayIsoDate())
+    };
+  }
 
   return {
     ...EMPTY_TRANSPORTER,
     transporterCode: getNextTransporterCode(),
-    createdBy: 'admin',
-    createdDate: todayIsoDate(),
+    creationDate: todayIsoDate(),
   };
 };
 
@@ -91,7 +105,6 @@ const transportMasterSchema = z.object({
   status: z.string().optional(),
   remarks: z.string().optional(),
   createdBy: z.string().optional(),
-  createdDate: z.string().optional(),
   otherContacts: z.array(contactSchema).optional()
 });
 
@@ -250,7 +263,7 @@ function FormField({
           if (field.type === 'date') {
             return (
               <DatePicker
-                value={value ? parseDate(value) : null}
+                value={safeParseDate(value)}
                 isDisabled={isLocked}
                 onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
                 className="w-full"

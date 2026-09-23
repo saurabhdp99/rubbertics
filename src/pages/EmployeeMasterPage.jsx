@@ -38,6 +38,18 @@ import { formatTableDate } from '../utils/dateFormatter';
 
 const todayIsoDate = () => new Date().toISOString().split('T')[0];
 
+const safeParseDate = (dateString) => {
+  if (!dateString) return null;
+  try {
+    // If it's a timestamp or ISO string, take only the date part
+    const datePart = dateString.split('T')[0];
+    return parseDate(datePart);
+  } catch (error) {
+    console.warn("Invalid date format for DatePicker:", dateString);
+    return null;
+  }
+};
+
 const EMPTY_EMPLOYEE = EMPLOYEE_MASTER_FIELDS.reduce((emp, field) => {
   if (field.key === 'creationDate') emp[field.key] = todayIsoDate();
   else
@@ -54,6 +66,7 @@ const createInitialEmployeeForm = (employee) => {
     Object.keys(employee).forEach(key => {
       initialized[key] = employee[key] ?? EMPTY_EMPLOYEE[key] ?? '';
     });
+    initialized.creationDate = employee.creationDate || (employee.createdAt ? employee.createdAt.split('T')[0] : todayIsoDate());
     return initialized;
   }
   return {
@@ -348,7 +361,7 @@ function FormField({
           if (field.type === 'date') {
             return (
               <DatePicker
-                value={value ? parseDate(value) : null}
+                value={safeParseDate(value)}
                 isDisabled={isLocked}
                 onChange={(dateVal) => onChange(dateVal ? dateVal.toString() : '')}
                 className="w-full"
@@ -718,7 +731,7 @@ function EmployeeMasterForm({ mode, employee, onBack }) {
                         key={field.key}
                         field={fieldProps}
                         control={control}
-                        disabled={isView || isSubmitting || (sameAsCurrentAddress && field.key.startsWith('permanent')) || (isLoadingCurrentPincode && ['currentState', 'currentDistrict', 'currentCity', 'currentCountry'].includes(field.key)) || (isLoadingPermanentPincode && ['permanentState', 'permanentDistrict', 'permanentCity', 'permanentCountry'].includes(field.key))}
+                        disabled={isView || isSubmitting || field.key === 'creationDate' || (sameAsCurrentAddress && field.key.startsWith('permanent')) || (isLoadingCurrentPincode && ['currentState', 'currentDistrict', 'currentCity', 'currentCountry'].includes(field.key)) || (isLoadingPermanentPincode && ['permanentState', 'permanentDistrict', 'permanentCity', 'permanentCountry'].includes(field.key))}
                         error={errors[field.key]?.message}
                         options={
                             isCurrentCityField && currentCityOptions.length > 0 ? currentCityOptions : 

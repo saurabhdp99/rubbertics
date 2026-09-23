@@ -3,7 +3,7 @@ export const COMPOUND_MASTER_FIELDS = [
     "key": "creationDate",
     "label": "Creation Date",
     "type": "date",
-    "section": "Basic Details"
+    "section": "Compound Details"
   },
   // Compound Details
   {

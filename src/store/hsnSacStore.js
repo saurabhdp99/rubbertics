@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 export const useHsnSacStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export const useHsnSacStore = create((set, get) => ({
   addItem: async (itemData, orgId, userId) => {
     const payload = {
       org_id: orgId,
+      creation_date: itemData.creationDate || (itemData.createdAt ? itemData.createdAt.split('T')[0] : todayIsoDate()),
       hsn_code: itemData.hsnCode,
       description: itemData.description,
       gst_percentage: String(itemData.gstPercentage || '18'),
@@ -118,7 +120,7 @@ export const useHsnSacStore = create((set, get) => ({
 
 function mapFromDb(row) {
   return {
-    creationDate: row.creation_date,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     id: row.id,
     orgId: row.org_id,
     hsnCode: row.hsn_code,

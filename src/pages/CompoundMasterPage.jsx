@@ -1320,6 +1320,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
 
   const getInitialValues = () => {
     const initialForm = compound ? { ...EMPTY_COMPOUND, ...compound, changeSummary: '' } : { ...EMPTY_COMPOUND };
+    initialForm.creationDate = compound?.creationDate || (compound?.createdAt ? compound.createdAt.split('T')[0] : todayIsoDate());
     if (mode === 'add') {
       const nextNumber = compounds.reduce((max, c) => {
         if (c.compoundCode && c.compoundCode.startsWith('C-')) {
@@ -1360,7 +1361,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
     onBack();
   };
 
-  const basicDetailsFields = COMPOUND_MASTER_FIELDS.filter(f => f.section === 'Compound Details');
+  const basicDetailsFields = COMPOUND_MASTER_FIELDS.filter(f => f.section === 'Compound Details' || f.section === 'Basic Details');
   const qualityFields = COMPOUND_MASTER_FIELDS.filter(f => f.section === 'Quality Tab');
   const storageFields = COMPOUND_MASTER_FIELDS.filter(f => f.section === 'Storage and Life');
   const specialFields = COMPOUND_MASTER_FIELDS.filter(f => f.section === 'Special Instruction');
@@ -1447,7 +1448,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                     key={field.key}
                     field={field}
                     control={control}
-                    disabled={isView || isSubmitting || (isAdd && field.key === 'compoundCode')}
+                    disabled={isView || isSubmitting || (isAdd && field.key === 'compoundCode') || field.key === 'creationDate'}
                     error={errors[field.key]?.message}
                     options={compoundMasterLookups[field.key]}
                     onAddOption={(val) => addCompoundMasterLookupOption(field.key, val)}
@@ -1459,7 +1460,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
             </section>
 
             {/* 2. Formulation Table */}
-            <FormulationSection control={control} disabled={isView || isSubmitting || field.key === 'creationDate'} watch={watch} setValue={setValue} />
+            <FormulationSection control={control} disabled={isView || isSubmitting} watch={watch} setValue={setValue} />
 
             {/* 3. Quality Tab */}
             <section className="border-b border-slate-100 pb-7">
@@ -1524,7 +1525,7 @@ function CompoundMasterForm({ mode, compound, onBack }) {
                   <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">Status & Remarks</h4>
                   <div className="flex flex-col gap-4">
                     {detailsFields.map(field => (
-                      <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting || field.key === 'revisionNumber' || field.key === 'revisionDate'} />
+                      <FormField key={field.key} field={field} control={control} disabled={isView || isSubmitting || field.key === 'revisionNumber' || field.key === 'revisionDate' || field.key === 'creationDate'} />
                     ))}
                   </div>
                 </div>
@@ -1668,8 +1669,9 @@ export default function CompoundMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = ['Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Total Cost', 'Revision', 'Status'];
+    const headers = ['Creation Date', 'Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Total Cost', 'Revision', 'Status'];
     const rows = filtered.map(item => [
+      formatTableDate(item.creationDate, 'creationDate') || '',
       item.compoundCode, item.compoundName, item.basePolymer, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.totalCost || 0, item.revisionNumber, item.status
     ].map(cell => `"${String(cell ?? '').replaceAll('"', '""')}"`));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

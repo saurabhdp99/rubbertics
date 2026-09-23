@@ -584,7 +584,7 @@ function ToolsMasterForm({ mode, tool, onBack }) {
   const isAdd = mode === 'add';
 
   const getInitialValues = () => {
-    const initialForm = tool ? { ...EMPTY_TOOL, ...tool, cycleTimeUnit: tool.cycleTimeUnit || 'Sec' } : { ...EMPTY_TOOL, cycleTimeUnit: 'Sec' };
+    const initialForm = tool ? { ...EMPTY_TOOL, ...tool, creationDate: tool.creationDate || (tool.createdAt ? tool.createdAt.split('T')[0] : todayIsoDate()), cycleTimeUnit: tool.cycleTimeUnit || 'Sec' } : { ...EMPTY_TOOL, cycleTimeUnit: 'Sec' };
     if (mode === 'add') {
       const nextNumber = tools.reduce((max, t) => {
         if (t.toolCode && t.toolCode.startsWith('T-')) {
@@ -701,7 +701,7 @@ function ToolsMasterForm({ mode, tool, onBack }) {
                       key={field.key}
                       field={field}
                       control={control}
-                      disabled={isView || isSubmitting || (isAdd && field.key === 'toolCode')}
+                      disabled={isView || isSubmitting || (isAdd && field.key === 'toolCode') || field.key === 'creationDate'}
                       error={errors[field.key]?.message}
                       options={field.key === 'toolName' ? partOptions : toolsMasterLookups[field.key]}
                       onAddOption={field.key === 'toolName' ? undefined : (val) => addToolMasterLookupOption(field.key, val)}
@@ -815,19 +815,19 @@ export default function ToolsMasterPage() {
       String(index + 1),
       ...TOOLS_MASTER_FIELDS.map(field => {
         if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
+        if (field.key === 'cycleTime') {
+          const val = item.cycleTime;
+          if (!val && val !== 0 && val !== '0') return '';
+          const unit = item.cycleTimeUnit || 'Sec';
+          const strVal = String(val).trim();
+          const lower = strVal.toLowerCase();
+          return (lower.includes('sec') || lower.includes('min') || lower.includes('hr'))
+            ? strVal.replaceAll('"', '""')
+            : `${strVal} ${unit}`.replaceAll('"', '""');
+        }
         return String(item[field.key] ?? '').replaceAll('"', '""');
       })
     ]);
-        if (!val && val !== 0 && val !== '0') return '';
-        const unit = item.cycleTimeUnit || 'Sec';
-        const strVal = String(val).trim();
-        const lower = strVal.toLowerCase();
-        return (lower.includes('sec') || lower.includes('min') || lower.includes('hr'))
-          ? strVal.replaceAll('"', '""')
-          : `${strVal} ${unit}`.replaceAll('"', '""');
-      }
-      return String(item[field.key] ?? '').replaceAll('"', '""');
-    }));
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

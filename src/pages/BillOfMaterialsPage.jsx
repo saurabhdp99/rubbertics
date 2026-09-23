@@ -219,6 +219,7 @@ function BOMForm({ mode, bom, onBack }) {
     if (!bom) {
       return {
         ...DEFAULT_BOM,
+        creationDate: DEFAULT_BOM.creationDate || todayIsoDate(),
         bomNo: nextBomNo,
         revisionNo: '',
         batchQty: '',
@@ -236,6 +237,7 @@ function BOMForm({ mode, bom, onBack }) {
     return {
       ...DEFAULT_BOM,
       ...bom,
+      creationDate: bom.creationDate || (bom.createdAt ? bom.createdAt.split('T')[0] : (DEFAULT_BOM.creationDate || todayIsoDate())),
       bomNo: bom.bomNo || nextBomNo,
       revisionNo: bom.revisionNo || '',
       batchQty: bom.batchQty?.toString() || '',

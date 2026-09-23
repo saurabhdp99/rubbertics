@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const getNextCode = (items) => {
   const maxNum = items.reduce((max, t) => {
@@ -283,6 +284,7 @@ export const useTransportMasterStore = create((set, get) => ({
 function mapFromDb(row) {
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     transporterCode: row.transporter_code,
     transporterName: row.transporter_name,
@@ -310,6 +312,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     transporter_code: data.transporterCode,
     transporter_name: data.transporterName,
     transporter_add: data.trasnporterAdd,

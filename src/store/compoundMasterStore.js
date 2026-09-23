@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const DEFAULT_LOOKUPS = {
   compoundColour: [
@@ -429,6 +430,7 @@ export const useCompoundMasterStore = create((set, get) => ({
 function mapFromDb(row) {
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     compoundCode: row.compound_code,
     compoundName: row.compound_name,
@@ -466,6 +468,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     compound_code: data.compoundCode || 'Auto-generated',
     compound_name: data.compoundName,
     compound_colour: data.compoundColour,

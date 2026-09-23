@@ -53,6 +53,7 @@ const createInitialPartyForm = (party, defaultCategory, getNextPartyCode) => {
     for (const key in party) {
       safeParty[key] = party[key] === null ? '' : party[key];
     }
+    safeParty.creationDate = party.creationDate || (party.createdAt ? party.createdAt.split('T')[0] : todayIsoDate());
     return { ...EMPTY_PARTY, ...safeParty };
   }
 
@@ -579,7 +580,7 @@ function PartyMasterForm({ mode, party, onBack }) {
                         key={field.key}
                         field={fieldProps}
                         control={control}
-                        disabled={isView || isSubmitting || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key)) || (isLoadingShipToPincode && ['shipToState', 'shipToDistrict', 'shipToCity', 'shipToCountry'].includes(field.key))}
+                        disabled={isView || isSubmitting || field.key === 'creationDate' || (isLoadingPincode && ['state', 'district', 'city', 'country'].includes(field.key)) || (isLoadingShipToPincode && ['shipToState', 'shipToDistrict', 'shipToCity', 'shipToCountry'].includes(field.key))}
                         error={errors[field.key]?.message}
                         options={
                           isCityField && cityOptions.length > 0 ? cityOptions : 
@@ -801,7 +802,7 @@ export default function PartyMasterPage() {
     }
 
     if (column.type === 'date') {
-      return <span className="font-semibold text-slate-700 whitespace-nowrap">{value || '-'}</span>;
+      return <span className="font-semibold text-slate-700 whitespace-nowrap">{formatTableDate(value, column.key) || '-'}</span>;
     }
 
     return <span className="block max-w-[240px] truncate" title={value}>{value || '-'}</span>;

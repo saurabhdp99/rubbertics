@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const DEFAULT_LOOKUPS = {
   process: [
@@ -364,6 +365,7 @@ function mapFromDb(row) {
 
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     toolCode: row.tool_code,
     toolName: row.tool_name || row.linked_part_name || '',
@@ -400,7 +402,7 @@ function mapFromDb(row) {
 
 function mapToDb(data, orgId, userId) {
   const payload = {
-    creation_date: data.creationDate,
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     tool_code: data.toolCode || 'Auto-generated',
     tool_name: data.toolName,
     linked_part_name: data.toolName || null,

@@ -4,10 +4,10 @@ export const TRANSPORT_MASTER_SECTIONS = [
 
 export const TRANSPORT_MASTER_FIELDS = [
   {
-    "key": "creationDate",
-    "label": "Creation Date",
-    "type": "date",
-    "section": "Basic Details"
+    key: 'creationDate',
+    label: 'Creation Date',
+    type: 'date',
+    section: 'Transporter Master - Main Details',
   },
   {
     key: 'transporterCode',
@@ -124,12 +124,6 @@ export const TRANSPORT_MASTER_FIELDS = [
     key: 'createdBy',
     label: 'Created By',
     type: 'text',
-    section: 'Transporter Master - Main Details',
-  },
-  {
-    key: 'createdDate',
-    label: 'Created Date',
-    type: 'date',
     section: 'Transporter Master - Main Details',
   },
   {

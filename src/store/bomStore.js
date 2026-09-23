@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DEFAULT_BOM, calculateGrossWeight, calculateBOMCost } from '../data/bomTemplate';
 import { supabase } from '../lib/supabase';
+import { todayIsoDate } from '../utils/dateFormatter';
 
 const STORAGE_KEY = 'rubbertics_boms_data';
 
@@ -90,6 +91,7 @@ async function uploadBOMImages(images, orgId, bomId) {
 function mapFromDb(row) {
   return {
     id: row.id,
+    creationDate: row.creation_date || (row.created_at ? row.created_at.split('T')[0] : null),
     orgId: row.org_id,
     bomNo: row.bom_no,
     bomTitle: row.bom_title,
@@ -139,6 +141,7 @@ function mapFromDb(row) {
 // Map store BOM model to database row
 function mapToDb(data, orgId, userId) {
   const payload = {
+    creation_date: data.creationDate || (data.createdAt ? data.createdAt.split('T')[0] : todayIsoDate()),
     bom_no: data.bomNo,
     bom_title: data.bomTitle,
     status: data.status || 'Draft',
