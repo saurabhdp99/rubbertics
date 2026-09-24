@@ -810,11 +810,32 @@ export default function ToolsMasterPage() {
   };
 
   const exportCsv = () => {
+    if (!filtered || filtered.length === 0) {
+      alert('No tools to export.');
+      return;
+    }
+
     const headers = ['Sr. No.', ...TOOLS_MASTER_FIELDS.map(c => c.label)];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
     const rows = filtered.map((item, index) => [
-      String(index + 1),
+      index + 1,
       ...TOOLS_MASTER_FIELDS.map(field => {
-        if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
+        if (field.type === 'attachments') {
+          const atts = item[field.key] || [];
+          if (Array.isArray(atts)) {
+            return atts.map(a => a.name || a.fileName || a.url || '').filter(Boolean).join(', ');
+          }
+          return '';
+        }
+        if (field.key === 'creationDate' || field.type === 'date' || field.key.toLowerCase().endsWith('date')) {
+          return formatTableDate(item[field.key], field.key) || '';
+        }
         if (field.key === 'cycleTime') {
           const val = item.cycleTime;
           if (!val && val !== 0 && val !== '0') return '';
@@ -822,19 +843,26 @@ export default function ToolsMasterPage() {
           const strVal = String(val).trim();
           const lower = strVal.toLowerCase();
           return (lower.includes('sec') || lower.includes('min') || lower.includes('hr'))
-            ? strVal.replaceAll('"', '""')
-            : `${strVal} ${unit}`.replaceAll('"', '""');
+            ? strVal
+            : `${strVal} ${unit}`;
         }
-        return String(item[field.key] ?? '').replaceAll('"', '""');
+        return item[field.key] ?? '';
       })
     ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'tools-master.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `Tools_Master_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 

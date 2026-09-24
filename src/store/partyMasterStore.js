@@ -10,7 +10,7 @@ const getCategoryPrefix = (category) => {
 };
 
 const DEFAULT_LOOKUPS = {
-  partyCategory: ['Customer', 'Vendor', 'Job Work', 'Service'],
+  partyCategory: ['Customer', 'Vendor', 'Labour Work', 'Job Work', 'Service'],
   msmeEnterpriseType: ['Not Applicable', 'Micro', 'Small', 'Medium'],
 };
 
@@ -21,13 +21,13 @@ export const usePartyMasterStore = create((set, get) => ({
   error: null,
 
   searchQuery: '',
-  typeFilter: 'All',
+  categoryFilter: 'All',
   msmeFilter: 'All',
   currentPage: 1,
   itemsPerPage: 10,
 
   lookups: {},
-  partyCategories: ['Customer', 'Vendor', 'Job Work', 'Service'],
+  partyCategories: ['Customer', 'Vendor', 'Labour Work', 'Job Work', 'Service'],
 
   notifications: [],
 
@@ -283,19 +283,22 @@ export const usePartyMasterStore = create((set, get) => ({
 
   // ── UI ─────────────────────────────────────────────────────────────────
   setSearchQuery: (q) => set({ searchQuery: q, currentPage: 1 }),
-  setTypeFilter: (t) => set({ typeFilter: t, currentPage: 1 }),
+  setCategoryFilter: (c) => set({ categoryFilter: c, currentPage: 1 }),
   setMsmeFilter: (m) => set({ msmeFilter: m, currentPage: 1 }),
   setCurrentPage: (p) => set({ currentPage: p }),
   setItemsPerPage: (n) => set({ itemsPerPage: n, currentPage: 1 }),
 
   getFilteredParties: () => {
-    const { parties, searchQuery, typeFilter, msmeFilter } = get();
+    const { parties, searchQuery, categoryFilter, msmeFilter } = get();
     const q = searchQuery.toLowerCase().trim();
     return parties.filter(p => {
       const matchSearch = !q || Object.values(p).some(v => String(v || '').toLowerCase().includes(q));
-      const matchType = typeFilter === 'All' || p.partyType === typeFilter;
+      const matchCategory = !categoryFilter || categoryFilter === 'All' ||
+        p.partyCategory === categoryFilter ||
+        (categoryFilter === 'Labour Work' && (p.partyCategory === 'Job Work' || p.partyCategory === 'Labour Work')) ||
+        (categoryFilter === 'Job Work' && (p.partyCategory === 'Labour Work' || p.partyCategory === 'Job Work'));
       const matchMsme = msmeFilter === 'All' || p.msmeEnterpriseType === msmeFilter;
-      return matchSearch && matchType && matchMsme;
+      return matchSearch && matchCategory && matchMsme;
     });
   },
 
@@ -384,7 +387,6 @@ function mapFromDb(row) {
     shipToPinCode: shipPin,
     shipToCountry: shipCountry,
     transportDistance: row.transport_distance,
-    partyType: row.party_type,
     procurementPersonName: row.procurement_person_name,
     procurementContactNo: row.procurement_contact_no,
     procurementEmail: row.procurement_email,
@@ -453,7 +455,6 @@ function mapToDb(data, orgId, userId) {
     ship_to_pin_code: data.shipToPinCode,
     ship_to_country: data.shipToCountry,
     transport_distance: data.transportDistance !== '' ? data.transportDistance : null,
-    party_type: data.partyType || 'Domestic',
     procurement_person_name: data.procurementPersonName,
     procurement_contact_no: data.procurementContactNo,
     procurement_email: data.procurementEmail,

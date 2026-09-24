@@ -860,38 +860,154 @@ export default function PurchaseOrdersPage() {
   const clearFilters = () => { setSearchQuery(''); setFilterStatus('All'); };
 
   const exportCsv = () => {
-    const headers = ['Sr. No.', ...COLUMNS.map(c => c.label)];
-    const rows = filtered.map((order, index) => [
-      String(index + 1),
-      ...COLUMNS.map(col => {
-        if (col.key === 'created_at') return formatTableDate(order.created_at, 'created_at') || '';
-        const val = renderCellText(order, col);
-        return String(val ?? '').replaceAll('"', '""');
-      })
-    ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    if (!filtered || filtered.length === 0) {
+      alert('No purchase orders to export.');
+      return;
+    }
+
+    const headers = [
+      'Sr. No.',
+      'PO Date',
+      'NPPL Purchase Order No.',
+      'Vendor Name',
+      'Part No.',
+      'Product Name',
+      'HSN Code',
+      'Order Qty',
+      'UOM',
+      'Unit Price',
+      'Total Amount',
+      'Schedule Qty',
+      'Schedule Delivery Date(s)',
+      'Payment Terms',
+      'Transport',
+      'Delivery Terms',
+      'Vendor Address',
+      'Shipping Address',
+      'Status',
+      'Remarks'
+    ];
+
+    const formatDateVal = (val) => {
+      if (!val) return '';
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('en-GB');
+      return String(val);
+    };
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
+    const rows = [];
+    let serialNumber = 1;
+
+    filtered.forEach((order) => {
+      let items = order.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        if (order.partNo || order.productName || order.orderQty) {
+          items = [{
+            partNo: order.partNo || '',
+            productName: order.productName || '',
+            hsnCode: order.hsnCode || '',
+            orderQty: order.orderQty || '',
+            uom: order.uom || '',
+            price: order.price || '',
+            schedules: [{
+              scheduleQty: order.scheduleQty || order.orderQty || '',
+              deliveryDate: order.deliveryDate || ''
+            }]
+          }];
+        } else {
+          items = [{
+            partNo: '',
+            productName: '',
+            hsnCode: '',
+            orderQty: '',
+            uom: '',
+            price: '',
+            schedules: []
+          }];
+        }
+      }
+
+      items.forEach((item) => {
+        const orderQtyNum = item.orderQty !== undefined && item.orderQty !== '' && !isNaN(Number(item.orderQty))
+          ? Number(item.orderQty)
+          : '';
+        const priceNum = item.price !== undefined && item.price !== '' && !isNaN(Number(item.price))
+          ? Number(item.price)
+          : '';
+        const totalAmount = (orderQtyNum !== '' && priceNum !== '')
+          ? (orderQtyNum * priceNum).toFixed(2)
+          : '';
+
+        const schedules = item.schedules || [];
+        let scheduleQty = '';
+        let scheduleDates = '';
+
+        if (schedules.length > 0) {
+          const totalSchedQty = schedules.reduce((acc, s) => acc + Number(s.scheduleQty || 0), 0);
+          scheduleQty = totalSchedQty > 0 ? totalSchedQty : (orderQtyNum || '');
+
+          if (schedules.length === 1) {
+            scheduleDates = formatDateVal(schedules[0].deliveryDate);
+          } else {
+            scheduleDates = schedules
+              .map(s => {
+                const dStr = formatDateVal(s.deliveryDate);
+                const qStr = s.scheduleQty ? ` (Qty: ${s.scheduleQty})` : '';
+                return dStr ? `${dStr}${qStr}` : '';
+              })
+              .filter(Boolean)
+              .join('; ');
+          }
+        } else {
+          scheduleQty = orderQtyNum;
+          scheduleDates = formatDateVal(order.deliveryDate || '');
+        }
+
+        rows.push([
+          serialNumber++,
+          formatDateVal(order.date),
+          order.npplPoNo || '',
+          order.vendorName || '',
+          item.partNo || '',
+          item.productName || '',
+          item.hsnCode || '',
+          orderQtyNum,
+          item.uom || '',
+          priceNum,
+          totalAmount,
+          scheduleQty,
+          scheduleDates,
+          order.paymentTerms || '',
+          order.transport || '',
+          order.deliveryTerms || '',
+          order.vendorAddress || '',
+          order.shippingAddress || '',
+          order.status || 'Pending',
+          order.remark || ''
+        ]);
+      });
+    });
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'purchase-orders.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `Purchase_Orders_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
-
-  const renderCellText = (order, column) => {
-    if (column.key?.startsWith('items_')) {
-      const items = order.items || [];
-      if (column.key === 'items_partNo') return items.map(i => i.partNo).filter(Boolean).join(', ');
-      if (column.key === 'items_productName') return items.map(i => i.productName).filter(Boolean).join(', ');
-      if (column.key === 'items_orderQty') return items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
-      if (column.key === 'items_scheduleQty') return items.reduce((s, i) => s + (i.schedules || []).reduce((ss, sc) => ss + Number(sc.scheduleQty || 0), 0), 0);
-      if (column.key === 'items_deliveryDate') {
-        const allDates = items.flatMap(i => (i.schedules || []).map(s => s.deliveryDate).filter(Boolean));
-        return [...new Set(allDates)].join(', ');
-      }
-    }
-    return order[column.key] ?? '';
   };
 
   const renderCellValue = (order, column) => {
@@ -918,7 +1034,19 @@ export default function PurchaseOrdersPage() {
       return <span className="font-bold text-slate-800 line-clamp-2" title={value}>{value || '-'}</span>;
     }
     if (column.key?.startsWith('items_')) {
-      const items = order.items || [];
+      let items = order.items || [];
+      if (items.length === 0 && (order.partNo || order.productName || order.orderQty)) {
+        items = [{
+          partNo: order.partNo || '',
+          productName: order.productName || '',
+          orderQty: order.orderQty || 0,
+          schedules: [{
+            scheduleQty: order.scheduleQty || order.orderQty || 0,
+            deliveryDate: order.deliveryDate || ''
+          }]
+        }];
+      }
+
       if (column.key === 'items_partNo') {
         const val = items.map(i => i.partNo).filter(Boolean).join(', ');
         return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{val || '-'}</span>;
@@ -938,7 +1066,8 @@ export default function PurchaseOrdersPage() {
       if (column.key === 'items_deliveryDate') {
         const allDates = items.flatMap(i => (i.schedules || []).map(s => s.deliveryDate).filter(Boolean));
         const uniqueDates = [...new Set(allDates)];
-        const val = uniqueDates.join(', ');
+        const formattedDates = uniqueDates.map(d => formatTableDate(d, 'deliveryDate') || d);
+        const val = formattedDates.join(', ');
         return <span className="font-semibold text-slate-700 whitespace-nowrap" title={val}>{uniqueDates.length > 2 ? `${uniqueDates.length} Dates` : (val || '-')}</span>;
       }
     }

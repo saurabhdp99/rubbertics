@@ -753,18 +753,13 @@ function FormulationSection({ control, disabled, watch, setValue }) {
     return totalOutput * (1 - loss / 100);
   }, [totalOutput, lessWeightLoss]);
 
-  // Calculate total cost of compound: sum of all ingredients that have a price
+  // Calculate total cost of compound: sum of (quantity * price) for each ingredient
   const totalCostOfCompound = useMemo(() => {
-    const hasQuantities = formulationItems.some(item => parseFloat(item.quantity) > 0);
     return formulationItems.reduce((sum, item) => {
       const p = parseFloat(item.price);
-      if (isNaN(p) || p <= 0) return sum;
-      if (hasQuantities) {
-        const q = parseFloat(item.quantity);
-        return sum + ((!isNaN(q) && q > 0) ? q * p : 0);
-      } else {
-        return sum + p;
-      }
+      const q = parseFloat(item.quantity);
+      if (isNaN(p) || p <= 0 || isNaN(q) || q <= 0) return sum;
+      return sum + (q * p);
     }, 0);
   }, [formulationItems]);
 
@@ -1669,18 +1664,47 @@ export default function CompoundMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = ['Creation Date', 'Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Total Cost', 'Revision', 'Status'];
-    const rows = filtered.map(item => [
+    if (!filtered || filtered.length === 0) {
+      alert('No compounds to export.');
+      return;
+    }
+
+    const headers = ['Sr. No.', 'Creation Date', 'Compound Code', 'Compound Name', 'Base Polymer', 'Colour', 'Hardness', 'Sp. Gravity', 'Total Qty', 'Total Cost', 'Revision', 'Status'];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
+    const rows = filtered.map((item, index) => [
+      index + 1,
       formatTableDate(item.creationDate, 'creationDate') || '',
-      item.compoundCode, item.compoundName, item.basePolymer, item.compoundColour, item.hardnessShoreA, item.specificGravity, item.totalOutput, item.totalCost || 0, item.revisionNumber, item.status
-    ].map(cell => `"${String(cell ?? '').replaceAll('"', '""')}"`));
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      item.compoundCode || '',
+      item.compoundName || '',
+      item.basePolymer || '',
+      item.compoundColour || '',
+      item.hardnessShoreA || '',
+      item.specificGravity || '',
+      item.totalOutput || '',
+      item.totalCost || 0,
+      item.revisionNumber || '',
+      item.status || ''
+    ]);
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'compound-master.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `Compound_Master_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 

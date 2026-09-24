@@ -674,18 +674,20 @@ export default function PartyMasterPage() {
   const {
     parties: partyMasterItems,
     searchQuery: partyMasterSearchQuery,
-    typeFilter: partyMasterTypeFilter,
+    categoryFilter: partyMasterCategoryFilter,
     msmeFilter: partyMasterMsmeFilter,
     currentPage: partyMasterCurrentPage,
     itemsPerPage: partyMasterItemsPerPage,
     setSearchQuery: setPartyMasterSearchQuery,
-    setTypeFilter: setPartyMasterTypeFilter,
+    setCategoryFilter: setPartyMasterCategoryFilter,
     setMsmeFilter: setPartyMasterMsmeFilter,
     setCurrentPage: setPartyMasterCurrentPage,
     setItemsPerPage: setPartyMasterItemsPerPage,
     deleteParty: deletePartyMaster,
     getFilteredParties: getFilteredPartyMasterItems,
     getStats: getPartyMasterStats,
+    partyCategories,
+    lookups: partyMasterLookups,
     fetchParties, isLoading,
   } = usePartyMasterStore();
   const { currentOrg } = useAuthStore();
@@ -709,9 +711,13 @@ export default function PartyMasterPage() {
     partyMasterCurrentPage * partyMasterItemsPerPage
   );
 
-  const partyTypes = useMemo(() => {
-    return ['All', ...Array.from(new Set(partyMasterItems.map(party => party.partyType).filter(Boolean))).sort()];
-  }, [partyMasterItems]);
+  const allCategories = useMemo(() => {
+    const fromParties = partyMasterItems.map(party => party.partyCategory).filter(Boolean);
+    const defaults = ['Customer', 'Vendor', 'Labour Work', 'Job Work', 'Service'];
+    const fromLookups = partyCategories || partyMasterLookups?.partyCategory || [];
+    const unique = Array.from(new Set([...defaults, ...fromLookups, ...fromParties])).filter(Boolean);
+    return ['All', ...unique];
+  }, [partyMasterItems, partyCategories, partyMasterLookups]);
 
   const msmeTypes = useMemo(() => {
     return ['All', ...Array.from(new Set(partyMasterItems.map(party => party.msmeEnterpriseType).filter(Boolean))).sort()];
@@ -726,24 +732,47 @@ export default function PartyMasterPage() {
 
   const clearFilters = () => {
     setPartyMasterSearchQuery('');
-    setPartyMasterTypeFilter('All');
+    setPartyMasterCategoryFilter('All');
     setPartyMasterMsmeFilter('All');
   };
 
   const exportCsv = () => {
-    const headers = ['Sr. No.', 'Creation Date', ...PARTY_MASTER_FIELDS.map(field => field.label)];
+    if (!filtered || filtered.length === 0) {
+      alert('No parties to export.');
+      return;
+    }
+
+    const headers = ['Sr. No.', ...PARTY_MASTER_FIELDS.map(field => field.label)];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
     const rows = filtered.map((party, index) => [
-      String(index + 1),
-      formatTableDate(party.created_at, 'created_at') || '',
-      ...PARTY_MASTER_FIELDS.map(field => String(party[field.key] ?? '').replaceAll('"', '""'))
+      index + 1,
+      ...PARTY_MASTER_FIELDS.map(field => {
+        if (field.type === 'date' || field.key.toLowerCase().endsWith('date')) {
+          return formatTableDate(party[field.key] || (field.key === 'creationDate' ? party.created_at : ''), field.key) || '';
+        }
+        return party[field.key] ?? '';
+      })
     ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'party-master.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `Party_Master_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
@@ -843,20 +872,27 @@ export default function PartyMasterPage() {
 
               <div className="flex flex-wrap gap-3 w-full xl:w-auto">
                 <Select
-                  value={partyMasterTypeFilter}
-                  onChange={(val) => setPartyMasterTypeFilter(val)}
-                  className="w-[180px]"
-                  aria-label="Party Type Filter"
+                  value={partyMasterCategoryFilter}
+                  onChange={(val) => setPartyMasterCategoryFilter(val || 'All')}
+                  className="w-[190px]"
+                  aria-label="Party Category Filter"
                 >
-                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm rounded-xl text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
+                  <Select.Trigger className="px-4 py-3 h-[46px] text-sm font-semibold rounded-xl text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 outline-none">
                     <Select.Value />
                     <Select.Indicator />
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {partyTypes.map(type => (
-                        <ListBox.Item key={type} id={type} textValue={type === 'All' ? 'All Party Types' : type}>
-                          {type === 'All' ? 'All Party Types' : type}
+                      {allCategories.map(cat => (
+                        <ListBox.Item key={cat} id={cat} textValue={cat === 'All' ? 'All Categories' : cat}>
+                          <div className="flex items-center justify-between py-0.5 w-full gap-2">
+                            <span className="font-semibold text-slate-800">{cat === 'All' ? 'All Categories' : cat}</span>
+                            {cat !== 'All' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                {partyMasterItems.filter(p => p.partyCategory === cat || (cat === 'Labour Work' && p.partyCategory === 'Job Work')).length}
+                              </span>
+                            )}
+                          </div>
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                       ))}
@@ -881,7 +917,7 @@ export default function PartyMasterPage() {
               <p className="text-xs font-medium text-slate-500">
                 Showing <span className="text-slate-800 font-bold px-1">{filtered.length}</span> of <span className="text-slate-800 font-bold px-1">{partyMasterItems.length}</span> partys
               </p>
-              {(partyMasterSearchQuery || partyMasterTypeFilter !== 'All' || partyMasterMsmeFilter !== 'All') && (
+              {(partyMasterSearchQuery || partyMasterCategoryFilter !== 'All' || partyMasterMsmeFilter !== 'All') && (
                 <button onClick={clearFilters} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                   <RefreshCw size={12} /> Clear Filters
                 </button>

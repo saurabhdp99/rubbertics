@@ -784,21 +784,57 @@ export default function ItemMasterPage() {
   };
 
   const exportCsv = () => {
+    if (!filtered || filtered.length === 0) {
+      alert('No items to export.');
+      return;
+    }
+
     const headers = ['Sr. No.', ...ITEM_MASTER_FIELDS.map(field => field.label)];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
     const rows = filtered.map((item, index) => [
-      String(index + 1),
+      index + 1,
       ...ITEM_MASTER_FIELDS.map(field => {
-        if (field.key === 'creationDate') return formatTableDate(item.creationDate, 'creationDate') || '';
-        return String(item[field.key] ?? '').replaceAll('"', '""');
+        if (field.type === 'attachments') {
+          const atts = item[field.key] || [];
+          if (Array.isArray(atts)) {
+            return atts.map(a => a.name || a.fileName || a.url || '').filter(Boolean).join(', ');
+          }
+          return '';
+        }
+        if (field.type === 'date' || field.key.toLowerCase().endsWith('date')) {
+          return formatTableDate(item[field.key], field.key) || '';
+        }
+        if (field.type === 'number-with-uom') {
+          const val = item[field.key];
+          const uom = item[field.uomKey];
+          if (val !== undefined && val !== null && val !== '') {
+            return uom ? `${val} ${uom}` : String(val);
+          }
+          return '';
+        }
+        return item[field.key] ?? '';
       })
     ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'item-master.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `Item_Master_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 

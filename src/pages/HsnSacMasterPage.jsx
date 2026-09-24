@@ -309,15 +309,42 @@ export default function HsnSacMasterPage() {
   };
 
   const exportCsv = () => {
-    const headers = HSN_SAC_MASTER_FIELDS.map(field => field.label);
-    const rows = filtered.map(item => HSN_SAC_MASTER_FIELDS.map(field => String(item[field.key] ?? '').replaceAll('"', '""')));
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    if (!filtered || filtered.length === 0) {
+      alert('No HSN/SAC records to export.');
+      return;
+    }
+
+    const headers = ['Sr. No.', ...HSN_SAC_MASTER_FIELDS.map(field => field.label)];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
+    const rows = filtered.map((item, index) => [
+      index + 1,
+      ...HSN_SAC_MASTER_FIELDS.map(field => {
+        if (field.type === 'date' || field.key.toLowerCase().endsWith('date')) {
+          return formatTableDate(item[field.key], field.key) || '';
+        }
+        return item[field.key] ?? '';
+      })
+    ]);
+
+    const csvContent = '\uFEFF' + [headers, ...rows]
+      .map(row => row.map(escapeCell).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'hsn-sac-master.csv';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `HSN_SAC_Master_${dateStr}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 

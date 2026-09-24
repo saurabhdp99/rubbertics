@@ -228,13 +228,17 @@ function Field({ label, children, required, error, colClass = "col-span-1" }) {
   );
 }
 
-function TableInput({ field, isView, align = "left", placeholder = "" }) {
+function TableInput({ field, isView, align = "left", placeholder = "", type = "text", ...props }) {
   return (
     <Input
       {...field}
+      type={type}
+      value={field.value ?? ""}
+      onChange={(e) => field.onChange(e.target.value)}
       placeholder={placeholder}
       disabled={isView}
       className={`w-full h-9 px-2 text-[12px] font-medium border border-transparent hover:border-slate-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 disabled:text-slate-600 text-${align} ${isView ? "bg-transparent" : "bg-white"}`}
+      {...props}
     />
   );
 }
@@ -581,7 +585,7 @@ function MaterialDetailsTable({
                   control={control}
                   name={`materials.${index}.pack_size_qty`}
                   render={({ field }) => (
-                    <TableInput field={field} isView={isView} align="right" />
+                    <TableInput field={field} isView={isView} align="right" type="number" step="0.01" />
                   )}
                 />
               </td>
@@ -590,7 +594,7 @@ function MaterialDetailsTable({
                   control={control}
                   name={`materials.${index}.no_of_packs`}
                   render={({ field }) => (
-                    <TableInput field={field} isView={isView} align="right" />
+                    <TableInput field={field} isView={isView} align="right" type="number" step="1" />
                   )}
                 />
               </td>
@@ -620,6 +624,8 @@ function MaterialDetailsTable({
                       isView={isView}
                       align="right"
                       placeholder="0.00"
+                      type="number"
+                      step="0.01"
                     />
                   )}
                 />
@@ -629,7 +635,7 @@ function MaterialDetailsTable({
                   control={control}
                   name={`materials.${index}.received_qty`}
                   render={({ field }) => (
-                    <TableInput field={field} isView={isView} align="right" />
+                    <TableInput field={field} isView={isView} align="right" type="number" step="0.01" />
                   )}
                 />
               </td>
@@ -638,7 +644,7 @@ function MaterialDetailsTable({
                   control={control}
                   name={`materials.${index}.accepted_qty`}
                   render={({ field }) => (
-                    <TableInput field={field} isView={isView} align="right" />
+                    <TableInput field={field} isView={isView} align="right" type="number" step="0.01" />
                   )}
                 />
               </td>
@@ -647,7 +653,7 @@ function MaterialDetailsTable({
                   control={control}
                   name={`materials.${index}.rejected_qty`}
                   render={({ field }) => (
-                    <TableInput field={field} isView={isView} align="right" />
+                    <TableInput field={field} isView={isView} align="right" type="number" step="0.01" />
                   )}
                 />
               </td>
@@ -836,13 +842,21 @@ function InwardForm({ mode, entry, onBack }) {
 
   const vendorOptions = React.useMemo(() => {
     if (!parties) return [];
-    const options = parties
-      .filter((p) => p.partyCategory === "Vendor")
-      .map((p) => ({
-        value: p.partyName,
-        label: p.partyName,
-        code: p.partyCode,
-      }));
+    
+    const uniqueVendors = new Map();
+    parties
+      .filter((p) => p.partyCategory === "Vendor" && p.partyName)
+      .forEach((p) => {
+        if (!uniqueVendors.has(p.partyName)) {
+          uniqueVendors.set(p.partyName, {
+            value: p.partyName,
+            label: p.partyName,
+            code: p.partyCode || "",
+          });
+        }
+      });
+      
+    const options = Array.from(uniqueVendors.values());
 
     if (
       entry?.vendor_name &&
@@ -1054,7 +1068,23 @@ function InwardForm({ mode, entry, onBack }) {
 
         <form
           id="grn-form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, (errors) => {
+            console.error("Form Validation Errors:", errors);
+            const msgs = [];
+            Object.keys(errors).forEach(k => {
+              if (errors[k]?.message) msgs.push(`${k}: ${errors[k].message}`);
+              if (Array.isArray(errors[k])) {
+                errors[k].forEach((err, idx) => {
+                  if (err) {
+                    Object.keys(err).forEach(ik => {
+                      msgs.push(`Row ${idx+1} ${ik}: ${err[ik]?.message}`);
+                    });
+                  }
+                });
+              }
+            });
+            useInwardStore.getState().addNotification(`Validation Failed: ${msgs.join(', ')}`, 'error');
+          })}
           className="p-4 bg-slate-50/50"
         >
           <Section title="A. Receipt / Purchase Details" icon={ShoppingCart}>
