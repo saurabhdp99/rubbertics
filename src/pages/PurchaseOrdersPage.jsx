@@ -59,7 +59,8 @@ function SortIcon({ sortDirection }) {
 }
 
 const COLUMNS = [
-  { key: 'date',              label: 'Date',             width: '100px' },
+  { key: 'createdAt',        label: 'Creation Date',    width: '120px' },
+  { key: 'date',              label: 'PO Date',             width: '100px' },
   { key: 'npplPoNo',          label: 'NPPL Purchase Order No.',     width: '180px' },
   { key: 'vendorName',        label: 'Vendor Name',      width: '180px' },
   { key: 'items_partNo',      label: 'Part No',          width: '150px' },
@@ -867,6 +868,7 @@ export default function PurchaseOrdersPage() {
 
     const headers = [
       'Sr. No.',
+      'Creation Date',
       'PO Date',
       'NPPL Purchase Order No.',
       'Vendor Name',
@@ -971,6 +973,7 @@ export default function PurchaseOrdersPage() {
 
         rows.push([
           serialNumber++,
+          formatDateVal(order.created_at || order.createdAt),
           formatDateVal(order.date),
           order.npplPoNo || '',
           order.vendorName || '',

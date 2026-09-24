@@ -29,7 +29,7 @@ import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
 import { PARTY_MASTER_FIELDS, PARTY_MASTER_SECTIONS } from '../data/partyMasterTemplate';
-import { usePartyMasterStore } from '../store/partyMasterStore';
+import { usePartyMasterStore, getCategoryPrefix } from '../store/partyMasterStore';
 import { useTransportMasterStore } from '../store/transportMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { formatTableDate } from '../utils/dateFormatter';
@@ -320,10 +320,18 @@ function PartyMasterForm({ mode, party, onBack }) {
   const partyCategory = watch('partyCategory');
 
   useEffect(() => {
-    if (isAdd && partyCategory) {
-      setValue('partyCode', getNextPartyCode(partyCategory));
+    if (partyCategory) {
+      if (isAdd) {
+        setValue('partyCode', getNextPartyCode(partyCategory));
+      } else {
+        const currentCode = getValues('partyCode');
+        const expectedPrefix = getCategoryPrefix(partyCategory);
+        if (currentCode && !currentCode.startsWith(expectedPrefix)) {
+          setValue('partyCode', getNextPartyCode(partyCategory));
+        }
+      }
     }
-  }, [partyCategory, isAdd, getNextPartyCode, setValue]);
+  }, [partyCategory, isAdd, getNextPartyCode, setValue, getValues]);
 
   useEffect(() => {
     const fetchPincodeDetails = async () => {

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { todayIsoDate } from '../utils/dateFormatter';
 
-const getCategoryPrefix = (category) => {
+export const getCategoryPrefix = (category) => {
   if (!category) return 'CU-';
   const map = { Customer: 'CU-', Vendor: 'VE-', 'Job Work': 'JW-', Service: 'SE-' };
   return map[category] || category.substring(0, 2).toUpperCase() + '-';
