@@ -31,8 +31,12 @@ export function calculateBOMCost(bom) {
   const grossWeightKg = parseFloat(bom.grossWeight) || 0;
   const compoundRatePerKg = parseFloat(bom.compoundRate) || 0;
 
-  // Rubber cost per piece: Gross weight (kg) * Rate per kg
-  const rubberCost = grossWeightKg * compoundRatePerKg;
+  // Rubber cost per piece: (Rate per kg * Shot Weight in kg) / Cavities
+  const shotWeightKg = parseFloat(bom.toolSortWeight) || 0;
+  const cavities = parseFloat(bom.cavities) || 1;
+  const rubberCost = shotWeightKg > 0 
+    ? (compoundRatePerKg * shotWeightKg) / cavities 
+    : (grossWeightKg * compoundRatePerKg);
 
   // Inserts & Sub-components cost
   const insertsCost = (bom.inserts || []).reduce((acc, ins) => {

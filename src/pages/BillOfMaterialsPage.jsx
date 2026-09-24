@@ -22,6 +22,7 @@ import { useCompoundMasterStore } from '../store/compoundMasterStore';
 import { useToolsMasterStore } from '../store/toolsMasterStore';
 import { useMachineMasterStore } from '../store/machineMasterStore';
 import { useEmployeeMasterStore } from '../store/employeeMasterStore';
+import { useInwardStore } from '../store/inwardStore';
 import { supabase } from '../lib/supabase';
 import {
   DEFAULT_BOM,
@@ -122,6 +123,7 @@ function BOMForm({ mode, bom, onBack }) {
   const { tools: masterTools, fetchTools } = useToolsMasterStore();
   const { machines: masterMachines, fetchMachines, isLoading: isMachinesLoading } = useMachineMasterStore();
   const { employees, fetchEmployees, isLoading: isEmployeesLoading } = useEmployeeMasterStore();
+  const { entries: inwardEntries, fetchEntries: fetchInwards } = useInwardStore();
 
   useEffect(() => {
     const orgId = currentOrg?.id || (() => {
@@ -140,8 +142,9 @@ function BOMForm({ mode, bom, onBack }) {
       if (!masterTools || masterTools.length === 0) fetchTools(orgId);
       if (!masterMachines || masterMachines.length === 0) fetchMachines(orgId);
       if (!employees || employees.length === 0) fetchEmployees(orgId);
+      if (!inwardEntries || inwardEntries.length === 0) fetchInwards(orgId);
     }
-  }, [currentOrg?.id, fetchBOMs, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees, boms?.length, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length, employees?.length]);
+  }, [currentOrg?.id, fetchBOMs, fetchItems, fetchCompounds, fetchTools, fetchMachines, fetchEmployees, fetchInwards, boms?.length, masterItems?.length, masterCompounds?.length, masterTools?.length, masterMachines?.length, employees?.length, inwardEntries?.length]);
 
   const [inserts, setInserts] = useState(bom?.inserts ? [...bom.inserts] : []);
   const [packaging, setPackaging] = useState(bom?.packaging ? [...bom.packaging] : []);
@@ -594,6 +597,13 @@ function BOMForm({ mode, bom, onBack }) {
         }
       }
     }
+
+    // Auto-calculate Compound Rate (Cost per 1 kg)
+    const totalCost = parseFloat(compound.totalCost ?? compound.total_cost) || 0;
+    const totalOut = parseFloat(compound.totalOutput ?? compound.total_output) || 0;
+    if (totalOut > 0 && totalCost > 0) {
+      setValue('compoundRate', String((totalCost / totalOut).toFixed(2)), { shouldValidate: true, shouldDirty: true });
+    }
   };
 
   // Auto-fetch compound details whenever compoundCode is selected or loaded
@@ -654,6 +664,15 @@ function BOMForm({ mode, bom, onBack }) {
           setValue('grossWeight', grossStr, { shouldValidate: true, shouldDirty: true });
         }
       }
+      // Sync Compound Rate
+      const totalCost = parseFloat(found.totalCost ?? found.total_cost) || 0;
+      const totalOut = parseFloat(found.totalOutput ?? found.total_output) || 0;
+      if (totalOut > 0 && totalCost > 0) {
+        const rateStr = String((totalCost / totalOut).toFixed(2));
+        if (String(watchAll.compoundRate ?? '') !== rateStr && (!watchAll.compoundRate || !bom)) {
+          setValue('compoundRate', rateStr, { shouldValidate: true, shouldDirty: true });
+        }
+      }
     } else if (currentOrg?.id) {
       supabase
         .from('compound_master')
@@ -709,6 +728,62 @@ function BOMForm({ mode, bom, onBack }) {
   };
 
   // Dynamic Inserts Helpers
+  const getInwardPriceForItem = (itemName) => {
+    const cleanName = String(itemName || '').trim().toLowerCase();
+    if (inwardEntries && inwardEntries.length > 0) {
+      const sortedEntries = [...inwardEntries].sort((a, b) => {
+        return new Date(b.receipt_date || b.created_at || 0).getTime() - new Date(a.receipt_date || a.created_at || 0).getTime();
+      });
+      for (const entry of sortedEntries) {
+        if (entry.materials && Array.isArray(entry.materials)) {
+          const mat = entry.materials.find(m => 
+            String(m.description || m.particular || m.itemName || '').trim().toLowerCase() === cleanName &&
+            m.price !== undefined && m.price !== null && String(m.price).trim() !== ''
+          );
+          if (mat) return String(mat.price).trim();
+        }
+      }
+    }
+    const im = (masterItems || []).find(i => 
+      String(i.itemName || '').trim().toLowerCase() === cleanName || 
+      String(i.customerItemCode || '').trim().toLowerCase() === cleanName ||
+      String(i.partName || '').trim().toLowerCase() === cleanName
+    );
+    return im?.itemPrice ? String(im.itemPrice).trim() : null;
+  };
+
+  const handleInsertPartNameChange = (id, value) => {
+    const match = masterItems?.find(it => 
+      (it.itemName && it.itemName.toLowerCase() === value.toLowerCase()) || 
+      (it.customerItemCode && it.customerItemCode.toLowerCase() === value.toLowerCase()) ||
+      (it.partName && it.partName.toLowerCase() === value.toLowerCase())
+    );
+    
+    setInserts(prev => prev.map(item => {
+      if (item.id === id) {
+        if (match) {
+          const inwardPrice = getInwardPriceForItem(value) || match.itemPrice;
+          return {
+            ...item,
+            partName: value,
+            material: match.aliasName || '',
+            primer: match.itemCategory || '',
+            unitCost: parseFloat(inwardPrice) || 0
+          };
+        } else {
+          return {
+            ...item,
+            partName: value,
+            material: '',
+            primer: '',
+            unitCost: 0
+          };
+        }
+      }
+      return item;
+    }));
+  };
+
   const addInsertRow = () => {
     setInserts(prev => [
       ...prev,
@@ -723,10 +798,42 @@ function BOMForm({ mode, bom, onBack }) {
   };
 
   // Dynamic Packaging Helpers
+  const handlePackagingNameChange = (id, value) => {
+    const match = masterItems?.find(it => 
+      (it.itemName && it.itemName.toLowerCase() === value.toLowerCase()) || 
+      (it.customerItemCode && it.customerItemCode.toLowerCase() === value.toLowerCase())
+    );
+    
+    setPackaging(prev => prev.map(item => {
+      if (item.id === id) {
+        if (match) {
+          const inwardPrice = getInwardPriceForItem(value) || match.itemPrice;
+          const uCost = parseFloat(inwardPrice) || 0;
+          const qty = parseFloat(item.packQty || 1);
+          return { ...item, materialName: value, unitCost: uCost, costPerPack: uCost * qty };
+        } else {
+          return { ...item, materialName: value, unitCost: 0, costPerPack: 0 };
+        }
+      }
+      return item;
+    }));
+  };
+
+  const updatePackagingQty = (id, packQty) => {
+    setPackaging(prev => prev.map(item => {
+      if (item.id === id) {
+        const qty = parseFloat(packQty) || 0;
+        const uCost = parseFloat(item.unitCost) || 0;
+        return { ...item, packQty, costPerPack: qty * uCost };
+      }
+      return item;
+    }));
+  };
+
   const addPackagingRow = () => {
     setPackaging(prev => [
       ...prev,
-      { id: `pkg-${Date.now()}`, materialName: '', packQty: 100, costPerPack: 0 }
+      { id: `pkg-${Date.now()}`, materialName: '', packQty: 100, costPerPack: 0, unitCost: 0 }
     ]);
   };
   const updatePackaging = (id, field, val) => {
@@ -759,7 +866,13 @@ function BOMForm({ mode, bom, onBack }) {
   const liveCost = useMemo(() => {
     const grossKg = parseFloat(watchAll.grossWeight) || 0;
     const ratePerKg = parseFloat(watchAll.compoundRate) || 0;
-    const rubberCost = grossKg * ratePerKg;
+    const shotWeightKg = parseFloat(watchAll.toolSortWeight) || 0;
+    const cavities = parseFloat(watchAll.cavities) || 1;
+    
+    // Calculate based on Shot Weight and Cavities if shot weight is available
+    const rubberCost = shotWeightKg > 0 
+      ? (ratePerKg * shotWeightKg) / cavities 
+      : (grossKg * ratePerKg);
 
     const insertsCost = inserts.reduce((acc, ins) => {
       const q = parseFloat(ins.qty) || 0;
@@ -1351,13 +1464,29 @@ function BOMForm({ mode, bom, onBack }) {
                         return (
                           <tr key={ins.id} className="hover:bg-slate-50/50">
                             <td className="p-2">
-                              <input
-                                disabled={isView}
-                                value={ins.partName}
-                                onChange={(e) => updateInsert(ins.id, 'partName', e.target.value)}
-                                placeholder="e.g. Inner MS Bush OD 22mm"
-                                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500"
-                              />
+                              <Select
+                                isDisabled={isView}
+                                aria-label="Insert Name"
+                                value={ins.partName || null}
+                                onChange={(val) => handleInsertPartNameChange(ins.id, val)}
+                                className="w-full"
+                              >
+                                <Select.Trigger className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500 flex items-center justify-between bg-white h-[30px]">
+                                  <Select.Value placeholder="Select Insert" />
+                                </Select.Trigger>
+                                <Select.Popover>
+                                  <ListBox>
+                                    {masterItems?.filter(it => it.itemName || it.customerItemCode || it.partName).map(it => {
+                                      const val = it.customerItemName || it.itemName || it.partName;
+                                      return (
+                                        <ListBox.Item key={it.id} id={val} textValue={val}>
+                                          <span className="font-bold text-slate-800 text-xs">{val}</span>
+                                        </ListBox.Item>
+                                      );
+                                    })}
+                                  </ListBox>
+                                </Select.Popover>
+                              </Select>
                             </td>
                             <td className="p-2">
                               <input
@@ -1549,13 +1678,29 @@ function BOMForm({ mode, bom, onBack }) {
                         return (
                           <tr key={pkg.id} className="hover:bg-slate-50/50">
                             <td className="p-2">
-                              <input
-                                disabled={isView}
-                                value={pkg.materialName}
-                                onChange={(e) => updatePackaging(pkg.id, 'materialName', e.target.value)}
-                                placeholder="e.g. 5-Ply Corrugated Box (400x300x200mm)"
-                                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500"
-                              />
+                              <Select
+                                isDisabled={isView}
+                                aria-label="Packaging Material"
+                                value={pkg.materialName || null}
+                                onChange={(val) => handlePackagingNameChange(pkg.id, val)}
+                                className="w-full"
+                              >
+                                <Select.Trigger className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500 flex items-center justify-between bg-white h-[30px]">
+                                  <Select.Value placeholder="Select Material" />
+                                </Select.Trigger>
+                                <Select.Popover>
+                                  <ListBox>
+                                    {masterItems?.filter(it => it.itemName || it.customerItemCode || it.partName).map(it => {
+                                      const val = it.customerItemName || it.itemName || it.partName;
+                                      return (
+                                        <ListBox.Item key={it.id} id={val} textValue={val}>
+                                          <span className="font-bold text-slate-800 text-xs">{val}</span>
+                                        </ListBox.Item>
+                                      );
+                                    })}
+                                  </ListBox>
+                                </Select.Popover>
+                              </Select>
                             </td>
                             <td className="p-2">
                               <input
@@ -1563,7 +1708,7 @@ function BOMForm({ mode, bom, onBack }) {
                                 type="number"
                                 min="1"
                                 value={pkg.packQty}
-                                onChange={(e) => updatePackaging(pkg.id, 'packQty', e.target.value)}
+                                onChange={(e) => updatePackagingQty(pkg.id, e.target.value)}
                                 className="w-full px-2 py-1.5 text-center border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500"
                               />
                             </td>
@@ -1954,6 +2099,7 @@ function BOMForm({ mode, bom, onBack }) {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

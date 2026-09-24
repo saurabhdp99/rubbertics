@@ -127,6 +127,7 @@ const compoundMasterSchema = z.object({
   netWeight: z.coerce.number().optional(),
   grossWeight: z.coerce.number().optional(),
   totalCost: z.coerce.number().optional(),
+  compoundRate: z.coerce.number().optional(),
   basePolymer: z.string().optional(),
   hardnessShoreA: z.string().optional(),
   specificGravity: z.string().optional(),
@@ -774,6 +775,8 @@ function FormulationSection({ control, disabled, watch, setValue }) {
     setValue("totalOutput", Number(totalOutput.toFixed(4)));
     setValue("netWeight", Number(netWeight.toFixed(4)));
     setValue("totalCost", Number(totalCostOfCompound.toFixed(2)));
+    const rate = totalOutput > 0 ? totalCostOfCompound / totalOutput : 0;
+    setValue("compoundRate", Number(rate.toFixed(2)));
   }, [totalOutput, netWeight, totalCostOfCompound, setValue]);
 
   const uomOptions = ['kg', 'ltr'];
@@ -1070,13 +1073,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                 <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs font-black text-emerald-900">
                   Total Cost of Compound
                 </td>
-                <td className="py-2.5 px-4">
-                  {totalOutput > 0 && totalCostOfCompound > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-700 whitespace-nowrap bg-white/90 px-2 py-1 rounded-md border border-emerald-300 shadow-xs block text-center" title="Calculated Rate per Unit Output">
-                      ₹{(totalCostOfCompound / totalOutput).toFixed(2)} / {formulationItems[0]?.uom || 'kg'}
-                    </span>
-                  )}
-                </td>
+                <td className="py-2.5 px-4"></td>
                 <td className="py-2.5 px-4">
                   <Controller
                     name="totalCost"
@@ -1100,6 +1097,40 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                 <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-emerald-800 text-xs font-black">
                   INR (₹)
+                </td>
+              </tr>
+
+              <tr className="bg-emerald-100/60 font-black text-slate-800 border-t-2 border-emerald-300">
+                <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs font-black text-emerald-900">
+                  Compound Rate (per {formulationItems[0]?.uom || 'kg'})
+                </td>
+                <td className="py-2.5 px-4"></td>
+                <td className="py-2.5 px-4">
+                  <Controller
+                    name="compoundRate"
+                    control={control}
+                    render={({ field }) => {
+                      const rate = totalOutput > 0 ? totalCostOfCompound / totalOutput : 0;
+                      return (
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700 select-none">₹</span>
+                          <input
+                            type="text"
+                            readOnly
+                            tabIndex={-1}
+                            value={rate > 0 ? Number(rate.toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                            placeholder="0.00"
+                            className="w-full text-xs h-9 rounded-lg border border-emerald-400 pl-6 pr-3 bg-white font-black font-mono text-emerald-900 text-right outline-none cursor-default shadow-md select-none"
+                            title={`Rate per ${formulationItems[0]?.uom || 'kg'}: ₹${rate.toFixed(2)}`}
+                          />
+                        </div>
+                      )
+                    }}
+                  />
+                </td>
+                <td className="py-2.5 px-4"></td>
+                <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-emerald-900 text-xs font-black">
+                  ₹ / {formulationItems[0]?.uom || 'kg'}
                 </td>
               </tr>
             </tbody>
