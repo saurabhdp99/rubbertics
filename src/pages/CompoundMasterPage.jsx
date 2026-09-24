@@ -676,7 +676,14 @@ function FormulationSection({ control, disabled, watch, setValue }) {
 
     // 1. Primary: match from inward entries (ordered newest receipt first)
     if (inwardEntries && inwardEntries.length > 0) {
-      for (const entry of inwardEntries) {
+      // Sort inward entries strictly by receipt_date descending (fallback to created_at)
+      const sortedEntries = [...inwardEntries].sort((a, b) => {
+        const dateA = new Date(a.receipt_date || a.created_at || 0).getTime();
+        const dateB = new Date(b.receipt_date || b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      for (const entry of sortedEntries) {
         if (entry.materials && Array.isArray(entry.materials)) {
           if (cleanCode) {
             const mat = entry.materials.find(
@@ -802,8 +809,9 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                 <th className="py-3 px-4 w-[50px]">#</th>
                 <th className="py-3 px-4 min-w-[240px]">Particular (Ingredient Name)</th>
                 <th className="py-3 px-4 w-[150px]">Item Code</th>
-                <th className="py-3 px-4 w-[130px] text-right">Price</th>
+                <th className="py-3 px-4 w-[130px] text-right">Price (₹)</th>
                 <th className="py-3 px-4 w-[140px]">Quantity</th>
+                <th className="py-3 px-4 w-[140px] text-right">Amount (₹)</th>
                 <th className="py-3 px-4 w-[110px]">PHR</th>
                 <th className="py-3 px-4 w-[120px]">UOM</th>
                 {!disabled && <th className="py-3 px-4 w-[60px] text-center">Action</th>}
@@ -812,7 +820,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
             <tbody className="divide-y divide-slate-100 text-xs">
               {fields.length === 0 ? (
                 <tr>
-                  <td colSpan={disabled ? 7 : 8} className="py-8 text-center text-slate-400 italic">
+                  <td colSpan={disabled ? 8 : 9} className="py-8 text-center text-slate-400 italic">
                     No ingredients added. {!disabled && 'Click "Add Ingredient" above to start building formulation.'}
                   </td>
                 </tr>
@@ -920,6 +928,25 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                       />
                     </td>
                     <td className="py-2.5 px-4">
+                      {(() => {
+                        const q = parseFloat(formulationItems[index]?.quantity) || 0;
+                        const p = parseFloat(formulationItems[index]?.price) || 0;
+                        const amt = q * p;
+                        return (
+                          <input
+                            type="text"
+                            value={amt > 0 ? `₹${amt.toFixed(2)}` : ''}
+                            readOnly
+                            tabIndex={-1}
+                            disabled={disabled}
+                            placeholder="0.00"
+                            className="w-full text-xs h-9 rounded-lg border border-slate-200 px-3 bg-slate-50 text-right font-mono font-bold text-emerald-700 outline-none cursor-default select-none"
+                            title={`Amount: ₹${amt.toFixed(2)}`}
+                          />
+                        );
+                      })()}
+                    </td>
+                    <td className="py-2.5 px-4">
                       <Controller
                         name={`formulation.${index}.phr`}
                         control={control}
@@ -970,6 +997,9 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               <tr className="bg-slate-100/80 font-black text-slate-800 border-t-2 border-slate-200">
                 <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs">Total - Output</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">{totalOutput.toFixed(4)}</td>
+                <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">
+                  {totalCostOfCompound > 0 && `₹${totalCostOfCompound.toFixed(2)}`}
+                </td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs">
                   {formulationItems[0]?.uom || 'kg'}
@@ -996,12 +1026,14 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                   />
                 </td>
                 <td className="py-2.5 px-4"></td>
+                <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-2.5 px-4 text-slate-500 font-bold">%</td>
               </tr>
 
               <tr className="bg-emerald-50/50 font-black text-slate-800 border-t border-emerald-100">
                 <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs text-emerald-800">Net Weight</td>
                 <td className="py-3 px-4 text-right font-black text-emerald-800 text-sm">{netWeight.toFixed(4)}</td>
+                <td className="py-3 px-4"></td>
                 <td className="py-3 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-slate-500 text-xs font-bold">
                   {formulationItems[0]?.uom || 'kg'}
@@ -1028,6 +1060,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                   />
                 </td>
                 <td className="py-2.5 px-4"></td>
+                <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-2.5 px-4 text-slate-500 text-xs font-bold">
                   {formulationItems[0]?.uom || 'kg'}
                 </td>
@@ -1036,6 +1069,13 @@ function FormulationSection({ control, disabled, watch, setValue }) {
               <tr className="bg-emerald-50/70 font-bold text-slate-800 border-t-2 border-emerald-200">
                 <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-xs font-black text-emerald-900">
                   Total Cost of Compound
+                </td>
+                <td className="py-2.5 px-4">
+                  {totalOutput > 0 && totalCostOfCompound > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-700 whitespace-nowrap bg-white/90 px-2 py-1 rounded-md border border-emerald-300 shadow-xs block text-center" title="Calculated Rate per Unit Output">
+                      ₹{(totalCostOfCompound / totalOutput).toFixed(2)} / {formulationItems[0]?.uom || 'kg'}
+                    </span>
+                  )}
                 </td>
                 <td className="py-2.5 px-4">
                   <Controller
@@ -1057,13 +1097,7 @@ function FormulationSection({ control, disabled, watch, setValue }) {
                     )}
                   />
                 </td>
-                <td className="py-2.5 px-4">
-                  {totalOutput > 0 && totalCostOfCompound > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-700 whitespace-nowrap bg-white/90 px-2 py-1 rounded-md border border-emerald-300 shadow-xs" title="Calculated Rate per Unit Output">
-                      ₹{(totalCostOfCompound / totalOutput).toFixed(2)} / {formulationItems[0]?.uom || 'kg'}
-                    </span>
-                  )}
-                </td>
+                <td className="py-2.5 px-4"></td>
                 <td colSpan={disabled ? 1 : 2} className="py-3 px-4 text-emerald-800 text-xs font-black">
                   INR (₹)
                 </td>
