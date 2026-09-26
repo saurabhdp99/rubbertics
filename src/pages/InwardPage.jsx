@@ -136,56 +136,56 @@ const materialSchema = z.object({
 
 const inwardSchema = z.object({
   grn_no: z.string().min(1, "GRN No is required"),
-  receipt_date: z.string().optional(),
-  receipt_time: z.string().optional(),
-  vehicle_no: z.string().optional(),
-  total_packages: z.string().optional(),
+  receipt_date: z.string().optional().nullable(),
+  receipt_time: z.string().optional().nullable(),
+  vehicle_no: z.string().optional().nullable(),
+  total_packages: z.union([z.string(), z.number()]).optional().nullable(),
   vendor_name: z.string().min(1, "Vendor name is required"),
-  vendor_code: z.string().optional(),
-  po_no: z.string().optional(),
-  po_date: z.string().optional(),
-  non_po_approval: z.string().optional(),
-  invoice_no: z.string().optional(),
-  invoice_date: z.string().optional(),
-  transporter: z.string().optional(),
-  lr_gr_no: z.string().optional(),
-  lr_gr_date: z.string().optional(),
+  vendor_code: z.string().optional().nullable(),
+  po_no: z.string().optional().nullable(),
+  po_date: z.string().optional().nullable(),
+  non_po_approval: z.string().optional().nullable(),
+  invoice_no: z.string().optional().nullable(),
+  invoice_date: z.string().optional().nullable(),
+  transporter: z.string().optional().nullable(),
+  lr_gr_no: z.string().optional().nullable(),
+  lr_gr_date: z.string().optional().nullable(),
 
-  materials: z.array(materialSchema).optional(),
+  materials: z.array(materialSchema).optional().nullable(),
 
-  invoice_received: z.string().optional(),
-  challan_received: z.string().optional(),
-  tc_coa_received: z.string().optional(),
-  packaging_condition: z.string().optional(),
-  qc_status: z.string().optional(),
-  tc_coa_no: z.string().optional(),
-  tc_coa_date: z.string().optional(),
-  discrepancy_type: z.string().optional(),
-  discrepancy_note_no: z.string().optional(),
-  storage_location: z.string().optional(),
-  quarantine_required: z.string().optional(),
-  final_qc_decision_by: z.string().optional(),
-  detailed_qc_remarks: z.string().optional(),
+  invoice_received: z.string().optional().nullable(),
+  challan_received: z.string().optional().nullable(),
+  tc_coa_received: z.string().optional().nullable(),
+  packaging_condition: z.string().optional().nullable(),
+  qc_status: z.string().optional().nullable(),
+  tc_coa_no: z.string().optional().nullable(),
+  tc_coa_date: z.string().optional().nullable(),
+  discrepancy_type: z.string().optional().nullable(),
+  discrepancy_note_no: z.string().optional().nullable(),
+  storage_location: z.string().optional().nullable(),
+  quarantine_required: z.string().optional().nullable(),
+  final_qc_decision_by: z.string().optional().nullable(),
+  detailed_qc_remarks: z.string().optional().nullable(),
 
-  qc_verified_status: z.string().optional(),
-  qc_verified_name: z.string().optional(),
-  qc_verified_datetime: z.string().optional(),
-  qc_verified_remarks: z.string().optional(),
+  qc_verified_status: z.string().optional().nullable(),
+  qc_verified_name: z.string().optional().nullable(),
+  qc_verified_datetime: z.string().optional().nullable(),
+  qc_verified_remarks: z.string().optional().nullable(),
 
-  qty_verified_status: z.string().optional(),
-  qty_verified_name: z.string().optional(),
-  qty_verified_datetime: z.string().optional(),
-  qty_verified_remarks: z.string().optional(),
+  qty_verified_status: z.string().optional().nullable(),
+  qty_verified_name: z.string().optional().nullable(),
+  qty_verified_datetime: z.string().optional().nullable(),
+  qty_verified_remarks: z.string().optional().nullable(),
 
-  recv_verified_status: z.string().optional(),
-  recv_verified_name: z.string().optional(),
-  recv_verified_datetime: z.string().optional(),
-  recv_verified_remarks: z.string().optional(),
+  recv_verified_status: z.string().optional().nullable(),
+  recv_verified_name: z.string().optional().nullable(),
+  recv_verified_datetime: z.string().optional().nullable(),
+  recv_verified_remarks: z.string().optional().nullable(),
 
-  auth_verified_status: z.string().optional(),
-  auth_verified_name: z.string().optional(),
-  auth_verified_datetime: z.string().optional(),
-  auth_verified_remarks: z.string().optional(),
+  auth_verified_status: z.string().optional().nullable(),
+  auth_verified_name: z.string().optional().nullable(),
+  auth_verified_datetime: z.string().optional().nullable(),
+  auth_verified_remarks: z.string().optional().nullable(),
 });
 
 const baseInputClass =
@@ -847,10 +847,11 @@ function InwardForm({ mode, entry, onBack }) {
     parties
       .filter((p) => p.partyCategory === "Vendor" && p.partyName)
       .forEach((p) => {
-        if (!uniqueVendors.has(p.partyName)) {
-          uniqueVendors.set(p.partyName, {
-            value: p.partyName,
-            label: p.partyName,
+        const pName = p.partyName.trim();
+        if (!uniqueVendors.has(pName)) {
+          uniqueVendors.set(pName, {
+            value: pName,
+            label: pName,
             code: p.partyCode || "",
           });
         }
@@ -858,15 +859,15 @@ function InwardForm({ mode, entry, onBack }) {
       
     const options = Array.from(uniqueVendors.values());
 
-    if (
-      entry?.vendor_name &&
-      !options.some((o) => o.value === entry.vendor_name)
-    ) {
-      options.push({
-        value: entry.vendor_name,
-        label: entry.vendor_name,
-        code: entry.vendor_code || "",
-      });
+    if (entry?.vendor_name) {
+      const eName = entry.vendor_name.trim();
+      if (!options.some((o) => o.value === eName)) {
+        options.push({
+          value: eName,
+          label: eName,
+          code: entry.vendor_code || "",
+        });
+      }
     }
     return options;
   }, [parties, entry]);
@@ -899,16 +900,19 @@ function InwardForm({ mode, entry, onBack }) {
 
   const poOptions = React.useMemo(() => {
     if (!vendorName || !purchaseOrders) return [];
+    const vName = vendorName.trim();
     return purchaseOrders
-      .filter((o) => o.vendorName === vendorName && o.npplPoNo)
-      .map((o) => o.npplPoNo)
+      .filter((o) => o.vendorName?.trim() === vName && o.npplPoNo)
+      .map((o) => o.npplPoNo.trim())
       .filter((v, i, a) => a.indexOf(v) === i);
   }, [vendorName, purchaseOrders]);
 
   const poItems = React.useMemo(() => {
     if (!poNo || !vendorName || !purchaseOrders) return [];
+    const pNo = poNo.trim();
+    const vName = vendorName.trim();
     const matchedPO = purchaseOrders.find(
-      (o) => o.npplPoNo === poNo && o.vendorName === vendorName,
+      (o) => o.npplPoNo?.trim() === pNo && o.vendorName?.trim() === vName,
     );
     return matchedPO?.items || [];
   }, [poNo, vendorName, purchaseOrders]);
@@ -1748,6 +1752,89 @@ export default function InwardPage() {
     );
   });
 
+  const exportCsv = () => {
+    if (!filteredEntries || filteredEntries.length === 0) {
+      alert("No GRN entries to export.");
+      return;
+    }
+
+    const headers = [
+      "GRN No",
+      "Receipt Date",
+      "Receipt Time",
+      "Vendor Name",
+      "Vehicle No",
+      "PO No",
+      "Invoice No",
+      "Transporter",
+      "Item Code",
+      "Description",
+      "Batch No",
+      "Mfg Date",
+      "UOM",
+      "Received Qty",
+      "Accepted Qty",
+      "Rejected Qty",
+      "QC Status",
+      "Detailed QC Remarks"
+    ];
+
+    const escapeCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      const cleanVal = String(val).replace(/\r\n/g, " ").replace(/[\r\n]/g, " ");
+      return `"${cleanVal.replace(/"/g, '""')}"`;
+    };
+
+    const rows = [];
+    filteredEntries.forEach((entry) => {
+      let materials = entry.materials || [];
+      if (materials.length === 0) {
+        materials = [{
+          item_code: "",
+          description: entry.description || "",
+          batch_no: "",
+          mfg_date: "",
+          uom: "",
+          received_qty: entry.quantity || "",
+          accepted_qty: "",
+          rejected_qty: ""
+        }];
+      }
+
+      materials.forEach((mat) => {
+        rows.push([
+          entry.grn_no || "",
+          entry.receipt_date || entry.date || "",
+          entry.receipt_time || "",
+          entry.vendor_name || entry.party_name || "",
+          entry.vehicle_no || "",
+          entry.po_no || "",
+          entry.invoice_no || "",
+          entry.transporter || "",
+          mat.item_code || "",
+          mat.description || "",
+          mat.batch_no || "",
+          mat.mfg_date || "",
+          mat.uom || "",
+          mat.received_qty || "",
+          mat.accepted_qty || "",
+          mat.rejected_qty || "",
+          entry.qc_verified_status || "",
+          entry.detailed_qc_remarks || ""
+        ].map(escapeCell).join(","));
+      });
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Inward_GRN_Export_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const totalQuantity = filteredEntries.reduce((sum, row) => {
     const qty = row.materials
       ? row.materials.reduce((acc, m) => acc + Number(m.received_qty || 0), 0)
@@ -1996,6 +2083,7 @@ export default function InwardPage() {
           showFilter={true}
           addButtonText="New GRN"
           onAdd={handleAdd}
+          onExport={exportCsv}
         />
 
         <DataTable

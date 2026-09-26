@@ -299,8 +299,70 @@ function PurchaseOrderForm({ mode, order, onBack }) {
 
   useEffect(() => { reset(getInitialValues()); }, [order, mode]);
 
+  useEffect(() => { reset(getInitialValues()); }, [order, mode]);
+
   const isView = mode === 'view';
   const isAdd  = mode === 'add';
+
+  // Safely backfill missing fields (legacy data) from Item Master without overwriting existing data
+  useEffect(() => {
+    if (!isAdd && freshItems.length > 0) {
+      const currentItems = watch('items') || [];
+      let changed = false;
+      const patchedItems = currentItems.map(item => {
+        let matchedItem = null;
+        if (item.partNo) {
+          matchedItem = freshItems.find(i => i.item_code === item.partNo || i.part_no === item.partNo);
+        }
+        if (!matchedItem && item.productName) {
+          matchedItem = freshItems.find(i => i.item_name === item.productName || i.part_name === item.productName);
+        }
+
+        if (matchedItem) {
+          let newItem = { ...item };
+          let itemChanged = false;
+          
+          const masterName = matchedItem.item_name || matchedItem.part_name;
+          if (masterName && newItem.productName !== masterName) {
+            newItem.productName = masterName;
+            itemChanged = true;
+          }
+          const masterPart = matchedItem.item_code || matchedItem.part_no;
+          if (masterPart && newItem.partNo !== masterPart) {
+            newItem.partNo = masterPart;
+            itemChanged = true;
+          }
+          if (matchedItem.item_hsn && newItem.hsnCode !== matchedItem.item_hsn) {
+            newItem.hsnCode = matchedItem.item_hsn;
+            itemChanged = true;
+          }
+          const masterUom = matchedItem.item_net_weight_uom || matchedItem.uom;
+          if (masterUom && newItem.uom !== masterUom) {
+            newItem.uom = masterUom;
+            itemChanged = true;
+          }
+          // Intentionally omitting price auto-sync so we don't accidentally overwrite negotiated prices,
+          // unless price is completely blank
+          if (!newItem.price && matchedItem.item_price !== null && matchedItem.item_price !== undefined) {
+            newItem.price = Number(matchedItem.item_price);
+            itemChanged = true;
+          }
+          
+          if (itemChanged) {
+            changed = true;
+            return newItem;
+          }
+        }
+        return item;
+      });
+      if (changed && !isView) {
+        setValue('items', patchedItems, { shouldDirty: true });
+      } else if (changed && isView) {
+        // Just update form state visually if in view mode
+        setValue('items', patchedItems);
+      }
+    }
+  }, [freshItems, isAdd, isView]);
 
   // All parties (or filter by Supplier category if set)
   const vendorParties = (partyMasterItems || []).filter(p =>
@@ -434,25 +496,27 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   render={({ field: { onChange, value } }) => (
                     <Field label="Vendor Name" required error={errors.vendorName?.message}>
                       <Select
+                        selectedKeys={value ? new Set([value]) : new Set()}
                         value={value || null}
                         onChange={async val => {
                           if (!val) return;
+                          const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : Array.from(val)[0] || val);
                           onChange(val);
                           if (currentOrg?.id) {
                             const { data, error } = await supabase
                               .from('party_master')
                               .select('address')
-                              .eq('party_name', val)
+                              .eq('party_name', actualVal)
                               .eq('org_id', currentOrg.id)
                               .maybeSingle();
                             if (!error && data) {
                               setValue('vendorAddress', data.address || '');
                             } else {
-                              const party = vendorParties.find(p => p.partyName === val);
+                              const party = vendorParties.find(p => p.partyName === actualVal);
                               setValue('vendorAddress', party?.address || '');
                             }
                           } else {
-                            const party = vendorParties.find(p => p.partyName === val);
+                            const party = vendorParties.find(p => p.partyName === actualVal);
                             setValue('vendorAddress', party?.address || '');
                           }
                         }}
@@ -651,12 +715,14 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                                 />
                               ) : (
                                 <Select
+                                  selectedKeys={value ? new Set([value]) : new Set()}
                                   value={value || null}
                                   onChange={(val) => {
                                     if (!val) return;
+                                    const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : Array.from(val)[0] || val);
                                     onChange(val);
 
-                                    const matchedItem = freshItems.find(i => (i.item_name === val || i.part_name === val));
+                                    const matchedItem = freshItems.find(i => (i.item_name === actualVal || i.part_name === actualVal));
                                     if (matchedItem) {
                                       const pNo = matchedItem.item_code || matchedItem.part_no || '';
                                       if (pNo) {
@@ -681,7 +747,10 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                                   </Select.Trigger>
                                   <Select.Popover>
                                     <ListBox>
-                                      {Array.from(new Set(freshItems.map(itm => itm.item_name || itm.part_name).filter(Boolean))).map(name => (
+                                      {Array.from(new Set([
+                                        ...freshItems.map(itm => itm.item_name || itm.part_name).filter(Boolean),
+                                        ...(value ? [value] : [])
+                                      ])).map(name => (
                                         <ListBox.Item key={name} id={name} textValue={name}>
                                           <div className="flex flex-col gap-0.5 py-0.5">
                                             <span className="font-bold text-slate-800">{name}</span>
