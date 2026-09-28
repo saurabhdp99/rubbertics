@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
@@ -247,6 +247,156 @@ function ItemSchedules({ control, itemIndex, isView, inputCls, errors }) {
   );
 }
 
+// ── Searchable Vendor Combobox ────────────────────────────────────────────────
+function VendorCombobox({
+  value,
+  onChange,
+  onSelectParty,
+  parties = [],
+  disabled = false,
+  inputCls = '',
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredParties = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return parties;
+    return parties.filter(p => {
+      const name = (p.partyName || '').toLowerCase();
+      const code = (p.partyCode || '').toLowerCase();
+      const category = (p.partyCategory || '').toLowerCase();
+      return name.includes(q) || code.includes(q) || category.includes(q);
+    });
+  }, [parties, search]);
+
+  const handleSelect = (party) => {
+    onChange(party.partyName);
+    onSelectParty?.(party);
+    setSearch('');
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={isOpen ? search : (value || '')}
+          disabled={disabled}
+          placeholder="Search vendor name, code..."
+          onFocus={() => {
+            if (!disabled) {
+              setSearch(value || '');
+              setIsOpen(true);
+            }
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSearch(val);
+            onChange(val);
+            if (!isOpen) setIsOpen(true);
+          }}
+          className={`${inputCls} px-4 py-3 h-[46px] pr-16`}
+          aria-label="Vendor Name"
+        />
+        <div className="absolute right-2 flex items-center gap-1">
+          {value && !disabled && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                onSelectParty?.(null);
+                setSearch('');
+              }}
+              className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+              title="Clear"
+            >
+              <X size={15} />
+            </button>
+          )}
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            onClick={() => {
+              if (!disabled) {
+                if (!isOpen) setSearch(value || '');
+                setIsOpen(!isOpen);
+              }
+            }}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+            title="Toggle list"
+          >
+            <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span>Available Vendors & Parties ({filteredParties.length})</span>
+            {search && <span className="text-[10px] text-indigo-500 font-medium">Filtering by "{search}"</span>}
+          </div>
+          <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 p-1 custom-scrollbar">
+            {filteredParties.length === 0 ? (
+              <div className="py-4 px-3 text-center text-xs text-slate-400">
+                No matching vendor found. Custom name allowed.
+              </div>
+            ) : (
+              filteredParties.map((p, idx) => {
+                const isSelected = p.partyName === value;
+                return (
+                  <button
+                    key={p.id || `${p.partyName}-${p.partyCode || idx}`}
+                    type="button"
+                    onClick={() => handleSelect(p)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between gap-3 transition-colors ${
+                      isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[13px] font-bold truncate text-slate-800">{p.partyName}</span>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                        {p.partyCode && <span className="font-mono">{p.partyCode}</span>}
+                        {p.city && <span>• {p.city}</span>}
+                        {p.state && <span>({p.state})</span>}
+                      </div>
+                    </div>
+                    {p.partyCategory && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                        p.partyCategory === 'Vendor'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : p.partyCategory === 'Supplier'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {p.partyCategory}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Purchase Order Form ──────────────────────────────────────────────────────
 function PurchaseOrderForm({ mode, order, onBack }) {
   const {
@@ -254,7 +404,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
     addPurchaseOrderLookupOption, renamePurchaseOrderLookupOption, deletePurchaseOrderLookupOption,
     openDeleteConfirm,
   } = usePurchaseOrderStore();
-  const { parties: partyMasterItems } = usePartyMasterStore();
+  const { parties: partyMasterItems, fetchParties } = usePartyMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
   const [freshItems, setFreshItems] = useState([]);
@@ -262,6 +412,7 @@ function PurchaseOrderForm({ mode, order, onBack }) {
   useEffect(() => {
     const fetchItems = async () => {
       if (currentOrg?.id) {
+        fetchParties(currentOrg.id);
         const { data, error } = await supabase
           .from('item_master')
           .select('item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
@@ -364,10 +515,17 @@ function PurchaseOrderForm({ mode, order, onBack }) {
     }
   }, [freshItems, isAdd, isView]);
 
-  // All parties (or filter by Supplier category if set)
-  const vendorParties = (partyMasterItems || []).filter(p =>
-    !p.partyCategory || p.partyCategory === 'Supplier' || p.partyCategory === 'Vendor' || p.partyCategory === 'Customer' || true
-  );
+  // All parties sorted alphabetically, with Vendor and Supplier prioritized
+  const vendorParties = useMemo(() => {
+    const list = [...(partyMasterItems || [])].filter(p => p.partyName);
+    return list.sort((a, b) => {
+      const aIsVendor = a.partyCategory === 'Vendor' || a.partyCategory === 'Supplier';
+      const bIsVendor = b.partyCategory === 'Vendor' || b.partyCategory === 'Supplier';
+      if (aIsVendor && !bIsVendor) return -1;
+      if (!aIsVendor && bIsVendor) return 1;
+      return (a.partyName || '').localeCompare(b.partyName || '', undefined, { sensitivity: 'base' });
+    });
+  }, [partyMasterItems]);
 
   const onSubmit = async (data) => {
     const finalForm = { ...data };
@@ -495,51 +653,32 @@ function PurchaseOrderForm({ mode, order, onBack }) {
                   name="vendorName"
                   render={({ field: { onChange, value } }) => (
                     <Field label="Vendor Name" required error={errors.vendorName?.message}>
-                      <Select
-                        selectedKeys={value ? new Set([value]) : new Set()}
-                        value={value || null}
-                        onChange={async val => {
-                          if (!val) return;
-                          const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : Array.from(val)[0] || val);
+                      <VendorCombobox
+                        value={value}
+                        onChange={(val) => {
                           onChange(val);
-                          if (currentOrg?.id) {
-                            const { data, error } = await supabase
-                              .from('party_master')
-                              .select('address')
-                              .eq('party_name', actualVal)
-                              .eq('org_id', currentOrg.id)
-                              .maybeSingle();
-                            if (!error && data) {
-                              setValue('vendorAddress', data.address || '');
-                            } else {
-                              const party = vendorParties.find(p => p.partyName === actualVal);
-                              setValue('vendorAddress', party?.address || '');
-                            }
-                          } else {
-                            const party = vendorParties.find(p => p.partyName === actualVal);
-                            setValue('vendorAddress', party?.address || '');
+                          const matched = vendorParties.find(p => p.partyName === val);
+                          if (matched?.address) {
+                            setValue('vendorAddress', matched.address, { shouldDirty: true });
                           }
                         }}
-                        isDisabled={isView}
-                        className="w-full"
-                        aria-label="Vendor Name"
-                      >
-                        <Select.Trigger className={`${inputCls} px-4 py-3 h-[46px] flex items-center`}>
-                          <Select.Value placeholder="Select Vendor" />
-                        </Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            {vendorParties.map(p => (
-                              <ListBox.Item key={p.partyName} id={p.partyName} textValue={p.partyName}>
-                                <div className="flex flex-col gap-0.5 py-0.5">
-                                  <span className="font-bold text-slate-800">{p.partyName}</span>
-                                  {p.partyCategory && <span className="text-xs text-slate-400">{p.partyCategory}</span>}
-                                </div>
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
+                        onSelectParty={(party) => {
+                          if (party?.address) {
+                            setValue('vendorAddress', party.address, { shouldDirty: true });
+                          } else if (!party) {
+                            setValue('vendorAddress', '', { shouldDirty: true });
+                          }
+                          if (party?.paymentTerms && !watch('paymentTerms')) {
+                            setValue('paymentTerms', party.paymentTerms, { shouldDirty: true });
+                          }
+                          if (party?.deliveryTerms && !watch('deliveryTerms')) {
+                            setValue('deliveryTerms', party.deliveryTerms, { shouldDirty: true });
+                          }
+                        }}
+                        parties={vendorParties}
+                        disabled={isView}
+                        inputCls={inputCls}
+                      />
                     </Field>
                   )}
                 />
