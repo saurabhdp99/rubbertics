@@ -23,7 +23,9 @@ import {
   ClipboardCheck,
   ShieldCheck,
   FileSpreadsheet,
+  Printer,
 } from "lucide-react";
+import InwardGrnPdfModal from "../components/inward/InwardGrnPdfModal";
 import {
   Input,
   Spinner,
@@ -136,7 +138,7 @@ const materialSchema = z.object({
 
 const inwardSchema = z.object({
   grn_no: z.string().min(1, "GRN No is required"),
-  receipt_date: z.string().optional().nullable(),
+  receipt_date: z.string().min(1, "Receipt / Creation Date is required"),
   receipt_time: z.string().optional().nullable(),
   vehicle_no: z.string().optional().nullable(),
   total_packages: z.union([z.string(), z.number()]).optional().nullable(),
@@ -230,14 +232,18 @@ function Field({ label, children, required, error, colClass = "col-span-1" }) {
 
 function TableInput({ field, isView, align = "left", placeholder = "", type = "text", ...props }) {
   return (
-    <Input
-      {...field}
+    <input
       type={type}
       value={field.value ?? ""}
       onChange={(e) => field.onChange(e.target.value)}
       placeholder={placeholder}
       disabled={isView}
-      className={`w-full h-9 px-2 text-[12px] font-medium border border-transparent hover:border-slate-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 disabled:text-slate-600 text-${align} ${isView ? "bg-transparent" : "bg-white"}`}
+      readOnly={isView}
+      className={`w-full h-9 px-2 text-[12px] font-medium rounded-lg outline-none transition-all disabled:cursor-default text-${align} ${
+        isView
+          ? "bg-transparent border border-transparent text-slate-700"
+          : "bg-white border border-slate-200 hover:border-slate-300 focus:border-emerald-500 focus:ring-1 text-slate-800"
+      }`}
       {...props}
     />
   );
@@ -490,62 +496,68 @@ function MaterialDetailsTable({
                 <Controller
                   control={control}
                   name={`materials.${index}.description`}
-                  render={({ field: { onChange, value } }) =>
-                    isView ? (
-                      <TableInput field={{ value, onChange }} isView={true} />
-                    ) : (
-                      <select
-                        value={value || ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          onChange(val);
-                          if (!val) return;
-                          const matchedItem = poItems.find(
-                            (i) => i.productName === val,
-                          );
-                          if (matchedItem) {
-                            if (matchedItem.partNo)
-                              setValue(
-                                `materials.${index}.item_code`,
-                                matchedItem.partNo,
-                                { shouldValidate: true, shouldDirty: true },
-                              );
-                            if (matchedItem.uom)
-                              setValue(
-                                `materials.${index}.uom`,
-                                matchedItem.uom,
-                                { shouldValidate: true, shouldDirty: true },
-                              );
-                            if (matchedItem.orderQty)
-                              setValue(
-                                `materials.${index}.po_qty`,
-                                matchedItem.orderQty.toString(),
-                                { shouldValidate: true, shouldDirty: true },
-                              );
-                            if (
-                              matchedItem.price !== undefined &&
-                              matchedItem.price !== null &&
-                              matchedItem.price !== ""
-                            ) {
-                              setValue(
-                                `materials.${index}.price`,
-                                matchedItem.price.toString(),
-                                { shouldValidate: true, shouldDirty: true },
-                              );
+                  render={({ field: { onChange, value } }) => {
+                    if (isView) {
+                      return <TableInput field={{ value, onChange }} isView={true} />;
+                    }
+                    const datalistId = `po-products-list-${index}`;
+                    return (
+                      <div className="relative w-full">
+                        <input
+                          list={datalistId}
+                          value={value ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            onChange(val);
+                            if (!val) return;
+                            const matchedItem = poItems.find(
+                              (i) => (i.productName || "").trim().toLowerCase() === val.trim().toLowerCase(),
+                            );
+                            if (matchedItem) {
+                              if (matchedItem.partNo)
+                                setValue(
+                                  `materials.${index}.item_code`,
+                                  matchedItem.partNo,
+                                  { shouldValidate: true, shouldDirty: true },
+                                );
+                              if (matchedItem.uom)
+                                setValue(
+                                  `materials.${index}.uom`,
+                                  matchedItem.uom,
+                                  { shouldValidate: true, shouldDirty: true },
+                                );
+                              if (matchedItem.orderQty)
+                                setValue(
+                                  `materials.${index}.po_qty`,
+                                  matchedItem.orderQty.toString(),
+                                  { shouldValidate: true, shouldDirty: true },
+                                );
+                              if (
+                                matchedItem.price !== undefined &&
+                                matchedItem.price !== null &&
+                                matchedItem.price !== ""
+                              ) {
+                                setValue(
+                                  `materials.${index}.price`,
+                                  matchedItem.price.toString(),
+                                  { shouldValidate: true, shouldDirty: true },
+                                );
+                              }
                             }
-                          }
-                        }}
-                        className="w-full h-9 px-2 text-[12px] font-medium border border-transparent hover:border-slate-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 bg-white cursor-pointer"
-                      >
-                        <option value="">-- Select Product --</option>
-                        {poItems.map((item, i) => (
-                          <option key={i} value={item.productName}>
-                            {item.productName}
-                          </option>
-                        ))}
-                      </select>
-                    )
-                  }
+                          }}
+                          placeholder={poItems.length > 0 ? "Select or enter product..." : "Enter product..."}
+                          className="w-full h-9 px-2 text-[12px] font-medium border border-slate-200 hover:border-slate-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 bg-white text-slate-800 transition-all"
+                        />
+                        <datalist id={datalistId}>
+                          {poItems.map((item, i) => (
+                            <option key={i} value={item.productName}>
+                              {item.partNo ? `${item.partNo} - ${item.productName}` : item.productName}
+                            </option>
+                          ))}
+                        </datalist>
+                      </div>
+                    );
+                  }}
                 />
               </td>
               <td className="p-1 border-r border-slate-100">
@@ -825,7 +837,7 @@ function VerificationTable({ control, isView, employees = [] }) {
   );
 }
 
-function InwardForm({ mode, entry, onBack }) {
+function InwardForm({ mode, entry, onBack, onPrint }) {
   const { addEntry, updateEntry, entries } = useInwardStore();
   const { currentOrg, currentUser } = useAuthStore();
   const { parties, fetchParties } = usePartyMasterStore();
@@ -882,6 +894,32 @@ function InwardForm({ mode, entry, onBack }) {
   const isView = mode === "view";
   const isAdd = mode === "add";
 
+  const normalizedEntry = React.useMemo(() => {
+    if (!entry) return null;
+    let materials = Array.isArray(entry.materials) && entry.materials.length > 0
+      ? entry.materials
+      : [{
+          item_code: entry.item_code || "",
+          description: entry.description || "",
+          batch_no: entry.batch_no || "",
+          mfg_date: entry.mfg_date || "",
+          uom: entry.uom || "KG",
+          pack_size_qty: entry.pack_size_qty || "",
+          no_of_packs: entry.no_of_packs || "",
+          po_qty: entry.po_qty || "",
+          price: entry.price || "",
+          received_qty: entry.quantity || entry.received_qty || "",
+          accepted_qty: entry.accepted_qty || "",
+          rejected_qty: entry.rejected_qty || "",
+          remarks: entry.remarks || "",
+        }];
+    return {
+      ...entry,
+      receipt_date: entry.receipt_date || (entry.created_at ? entry.created_at.split("T")[0] : todayIsoDate()),
+      materials,
+    };
+  }, [entry]);
+
   const {
     control,
     handleSubmit,
@@ -892,7 +930,7 @@ function InwardForm({ mode, entry, onBack }) {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(inwardSchema),
-    defaultValues: entry || EMPTY_ENTRY,
+    defaultValues: normalizedEntry || EMPTY_ENTRY,
   });
 
   const vendorName = watch("vendor_name");
@@ -908,12 +946,17 @@ function InwardForm({ mode, entry, onBack }) {
   }, [vendorName, purchaseOrders]);
 
   const poItems = React.useMemo(() => {
-    if (!poNo || !vendorName || !purchaseOrders) return [];
-    const pNo = poNo.trim();
-    const vName = vendorName.trim();
-    const matchedPO = purchaseOrders.find(
-      (o) => o.npplPoNo?.trim() === pNo && o.vendorName?.trim() === vName,
+    if (!poNo || !purchaseOrders) return [];
+    const pNo = poNo.trim().toLowerCase();
+    const vName = (vendorName || "").trim().toLowerCase();
+    let matchedPO = purchaseOrders.find(
+      (o) => o.npplPoNo?.trim().toLowerCase() === pNo && (!vName || o.vendorName?.trim().toLowerCase() === vName),
     );
+    if (!matchedPO) {
+      matchedPO = purchaseOrders.find(
+        (o) => o.npplPoNo?.trim().toLowerCase() === pNo,
+      );
+    }
     return matchedPO?.items || [];
   }, [poNo, vendorName, purchaseOrders]);
 
@@ -943,7 +986,7 @@ function InwardForm({ mode, entry, onBack }) {
   }, [vendorName, vendorOptions, setValue, getValues, isView]);
 
   useEffect(() => {
-    if (isAdd && (!entry || !entry.grn_no)) {
+    if (isAdd && (!normalizedEntry || !normalizedEntry.grn_no)) {
       const today = new Date();
       const month = today.getMonth();
       const year = today.getFullYear();
@@ -969,11 +1012,11 @@ function InwardForm({ mode, entry, onBack }) {
       const nextNum = (maxNum + 1).toString().padStart(4, "0");
       const nextGrn = `${prefix}${nextNum}`;
 
-      reset({ ...(entry || EMPTY_ENTRY), grn_no: nextGrn });
+      reset({ ...(normalizedEntry || EMPTY_ENTRY), grn_no: nextGrn, receipt_date: todayIsoDate() });
     } else {
-      reset(entry || EMPTY_ENTRY);
+      reset(normalizedEntry || EMPTY_ENTRY);
     }
-  }, [entry, reset, isAdd, entries]);
+  }, [normalizedEntry, reset, isAdd, entries]);
 
   const onSubmit = async (data) => {
     const sanitizeDate = (val) => (val === "" ? null : val);
@@ -982,7 +1025,7 @@ function InwardForm({ mode, entry, onBack }) {
     const sanitizedData = {
       ...data,
       total_packages: sanitizeNumber(data.total_packages),
-      receipt_date: sanitizeDate(data.receipt_date),
+      receipt_date: sanitizeDate(data.receipt_date) || todayIsoDate(),
       receipt_time: sanitizeDate(data.receipt_time),
       po_date: sanitizeDate(data.po_date),
       invoice_date: sanitizeDate(data.invoice_date),
@@ -1042,6 +1085,16 @@ function InwardForm({ mode, entry, onBack }) {
             </div>
           </div>
           <div className="flex gap-3">
+            {entry && (
+              <button
+                type="button"
+                onClick={() => onPrint?.(entry)}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm"
+                title="View / Print GRN PDF"
+              >
+                <Printer size={16} /> View as PDF
+              </button>
+            )}
             <button
               type="button"
               onClick={onBack}
@@ -1118,12 +1171,25 @@ function InwardForm({ mode, entry, onBack }) {
                 control={control}
                 name="receipt_date"
                 render={({ field }) => (
-                  <Field label="Receipt Date">
-                    <CustomDatePicker
-                      field={field}
-                      isView={isView}
-                      label="Receipt Date"
-                    />
+                  <Field
+                    label="Receipt / Creation Date"
+                    required
+                    error={errors.receipt_date?.message}
+                  >
+                    <div className="relative">
+                      <Input
+                        value={field.value || todayIsoDate()}
+                        disabled
+                        readOnly
+                        className={`${inputCls} bg-slate-50 text-slate-600 font-mono cursor-not-allowed`}
+                        placeholder="Current Date"
+                        aria-label="Receipt / Creation Date"
+                      />
+                      <CalendarIcon
+                        size={16}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                      />
+                    </div>
                   </Field>
                 )}
               />
@@ -1682,6 +1748,7 @@ function InwardForm({ mode, entry, onBack }) {
 
 export default function InwardPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [pdfEntry, setPdfEntry] = useState(null);
   const { currentOrg } = useAuthStore();
   const {
     entries,
@@ -1759,6 +1826,7 @@ export default function InwardPage() {
     }
 
     const headers = [
+      "Creation Date",
       "GRN No",
       "Receipt Date",
       "Receipt Time",
@@ -1803,6 +1871,7 @@ export default function InwardPage() {
 
       materials.forEach((mat) => {
         rows.push([
+          entry.created_at ? entry.created_at.split("T")[0] : (entry.receipt_date || entry.date || ""),
           entry.grn_no || "",
           entry.receipt_date || entry.date || "",
           entry.receipt_time || "",
@@ -1844,13 +1913,27 @@ export default function InwardPage() {
 
   const columns = [
     {
-      header: "Date",
+      header: "Creation Date",
+      accessor: "created_at",
+      icon: CalendarIcon,
+      width: "w-[110px]",
+      render: (value, row) => {
+        const d = value ? value.split("T")[0] : (row.created_at ? row.created_at.split("T")[0] : (row.receipt_date || row.date || "-"));
+        return (
+          <span className="font-mono text-[12px] text-slate-700 font-semibold">
+            {d}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Receipt Date",
       accessor: "receipt_date",
       icon: CalendarIcon,
-      width: "w-[100px]",
+      width: "w-[105px]",
       render: (value, row) => (
         <span className="font-mono text-[12px] text-slate-500">
-          {value || row.date}
+          {value || row.date || "-"}
         </span>
       ),
     },
@@ -1989,6 +2072,13 @@ export default function InwardPage() {
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            onClick={() => setPdfEntry(row)}
+            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+            title="View as PDF / Print GRN"
+          >
+            <Printer size={16} />
+          </button>
+          <button
             onClick={() => handleView(row)}
             className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
             title="View Details"
@@ -2016,11 +2106,22 @@ export default function InwardPage() {
 
   if (isModalOpen) {
     return (
-      <InwardForm
-        mode={modalMode}
-        entry={selectedEntry}
-        onBack={() => setModalOpen(false)}
-      />
+      <>
+        <InwardForm
+          mode={modalMode}
+          entry={selectedEntry}
+          onBack={() => setModalOpen(false)}
+          onPrint={(ent) => setPdfEntry(ent)}
+        />
+        {pdfEntry && (
+          <InwardGrnPdfModal
+            isOpen={!!pdfEntry}
+            onClose={() => setPdfEntry(null)}
+            entry={pdfEntry}
+            org={currentOrg}
+          />
+        )}
+      </>
     );
   }
 
@@ -2129,6 +2230,16 @@ export default function InwardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* GRN PDF Preview Modal */}
+      {pdfEntry && (
+        <InwardGrnPdfModal
+          isOpen={!!pdfEntry}
+          onClose={() => setPdfEntry(null)}
+          entry={pdfEntry}
+          org={currentOrg}
+        />
       )}
     </div>
   );

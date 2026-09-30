@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
-  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, ShoppingCart, Activity, CheckCircle, AlertCircle, Loader2, ClipboardList
+  Tag, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, ShoppingCart, Activity, CheckCircle, AlertCircle, Loader2, ClipboardList, Printer
 } from 'lucide-react';
+import PurchaseOrderPdfModal from '../components/purchase/PurchaseOrderPdfModal';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -15,6 +16,7 @@ import { usePurchaseOrderStore } from '../store/purchaseOrderStore';
 import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
+import { useInwardStore } from '../store/inwardStore';
 import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
 
@@ -60,16 +62,18 @@ function SortIcon({ sortDirection }) {
 
 const COLUMNS = [
   { key: 'createdAt',        label: 'Creation Date',    width: '120px' },
-  { key: 'date',              label: 'PO Date',             width: '100px' },
-  { key: 'npplPoNo',          label: 'NPPL Purchase Order No.',     width: '180px' },
-  { key: 'vendorName',        label: 'Vendor Name',      width: '180px' },
-  { key: 'items_partNo',      label: 'Part No',          width: '150px' },
-  { key: 'items_productName', label: 'Product Name',     width: '240px' },
-  { key: 'items_orderQty',    label: 'Total Order Qty',  width: '120px', align: 'right' },
-  { key: 'items_scheduleQty', label: 'Total Sched Qty',  width: '120px', align: 'right' },
+  { key: 'date',             label: 'PO Date',          width: '100px' },
+  { key: 'npplPoNo',         label: 'NPPL Purchase Order No.', width: '180px' },
+  { key: 'vendorName',       label: 'Vendor Name',      width: '180px' },
+  { key: 'items_partNo',     label: 'Part No',          width: '130px' },
+  { key: 'items_productName',label: 'Product Name',     width: '220px' },
+  { key: 'items_orderQty',   label: 'PO Qty',           width: '110px', align: 'right' },
+  { key: 'items_grnQty',     label: 'GRN Qty',          width: '110px', align: 'right' },
+  { key: 'items_pendingQty', label: 'Pending Balance Qty', width: '160px', align: 'right' },
+  { key: 'items_scheduleQty',label: 'Total Sched Qty',  width: '120px', align: 'right' },
   { key: 'items_deliveryDate',label: 'Schedule Date(s)', width: '140px' },
-  { key: 'status',            label: 'Status',           width: '130px' },
-  { key: 'remark',            label: 'Remarks',          width: '140px' },
+  { key: 'status',           label: 'Status',           width: '130px' },
+  { key: 'remark',           label: 'Remarks',          width: '140px' },
 ];
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
@@ -398,7 +402,7 @@ function VendorCombobox({
 }
 
 // ── Purchase Order Form ──────────────────────────────────────────────────────
-function PurchaseOrderForm({ mode, order, onBack }) {
+function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
   const {
     addOrder, updateOrder, purchaseOrderLookups,
     addPurchaseOrderLookupOption, renamePurchaseOrderLookupOption, deletePurchaseOrderLookupOption,
@@ -567,6 +571,16 @@ function PurchaseOrderForm({ mode, order, onBack }) {
             </div>
           </div>
           <div className="flex gap-3">
+            {order && (
+              <button
+                type="button"
+                onClick={() => onPrint?.(order)}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm"
+                title="View / Print PDF"
+              >
+                <Printer size={16} /> View as PDF
+              </button>
+            )}
             <button
               type="button"
               onClick={onBack}
@@ -1043,19 +1057,56 @@ export default function PurchaseOrdersPage() {
     isDeleteConfirmOpen, orderToDelete, openDeleteConfirm, closeDeleteConfirm,
   } = usePurchaseOrderStore();
   const { currentOrg } = useAuthStore();
-  const { fetchParties } = usePartyMasterStore();
+  const { parties, fetchParties } = usePartyMasterStore();
   const { fetchItems } = useItemMasterStore();
+  const { entries: inwardEntries, fetchEntries: fetchInwardEntries } = useInwardStore();
 
   useEffect(() => {
     if (currentOrg?.id) {
       fetchOrders(currentOrg.id);
       fetchParties(currentOrg.id);
       fetchItems(currentOrg.id);
+      fetchInwardEntries(currentOrg.id);
     }
   }, [currentOrg?.id]);
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pdfOrder, setPdfOrder] = useState(null);
+
+  const poGrnMap = useMemo(() => {
+    const map = new Map();
+    (inwardEntries || []).forEach((entry) => {
+      const pNo = (entry.po_no || '').trim().toLowerCase();
+      if (!pNo) return;
+      if (!map.has(pNo)) {
+        map.set(pNo, { totalGrnQty: 0, byPartNo: {}, byProductName: {} });
+      }
+      const poRecord = map.get(pNo);
+      const mats = Array.isArray(entry.materials) && entry.materials.length > 0
+        ? entry.materials
+        : [{
+            item_code: entry.item_code || '',
+            description: entry.description || '',
+            received_qty: entry.quantity || entry.received_qty || 0,
+            accepted_qty: entry.accepted_qty || 0,
+          }];
+
+      mats.forEach((m) => {
+        const qty = Number(m.accepted_qty ?? m.received_qty ?? 0) || 0;
+        poRecord.totalGrnQty += qty;
+        if (m.item_code) {
+          const pCode = m.item_code.trim().toLowerCase();
+          poRecord.byPartNo[pCode] = (poRecord.byPartNo[pCode] || 0) + qty;
+        }
+        if (m.description) {
+          const pDesc = m.description.trim().toLowerCase();
+          poRecord.byProductName[pDesc] = (poRecord.byProductName[pDesc] || 0) + qty;
+        }
+      });
+    });
+    return map;
+  }, [inwardEntries]);
 
   const allStatuses = ['All', ...(purchaseOrderLookups?.status || ['Draft', 'Pending', 'Approved', 'Completed', 'Cancelled'])];
 
@@ -1083,7 +1134,9 @@ export default function PurchaseOrdersPage() {
       'Part No.',
       'Product Name',
       'HSN Code',
-      'Order Qty',
+      'PO Qty',
+      'GRN Qty',
+      'Pending Balance Qty',
       'UOM',
       'Unit Price',
       'Total Amount',
@@ -1143,6 +1196,9 @@ export default function PurchaseOrdersPage() {
         }
       }
 
+      const poKey = (order.npplPoNo || '').trim().toLowerCase();
+      const grnRecord = poGrnMap.get(poKey);
+
       items.forEach((item) => {
         const orderQtyNum = item.orderQty !== undefined && item.orderQty !== '' && !isNaN(Number(item.orderQty))
           ? Number(item.orderQty)
@@ -1153,6 +1209,20 @@ export default function PurchaseOrdersPage() {
         const totalAmount = (orderQtyNum !== '' && priceNum !== '')
           ? (orderQtyNum * priceNum).toFixed(2)
           : '';
+
+        let itemGrnQty = 0;
+        if (grnRecord) {
+          const pCode = (item.partNo || '').trim().toLowerCase();
+          const pDesc = (item.productName || '').trim().toLowerCase();
+          if (pCode && grnRecord.byPartNo[pCode] !== undefined) {
+            itemGrnQty = grnRecord.byPartNo[pCode];
+          } else if (pDesc && grnRecord.byProductName[pDesc] !== undefined) {
+            itemGrnQty = grnRecord.byProductName[pDesc];
+          } else if (items.length === 1) {
+            itemGrnQty = grnRecord.totalGrnQty;
+          }
+        }
+        const pendingQty = orderQtyNum !== '' ? Math.max(0, orderQtyNum - itemGrnQty) : '';
 
         const schedules = item.schedules || [];
         let scheduleQty = '';
@@ -1189,6 +1259,8 @@ export default function PurchaseOrdersPage() {
           item.productName || '',
           item.hsnCode || '',
           orderQtyNum,
+          itemGrnQty,
+          pendingQty,
           item.uom || '',
           priceNum,
           totalAmount,
@@ -1268,7 +1340,38 @@ export default function PurchaseOrdersPage() {
       }
       if (column.key === 'items_orderQty') {
         const sum = items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
-        return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
+        return <span className="text-slate-800 font-bold">{sum.toLocaleString()}</span>;
+      }
+      if (column.key === 'items_grnQty') {
+        const poKey = (order.npplPoNo || '').trim().toLowerCase();
+        const grnRecord = poGrnMap.get(poKey);
+        const grnQty = grnRecord?.totalGrnQty || 0;
+        return (
+          <span className="text-emerald-600 font-bold">
+            {grnQty.toLocaleString()}
+          </span>
+        );
+      }
+      if (column.key === 'items_pendingQty') {
+        const poKey = (order.npplPoNo || '').trim().toLowerCase();
+        const grnRecord = poGrnMap.get(poKey);
+        const grnQty = grnRecord?.totalGrnQty || 0;
+        const totalPoQty = items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
+        const pendingQty = Math.max(0, totalPoQty - grnQty);
+        const isCompleted = pendingQty === 0 && totalPoQty > 0;
+        return (
+          <span
+            className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+              isCompleted
+                ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                : pendingQty > 0 && grnQty > 0
+                ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                : 'text-rose-700 bg-rose-50 border border-rose-200'
+            }`}
+          >
+            {pendingQty.toLocaleString()}
+          </span>
+        );
       }
       if (column.key === 'items_scheduleQty') {
         const sum = items.reduce((s, i) => s + (i.schedules || []).reduce((ss, sc) => ss + Number(sc.scheduleQty || 0), 0), 0);
@@ -1317,6 +1420,7 @@ export default function PurchaseOrdersPage() {
           mode={viewState.mode}
           order={viewState.order}
           onBack={backToTable}
+          onPrint={(ord) => setPdfOrder(ord)}
         />
       ) : (
         <>
@@ -1426,6 +1530,9 @@ export default function PurchaseOrdersPage() {
                       <Table.Row key={order.id} className="group">
                         <Table.Cell>
                           <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
+                            <button onClick={() => setPdfOrder(order)} className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all" title="View as PDF / Print">
+                              <Printer size={15} />
+                            </button>
                             <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
                               <Eye size={15} />
                             </button>
@@ -1528,6 +1635,17 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Purchase Order PDF Modal */}
+      {pdfOrder && (
+        <PurchaseOrderPdfModal
+          isOpen={!!pdfOrder}
+          onClose={() => setPdfOrder(null)}
+          order={pdfOrder}
+          vendorParty={parties?.find(p => (p.party_name || p.partyName) === (pdfOrder?.vendorName || pdfOrder?.vendor_name))}
+          org={currentOrg}
+        />
       )}
     </div>
   );

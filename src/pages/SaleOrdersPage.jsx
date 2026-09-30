@@ -17,6 +17,7 @@ import { usePartyMasterStore, formatPartyAddress } from '../store/partyMasterSto
 import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { useHsnSacStore } from '../store/hsnSacStore';
+import { useDispatchStore } from '../store/dispatchStore';
 import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
 
@@ -70,18 +71,20 @@ function SortIcon({ sortDirection }) {
 }
 
 const COLUMNS = [
-  { key: 'createdAt', label: 'Creation Date', width: '120px' },
-  { key: 'date', label: 'Order Date', width: '100px' },
-  { key: 'poNo', label: 'PO No', width: '140px' },
-  { key: 'npplSaleNo', label: 'NPPL Sale Order No.', width: '150px' },
-  { key: 'partyName', label: 'Party Name', width: '180px' },
-  { key: 'items_partNo', label: 'Part No', width: '150px' },
-  { key: 'items_productName', label: 'Product Name', width: '240px' },
-  { key: 'items_orderQty', label: 'Total Order Qty', width: '120px', align: 'right' },
-  { key: 'items_scheduleQty', label: 'Total Sched Qty', width: '120px', align: 'right' },
-  { key: 'items_deliveryDate', label: 'Schedule Date(s)', width: '140px' },
-  { key: 'poDocumentUrl', label: 'PO Document', width: '120px', align: 'center' },
-  { key: 'remark', label: 'Remarks', width: '140px' },
+  { key: 'createdAt',        label: 'Creation Date',    width: '120px' },
+  { key: 'date',             label: 'Order Date',       width: '100px' },
+  { key: 'poNo',             label: 'PO No',            width: '140px' },
+  { key: 'npplSaleNo',       label: 'NPPL Sale Order No.', width: '150px' },
+  { key: 'partyName',        label: 'Party Name',       width: '180px' },
+  { key: 'items_partNo',     label: 'Part No',          width: '130px' },
+  { key: 'items_productName',label: 'Product Name',     width: '220px' },
+  { key: 'items_orderQty',   label: 'SO Qty',           width: '110px', align: 'right' },
+  { key: 'items_dispatchQty',label: 'Dispatched Qty',   width: '120px', align: 'right' },
+  { key: 'items_pendingQty', label: 'Pending Balance Qty', width: '160px', align: 'right' },
+  { key: 'items_scheduleQty',label: 'Total Sched Qty',  width: '120px', align: 'right' },
+  { key: 'items_deliveryDate',label: 'Schedule Date(s)',width: '140px' },
+  { key: 'poDocumentUrl',    label: 'PO Document',      width: '120px', align: 'center' },
+  { key: 'remark',           label: 'Remarks',          width: '140px' },
 ];
 
 const scheduleSchema = z.object({
@@ -1284,6 +1287,7 @@ export default function SaleOrdersPage() {
   const { fetchParties } = usePartyMasterStore();
   const { fetchItems } = useItemMasterStore();
   const { fetchItems: fetchHsnSacItems } = useHsnSacStore();
+  const { dispatches, fetchDispatches } = useDispatchStore();
 
   useEffect(() => {
     if (currentOrg?.id) {
@@ -1291,13 +1295,35 @@ export default function SaleOrdersPage() {
       fetchParties(currentOrg.id);
       fetchItems(currentOrg.id);
       fetchHsnSacItems(currentOrg.id);
+      fetchDispatches(currentOrg.id);
     }
   }, [currentOrg?.id]);
-
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const soDispatchMap = useMemo(() => {
+    const map = new Map();
+    (dispatches || []).forEach((d) => {
+      const soNo = (d.saleOrderNo || '').trim().toLowerCase();
+      if (!soNo) return;
+      if (!map.has(soNo)) {
+        map.set(soNo, { totalDispatchQty: 0, byPartNo: {}, byProductName: {} });
+      }
+      const record = map.get(soNo);
+      const qty = Number(d.quantity || 0);
+      record.totalDispatchQty += qty;
+      if (d.partNo) {
+        const pNo = d.partNo.trim().toLowerCase();
+        record.byPartNo[pNo] = (record.byPartNo[pNo] || 0) + qty;
+      }
+      if (d.materialDescription) {
+        const desc = d.materialDescription.trim().toLowerCase();
+        record.byProductName[desc] = (record.byProductName[desc] || 0) + qty;
+      }
+    });
+    return map;
+  }, [dispatches]);
 
   const allStatuses = ['All', ...(saleOrderLookups?.finalStatus || [])];
   const allPriorities = ['All', ...(saleOrderLookups?.priority || [])];
@@ -1335,7 +1361,9 @@ export default function SaleOrdersPage() {
       'Part No.',
       'Product Name',
       'HSN Code',
-      'Order Qty',
+      'SO Qty',
+      'Dispatched Qty',
+      'Pending Balance Qty',
       'UOM',
       'Unit Price',
       'Total Amount',
@@ -1396,6 +1424,9 @@ export default function SaleOrdersPage() {
         }
       }
 
+      const soKey = (order.npplSaleNo || '').trim().toLowerCase();
+      const dispatchRecord = soDispatchMap.get(soKey);
+
       items.forEach((item) => {
         const orderQtyNum = item.orderQty !== undefined && item.orderQty !== '' && !isNaN(Number(item.orderQty))
           ? Number(item.orderQty)
@@ -1406,6 +1437,20 @@ export default function SaleOrdersPage() {
         const totalAmount = (orderQtyNum !== '' && priceNum !== '')
           ? (orderQtyNum * priceNum).toFixed(2)
           : '';
+
+        let itemDispatchQty = 0;
+        if (dispatchRecord) {
+          const pCode = (item.partNo || '').trim().toLowerCase();
+          const pDesc = (item.productName || '').trim().toLowerCase();
+          if (pCode && dispatchRecord.byPartNo[pCode] !== undefined) {
+            itemDispatchQty = dispatchRecord.byPartNo[pCode];
+          } else if (pDesc && dispatchRecord.byProductName[pDesc] !== undefined) {
+            itemDispatchQty = dispatchRecord.byProductName[pDesc];
+          } else if (items.length === 1) {
+            itemDispatchQty = dispatchRecord.totalDispatchQty;
+          }
+        }
+        const pendingQty = orderQtyNum !== '' ? Math.max(0, orderQtyNum - itemDispatchQty) : '';
 
         const schedules = item.schedules || [];
         let scheduleQty = '';
@@ -1446,6 +1491,8 @@ export default function SaleOrdersPage() {
           item.productName || '',
           item.hsnCode || '',
           orderQtyNum,
+          itemDispatchQty,
+          pendingQty,
           item.uom || '',
           priceNum,
           totalAmount,
@@ -1571,7 +1618,38 @@ export default function SaleOrdersPage() {
       }
       if (column.key === 'items_orderQty') {
         const sum = items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
-        return <span className="text-slate-700 font-bold">{sum.toLocaleString()}</span>;
+        return <span className="text-slate-800 font-bold">{sum.toLocaleString()}</span>;
+      }
+      if (column.key === 'items_dispatchQty') {
+        const soKey = (order.npplSaleNo || '').trim().toLowerCase();
+        const dispatchRecord = soDispatchMap.get(soKey);
+        const dispatchQty = dispatchRecord?.totalDispatchQty || 0;
+        return (
+          <span className="text-emerald-600 font-bold">
+            {dispatchQty.toLocaleString()}
+          </span>
+        );
+      }
+      if (column.key === 'items_pendingQty') {
+        const soKey = (order.npplSaleNo || '').trim().toLowerCase();
+        const dispatchRecord = soDispatchMap.get(soKey);
+        const dispatchQty = dispatchRecord?.totalDispatchQty || 0;
+        const totalSoQty = items.reduce((s, i) => s + Number(i.orderQty || 0), 0);
+        const pendingQty = Math.max(0, totalSoQty - dispatchQty);
+        const isCompleted = pendingQty === 0 && totalSoQty > 0;
+        return (
+          <span
+            className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+              isCompleted
+                ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                : pendingQty > 0 && dispatchQty > 0
+                ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                : 'text-rose-700 bg-rose-50 border border-rose-200'
+            }`}
+          >
+            {pendingQty.toLocaleString()}
+          </span>
+        );
       }
       if (column.key === 'items_scheduleQty') {
         const sum = items.reduce((s, i) => {
