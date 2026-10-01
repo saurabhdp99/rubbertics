@@ -105,6 +105,9 @@ export default function PurchaseOrderPdfModal({ isOpen, onClose, order, vendorPa
   const companyCin = 'U25209MH2020PTC343993';
   const companyEmail = 'sales@nisargpolymers.com';
 
+  const logoAttachment = org?.attachments?.find(a => a.name === 'Company Logo');
+  const logoUrl = logoAttachment?.url || logoAttachment?.fileData;
+
   // Vendor details
   const vendorName = order.vendorName || vendorParty?.party_name || vendorParty?.partyName || 'Supplier';
   const vendorAddress = vendorParty?.address || order.vendorAddress || '';
@@ -216,12 +219,18 @@ export default function PurchaseOrderPdfModal({ isOpen, onClose, order, vendorPa
                 <div className="flex items-start gap-2">
                   {/* NP Logo Badge Placeholder */}
                   <div className="w-16 shrink-0 text-center">
-                    <div className="w-12 h-6 mx-auto rounded-full border border-teal-600 flex items-center justify-center text-[10px] font-black tracking-tighter text-teal-700 bg-teal-50">
-                      NP
-                    </div>
-                    <div className="text-[6.5px] italic text-slate-600 leading-tight mt-0.5 whitespace-nowrap">
-                      We Deliver Quality.....
-                    </div>
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Company Logo" className="w-12 h-10 object-contain mx-auto" />
+                    ) : (
+                      <>
+                        <div className="w-12 h-6 mx-auto rounded-full border border-teal-600 flex items-center justify-center text-[10px] font-black tracking-tighter text-teal-700 bg-teal-50">
+                          NP
+                        </div>
+                        <div className="text-[6.5px] italic text-slate-600 leading-tight mt-0.5 whitespace-nowrap">
+                          We Deliver Quality.....
+                        </div>
+                      </>
+                    )}
                   </div>
                   
                   <div className="flex-1 pl-1">

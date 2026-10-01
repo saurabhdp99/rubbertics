@@ -21,6 +21,8 @@ export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
   };
 
   const companyName = org?.name || 'Nisarg Polymers Private Limted';
+  const logoAttachment = org?.attachments?.find(a => a.name === 'Company Logo');
+  const logoUrl = logoAttachment?.url || logoAttachment?.fileData;
   const poNo = entry.po_no || '';
   const grnNo = entry.grn_no || '';
   const invoiceChallanNo = [entry.invoice_no, entry.challan_received].filter(Boolean).join(' / ') || entry.invoice_no || '-';
@@ -83,12 +85,18 @@ export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
           <div className="border border-black grid grid-cols-12 items-stretch">
             {/* Logo and Tagline */}
             <div className="col-span-3 p-3 flex flex-col items-center justify-center border-r border-black">
-              <div className="w-14 h-7 rounded-full border-2 border-teal-600 flex items-center justify-center text-[11px] font-black tracking-tighter text-teal-700 bg-teal-50">
-                NP
-              </div>
-              <div className="text-[7px] italic text-slate-700 font-semibold mt-1 whitespace-nowrap">
-                We Deliver Quality.....
-              </div>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Company Logo" className="w-14 h-12 object-contain" />
+              ) : (
+                <>
+                  <div className="w-14 h-7 rounded-full border-2 border-teal-600 flex items-center justify-center text-[11px] font-black tracking-tighter text-teal-700 bg-teal-50">
+                    NP
+                  </div>
+                  <div className="text-[7px] italic text-slate-700 font-semibold mt-1 whitespace-nowrap">
+                    We Deliver Quality.....
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Company Name */}
