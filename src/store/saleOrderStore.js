@@ -533,7 +533,11 @@ export const useSaleOrderStore = create((set, get) => ({
         (o.npplSaleNo || '').toLowerCase().includes(q) ||
         (o.partyName || '').toLowerCase().includes(q) ||
         (o.productName || '').toLowerCase().includes(q) ||
-        (o.partNo || '').toLowerCase().includes(q);
+        (o.partNo || '').toLowerCase().includes(q) ||
+        (o.items || []).some(i =>
+          (i.partNo || '').toLowerCase().includes(q) ||
+          (i.productName || '').toLowerCase().includes(q)
+        );
       const matchStatus = filterStatus === 'All' || o.finalStatus === filterStatus;
       const matchPriority = filterPriority === 'All' || o.priority === filterPriority;
       const matchPoType = filterPoType === 'All' || o.poType === filterPoType;

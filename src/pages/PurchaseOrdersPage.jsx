@@ -65,7 +65,7 @@ const COLUMNS = [
   { key: 'date',             label: 'PO Date',          width: '100px' },
   { key: 'npplPoNo',         label: 'NPPL Purchase Order No.', width: '180px' },
   { key: 'vendorName',       label: 'Vendor Name',      width: '180px' },
-  { key: 'items_partNo',     label: 'Part No',          width: '130px' },
+  { key: 'items_partNo',     label: 'Customer Item Code', width: '160px' },
   { key: 'items_productName',label: 'Product Name',     width: '220px' },
   { key: 'items_orderQty',   label: 'PO Qty',           width: '110px', align: 'right' },
   { key: 'items_grnQty',     label: 'GRN Qty',          width: '110px', align: 'right' },
@@ -419,7 +419,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
         fetchParties(currentOrg.id);
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
+          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) setFreshItems(data);
       }
@@ -454,8 +454,6 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
 
   useEffect(() => { reset(getInitialValues()); }, [order, mode]);
 
-  useEffect(() => { reset(getInitialValues()); }, [order, mode]);
-
   const isView = mode === 'view';
   const isAdd  = mode === 'add';
 
@@ -467,7 +465,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
       const patchedItems = currentItems.map(item => {
         let matchedItem = null;
         if (item.partNo) {
-          matchedItem = freshItems.find(i => i.item_code === item.partNo || i.part_no === item.partNo);
+          matchedItem = freshItems.find(i => i.customer_item_code === item.partNo || i.item_code === item.partNo || i.part_no === item.partNo);
         }
         if (!matchedItem && item.productName) {
           matchedItem = freshItems.find(i => i.item_name === item.productName || i.part_name === item.productName);
@@ -482,9 +480,9 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
             newItem.productName = masterName;
             itemChanged = true;
           }
-          const masterPart = matchedItem.item_code || matchedItem.part_no;
-          if (masterPart && newItem.partNo !== masterPart) {
-            newItem.partNo = masterPart;
+          const masterCode = matchedItem.customer_item_code || matchedItem.part_no || matchedItem.item_code;
+          if (masterCode && newItem.partNo !== masterCode) {
+            newItem.partNo = masterCode;
             itemChanged = true;
           }
           if (matchedItem.item_hsn && newItem.hsnCode !== matchedItem.item_hsn) {
@@ -642,7 +640,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                       <AppDatePicker
                         value={value}
                         onChange={onChange}
-                        isDisabled={!isAdd}
+                        isDisabled={isView}
                         label="PO Date"
                         inputCls={`${inputCls} h-[46px]`}
                       />
@@ -832,12 +830,12 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        {/* Part Number (auto-filled) */}
+                        {/* Customer Item Code (auto-filled) */}
                         <Controller
                           control={control}
                           name={`items.${index}.partNo`}
                           render={({ field: { value } }) => (
-                            <Field label="Part Number">
+                            <Field label="Customer Item Code">
                               <Input
                                 type="text"
                                 value={value || ''}
@@ -845,7 +843,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                                 readOnly
                                 placeholder="Auto-filled from Product Name"
                                 className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                aria-label="Part Number"
+                                aria-label="Customer Item Code"
                               />
                             </Field>
                           )}
@@ -871,16 +869,19 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                                   selectedKeys={value ? new Set([value]) : new Set()}
                                   value={value || null}
                                   onChange={(val) => {
-                                    if (!val) return;
-                                    const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : Array.from(val)[0] || val);
-                                    onChange(val);
+                                    const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : (val && typeof val === 'object' && Symbol.iterator in val ? Array.from(val)[0] : val)) ?? '';
+                                    onChange(actualVal);
+
+                                    if (!actualVal) {
+                                      setValue(`items.${index}.partNo`, '', { shouldValidate: true, shouldDirty: true });
+                                      return;
+                                    }
 
                                     const matchedItem = freshItems.find(i => (i.item_name === actualVal || i.part_name === actualVal));
+                                    const custCode = matchedItem?.customer_item_code || matchedItem?.part_no || '';
+                                    setValue(`items.${index}.partNo`, custCode, { shouldValidate: true, shouldDirty: true });
+
                                     if (matchedItem) {
-                                      const pNo = matchedItem.item_code || matchedItem.part_no || '';
-                                      if (pNo) {
-                                        setValue(`items.${index}.partNo`, pNo, { shouldValidate: true, shouldDirty: true });
-                                      }
                                       if (matchedItem.item_hsn) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
                                       }
@@ -903,13 +904,27 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                                       {Array.from(new Set([
                                         ...freshItems.map(itm => itm.item_name || itm.part_name).filter(Boolean),
                                         ...(value ? [value] : [])
-                                      ])).map(name => (
-                                        <ListBox.Item key={name} id={name} textValue={name}>
-                                          <div className="flex flex-col gap-0.5 py-0.5">
-                                            <span className="font-bold text-slate-800">{name}</span>
-                                          </div>
-                                        </ListBox.Item>
-                                      ))}
+                                      ])).map(name => {
+                                        const itm = freshItems.find(i => (i.item_name === name || i.part_name === name));
+                                        const code = itm?.customer_item_code || itm?.part_no;
+                                        return (
+                                          <ListBox.Item key={name} id={name} textValue={name}>
+                                            <div className="flex items-center justify-between py-0.5 w-full gap-2">
+                                              <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800">{name}</span>
+                                                {itm?.part_name && itm?.item_name && itm.part_name !== itm.item_name && (
+                                                  <span className="text-[11px] text-slate-400">{itm.part_name}</span>
+                                                )}
+                                              </div>
+                                              {code && (
+                                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                                  {code}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </ListBox.Item>
+                                        );
+                                      })}
                                     </ListBox>
                                   </Select.Popover>
                                 </Select>
@@ -1131,7 +1146,7 @@ export default function PurchaseOrdersPage() {
       'PO Date',
       'NPPL Purchase Order No.',
       'Vendor Name',
-      'Part No.',
+      'Customer Item Code',
       'Product Name',
       'HSN Code',
       'PO Qty',
@@ -1430,7 +1445,7 @@ export default function PurchaseOrdersPage() {
               <div className="relative flex-1 w-full min-w-0 group">
                 <Input
                   type="text"
-                  placeholder="Search by PO No, Vendor, Product, Part No..."
+                  placeholder="Search by PO No, Vendor, Product, Customer Item Code..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   aria-label="Search purchase orders"

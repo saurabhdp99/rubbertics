@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft, BadgeCheck,
   Edit, Eye, FileDown, FileText, Hash, Plus, RefreshCw, Save, Search, SlidersHorizontal,
-  Tag, Trash2, UploadCloud, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2, Paperclip, Download
+  Tag, Trash2, UploadCloud, X, ChevronUp, ChevronDown, ChevronsUpDown, Package, Activity, Truck, AlertCircle, Loader2, Paperclip, Download, Printer
 } from 'lucide-react';
 import { Table, Input, Select, ListBox, DatePicker, DateField, Calendar as HeroCalendar, Spinner } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import StatsCard from '../components/common/StatsCard';
 import EditableCreatableSelect from '../components/common/EditableCreatableSelect';
+import SaleOrderPdfModal from '../components/sale/SaleOrderPdfModal';
 import { useSaleOrderStore } from '../store/saleOrderStore';
 import { usePartyMasterStore, formatPartyAddress } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
@@ -76,7 +77,7 @@ const COLUMNS = [
   { key: 'poNo',             label: 'PO No',            width: '140px' },
   { key: 'npplSaleNo',       label: 'NPPL Sale Order No.', width: '150px' },
   { key: 'partyName',        label: 'Party Name',       width: '180px' },
-  { key: 'items_partNo',     label: 'Part No',          width: '130px' },
+  { key: 'items_partNo',     label: 'Customer Item Code', width: '160px' },
   { key: 'items_productName',label: 'Product Name',     width: '220px' },
   { key: 'items_orderQty',   label: 'SO Qty',           width: '110px', align: 'right' },
   { key: 'items_dispatchQty',label: 'Dispatched Qty',   width: '120px', align: 'right' },
@@ -385,7 +386,7 @@ function ItemSchedules({ control, itemIndex, isView, inputCls, errors }) {
   );
 }
 
-function SaleOrderForm({ mode, order, onBack }) {
+function SaleOrderForm({ mode, order, onBack, onPrint }) {
   const {
     addOrder, updateOrder, saleOrderLookups,
     addSaleOrderLookupOption, renameSaleOrderLookupOption, deleteSaleOrderLookupOption,
@@ -403,7 +404,7 @@ function SaleOrderForm({ mode, order, onBack }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
+          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) {
           setFreshItems(data);
@@ -420,11 +421,12 @@ function SaleOrderForm({ mode, order, onBack }) {
     const seen = new Set();
     (freshItems || []).forEach(itm => {
       const primaryName = itm.item_name || itm.part_name;
+      const code = itm.customer_item_code || itm.part_no || '';
       if (primaryName && !seen.has(primaryName)) {
         seen.add(primaryName);
         options.push({
           name: primaryName,
-          code: itm.item_code || itm.part_no || '',
+          code,
           altName: itm.part_name && itm.part_name !== itm.item_name ? itm.part_name : ''
         });
       }
@@ -432,7 +434,7 @@ function SaleOrderForm({ mode, order, onBack }) {
         seen.add(itm.part_name);
         options.push({
           name: itm.part_name,
-          code: itm.item_code || itm.part_no || '',
+          code,
           altName: itm.item_name && itm.item_name !== itm.part_name ? itm.item_name : ''
         });
       }
@@ -545,7 +547,7 @@ function SaleOrderForm({ mode, order, onBack }) {
       const patchedItems = currentItems.map(item => {
         let matchedItem = null;
         if (item.partNo) {
-          matchedItem = freshItems.find(i => i.item_code === item.partNo || i.part_no === item.partNo);
+          matchedItem = freshItems.find(i => i.customer_item_code === item.partNo || i.item_code === item.partNo || i.part_no === item.partNo);
         }
         if (!matchedItem && item.productName) {
           matchedItem = freshItems.find(i => i.item_name === item.productName || i.part_name === item.productName);
@@ -560,9 +562,9 @@ function SaleOrderForm({ mode, order, onBack }) {
             newItem.productName = masterName;
             itemChanged = true;
           }
-          const masterPart = matchedItem.item_code || matchedItem.part_no;
-          if (masterPart && newItem.partNo !== masterPart) {
-            newItem.partNo = masterPart;
+          const masterCode = matchedItem.customer_item_code || matchedItem.part_no || matchedItem.item_code;
+          if (masterCode && newItem.partNo !== masterCode) {
+            newItem.partNo = masterCode;
             itemChanged = true;
           }
           if (matchedItem.item_hsn && newItem.hsnCode !== matchedItem.item_hsn) {
@@ -673,11 +675,22 @@ function SaleOrderForm({ mode, order, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all cursor-pointer"
             >
               <X size={16} />
               Back
             </button>
+            {!isAdd && (
+              <button
+                type="button"
+                onClick={() => onPrint?.(order)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 border border-slate-300 bg-white hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
+                title="Print or Save as PDF"
+              >
+                <Printer size={16} />
+                <span>Print</span>
+              </button>
+            )}
             {!isView && (
               <button
                 type="submit"
@@ -765,7 +778,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                     <Field label="Purchase Date">
                       <DatePicker
                         value={value ? parseDate(value) : null}
-                        isDisabled={!isAdd}
+                        isDisabled={isView}
                         onChange={(v) => onChange(v ? v.toString() : '')}
                         className="w-full"
                         aria-label="Purchase Date"
@@ -1023,7 +1036,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                           control={control}
                           name={`items.${index}.partNo`}
                           render={({ field: { value } }) => (
-                            <Field label="Part Number">
+                            <Field label="Customer Item Code">
                               <Input
                                 type="text"
                                 value={value || ''}
@@ -1031,7 +1044,7 @@ function SaleOrderForm({ mode, order, onBack }) {
                                 readOnly
                                 placeholder="Auto-filled from Product Name"
                                 className={`${inputCls} px-4 py-3 bg-slate-50 text-slate-600`}
-                                aria-label="Part Number"
+                                aria-label="Customer Item Code"
                               />
                             </Field>
                           )}
@@ -1056,15 +1069,19 @@ function SaleOrderForm({ mode, order, onBack }) {
                                   selectedKeys={value ? new Set([value]) : new Set()}
                                   value={value || null}
                                   onChange={(val) => {
-                                    if (!val) return;
-                                    onChange(val);
+                                    const actualVal = val?.target?.value ?? (typeof val === 'string' ? val : (val && typeof val === 'object' && Symbol.iterator in val ? Array.from(val)[0] : val)) ?? '';
+                                    onChange(actualVal);
 
-                                    const matchedItem = freshItems.find(i => (i.item_name === val || i.part_name === val));
+                                    if (!actualVal) {
+                                      setValue(`items.${index}.partNo`, '', { shouldValidate: true, shouldDirty: true });
+                                      return;
+                                    }
+
+                                    const matchedItem = freshItems.find(i => (i.item_name === actualVal || i.part_name === actualVal));
+                                    const custCode = matchedItem?.customer_item_code || matchedItem?.part_no || '';
+                                    setValue(`items.${index}.partNo`, custCode, { shouldValidate: true, shouldDirty: true });
+
                                     if (matchedItem) {
-                                      const pNo = matchedItem.item_code || matchedItem.part_no || '';
-                                      if (pNo) {
-                                        setValue(`items.${index}.partNo`, pNo, { shouldValidate: true, shouldDirty: true });
-                                      }
                                       if (matchedItem.item_hsn) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
                                       }
@@ -1284,7 +1301,7 @@ export default function SaleOrdersPage() {
     isDeleteConfirmOpen, orderToDelete, openDeleteConfirm, closeDeleteConfirm
   } = useSaleOrderStore();
   const { currentOrg } = useAuthStore();
-  const { fetchParties } = usePartyMasterStore();
+  const { parties, fetchParties } = usePartyMasterStore();
   const { fetchItems } = useItemMasterStore();
   const { fetchItems: fetchHsnSacItems } = useHsnSacStore();
   const { dispatches, fetchDispatches } = useDispatchStore();
@@ -1301,6 +1318,7 @@ export default function SaleOrdersPage() {
 
   const [viewState, setViewState] = useState({ type: 'table', mode: null, order: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pdfOrder, setPdfOrder] = useState(null);
 
   const soDispatchMap = useMemo(() => {
     const map = new Map();
@@ -1358,7 +1376,7 @@ export default function SaleOrdersPage() {
       'Customer PO No.',
       'NPPL Sale Order No.',
       'Party Name',
-      'Part No.',
+      'Customer Item Code',
       'Product Name',
       'HSN Code',
       'SO Qty',
@@ -1731,6 +1749,7 @@ export default function SaleOrdersPage() {
           mode={viewState.mode}
           order={viewState.order}
           onBack={backToTable}
+          onPrint={(ord) => setPdfOrder(ord)}
         />
       ) : (
         <>
@@ -1739,7 +1758,7 @@ export default function SaleOrdersPage() {
               <div className="relative flex-1 w-full min-w-0 group">
                 <Input
                   type="text"
-                  placeholder="Search by SO No, Party, Product, Part No..."
+                  placeholder="Search by SO No, Party, Product, Customer Item Code..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   aria-label="Search orders"
@@ -1855,11 +1874,14 @@ export default function SaleOrdersPage() {
                       <Table.Row key={order.id} className="group">
                         <Table.Cell>
                           <div className="flex items-center gap-1.5 opacity-0 translate-y-1 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto">
-                            <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all" title="View">
+                            <button onClick={() => openForm('view', order)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all cursor-pointer" title="View">
                               <Eye size={15} />
                             </button>
-                            <button onClick={() => openForm('edit', order)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all" title="Edit">
+                            <button onClick={() => openForm('edit', order)} className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all cursor-pointer" title="Edit">
                               <Edit size={15} />
+                            </button>
+                            <button onClick={() => setPdfOrder(order)} className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all cursor-pointer" title="Print / PDF">
+                              <Printer size={15} />
                             </button>
                           </div>
                         </Table.Cell>
@@ -1984,6 +2006,17 @@ export default function SaleOrdersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Sale Order PDF Modal */}
+      {pdfOrder && (
+        <SaleOrderPdfModal
+          isOpen={!!pdfOrder}
+          onClose={() => setPdfOrder(null)}
+          order={pdfOrder}
+          customerParty={parties?.find(p => (p.party_name || p.partyName) === (pdfOrder?.partyName || pdfOrder?.party_name))}
+          org={currentOrg}
+        />
       )}
     </div>
   );

@@ -1,32 +1,16 @@
-import React, { useRef } from 'react';
-import { X, Printer, FileText } from 'lucide-react';
-
-function formatGrnDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
+import PrintPreviewModal from '../common/PrintPreviewModal';
+import { formatDocDate, DEFAULT_COMPANY } from '../../utils/printDocUtils';
 
 export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
-  const printRef = useRef(null);
-
   if (!isOpen || !entry) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const companyName = org?.name || 'Nisarg Polymers Private Limted';
-  const logoAttachment = org?.attachments?.find(a => a.name === 'Company Logo');
-  const logoUrl = logoAttachment?.url || logoAttachment?.fileData;
-  const poNo = entry.po_no || '';
   const grnNo = entry.grn_no || '';
+  const companyName = org?.name || DEFAULT_COMPANY.name;
+  const logoAttachment = org?.attachments?.find(a => a.name === 'Company Logo');
+  const logoUrl = logoAttachment?.url || logoAttachment?.fileData || null;
+  const poNo = entry.po_no || '-';
   const invoiceChallanNo = [entry.invoice_no, entry.challan_received].filter(Boolean).join(' / ') || entry.invoice_no || '-';
-  const dateGoodsReceived = formatGrnDate(entry.receipt_date || entry.created_at);
+  const dateGoodsReceived = formatDocDate(entry.receipt_date || entry.created_at) || '-';
 
   const materials = Array.isArray(entry.materials) && entry.materials.length > 0
     ? entry.materials
@@ -43,299 +27,273 @@ export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
   const qtyVerifiedBy = entry.qty_verified_name || entry.recv_verified_name || 'Verified';
   const qualityVerified = entry.qc_verified_status || entry.qc_status || entry.final_qc_decision_by || 'Verified';
 
-  // Ensure table has at least 6 material rows for standard visual presentation
+  // Ensure table has at least 5 material rows
   const minMaterialRows = 5;
   const blankRowsCount = Math.max(0, minMaterialRows - materials.length);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex justify-center p-2 sm:p-4 print:p-0 print:bg-white print:overflow-visible">
-      <div className="relative bg-white text-black w-full max-w-[850px] my-auto rounded-xl shadow-2xl overflow-hidden print:shadow-none print:m-0 print:w-full print:max-w-none print:rounded-none">
+    <PrintPreviewModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Goods Received Note (GRN)"
+      documentNo={grnNo}
+      elementId="grn-preview-doc"
+    >
+      <GrnDocument
+        {...{
+          companyName, logoUrl, poNo, grnNo, invoiceChallanNo, dateGoodsReceived,
+          materials, blankRowsCount, tcReceived, qtyVerifiedBy, qualityVerified,
+          tcRemarks: entry.tc_coa_remarks || '',
+          qtyRemarks: entry.qty_verified_remarks || '',
+          qcRemarks: entry.qc_verified_remarks || '',
+          receiverName: entry.recv_verified_name || '',
+        }}
+      />
+    </PrintPreviewModal>
+  );
+}
 
-        {/* Modal Top Actions Toolbar (Hidden when printing) */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white print:hidden">
-          <div className="flex items-center gap-2.5">
-            <FileText className="text-emerald-400" size={20} />
-            <div>
-              <h3 className="font-bold text-base leading-tight">Goods Received Note (GRN) Preview</h3>
-              <p className="text-xs text-slate-400">{grnNo ? `GRN No: ${grnNo}` : 'Document View'}</p>
+// ── GrnDocument: Pure inline-styled layout (never relies on external Tailwind) ──
+function GrnDocument({
+  companyName, logoUrl, poNo, grnNo, invoiceChallanNo, dateGoodsReceived,
+  materials, blankRowsCount, tcReceived, qtyVerifiedBy, qualityVerified,
+  tcRemarks, qtyRemarks, qcRemarks, receiverName,
+}) {
+  const b1 = '1px solid #000';
+  const b2 = '1.5px solid #000';
+
+  const cellLabel = {
+    padding: '4px 8px',
+    fontWeight: 'bold',
+    fontSize: '10.5px',
+    textTransform: 'uppercase',
+    borderRight: b1,
+    borderBottom: b1,
+    backgroundColor: '#fff',
+  };
+
+  const cellVal = {
+    padding: '4px 8px',
+    fontSize: '10.5px',
+    borderBottom: b1,
+    backgroundColor: '#fff',
+  };
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '794px', // Standard A4 width at 96 DPI
+        margin: '0 auto',
+        backgroundColor: '#ffffff',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '11px',
+        color: '#000000',
+        border: b2,
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* ── Top Document Header: 3-column box ── */}
+      <div style={{ display: 'flex', borderBottom: b1, minHeight: '65px' }}>
+        {/* Left: Logo */}
+        <div style={{ width: '25%', padding: '6px 8px', borderRight: b1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Company Logo" style={{ maxHeight: '48px', maxWidth: '100px', objectFit: 'contain' }} />
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: '46px', height: '24px', borderRadius: '12px', border: '1.5px solid #0d9488', backgroundColor: '#f0fdfa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#0f766e' }}>NP</span>
+              </div>
+              <div style={{ fontSize: '7px', fontStyle: 'italic', color: '#555', marginTop: '2px', whiteSpace: 'nowrap' }}>We Deliver Quality.....</div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-all shadow-md shadow-emerald-900/30"
-              title="Print or Save as PDF"
-            >
-              <Printer size={16} /> Print / Save PDF
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-              title="Close Preview"
-            >
-              <X size={20} />
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* GRN Printable Container */}
-        <div id="grn-print-area" ref={printRef} className="p-8 sm:p-10 font-sans text-xs bg-white text-black leading-tight border-2 border-black m-4 print:m-0 print:p-8 print:border-black">
+        {/* Center: Company Name */}
+        <div style={{ width: '50%', padding: '8px', borderRight: b1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <h1 style={{ fontSize: '16px', fontWeight: 'bold', color: '#000', letterSpacing: '0.3px', margin: 0 }}>
+            {companyName}
+          </h1>
+        </div>
 
-          {/* Top Document Header */}
-          <div className="border border-black grid grid-cols-12 items-stretch">
-            {/* Logo and Tagline */}
-            <div className="col-span-3 p-3 flex flex-col items-center justify-center border-r border-black">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Company Logo" className="w-14 h-12 object-contain" />
-              ) : (
-                <>
-                  <div className="w-14 h-7 rounded-full border-2 border-teal-600 flex items-center justify-center text-[11px] font-black tracking-tighter text-teal-700 bg-teal-50">
-                    NP
-                  </div>
-                  <div className="text-[7px] italic text-slate-700 font-semibold mt-1 whitespace-nowrap">
-                    We Deliver Quality.....
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Company Name */}
-            <div className="col-span-6 p-3 flex items-center justify-center text-center border-r border-black">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-black">
-                {companyName}
-              </h1>
-            </div>
-
-            {/* Document Control Info */}
-            <div className="col-span-3 text-[10px] flex flex-col justify-between font-medium">
-              <div className="p-1.5 border-b border-black text-left px-2">
-                NPPL/F/116
-              </div>
-              <div className="p-1.5 border-b border-black text-left px-2">
-                Rev- 00
-              </div>
-              <div className="p-1.5 text-left px-2">
-                Rev Date- 01/04/2021
-              </div>
-            </div>
+        {/* Right: Document Control Info */}
+        <div style={{ width: '25%', display: 'flex', flexDirection: 'column', fontSize: '9.5px', fontWeight: '500' }}>
+          <div style={{ padding: '4px 8px', borderBottom: b1, flex: 1, display: 'flex', alignItems: 'center' }}>
+            NPPL/F/116
           </div>
-
-          {/* Main Title Banner */}
-          <div className="border-x border-b border-black bg-slate-200 py-2.5 text-center font-bold text-base tracking-wider uppercase text-black">
-            GOODS RECEIVED NOTE (GRN)
+          <div style={{ padding: '4px 8px', borderBottom: b1, flex: 1, display: 'flex', alignItems: 'center' }}>
+            Rev- 00
           </div>
-
-          {/* Top Metadata Info Rows */}
-          <div className="border-x border-b border-black text-[11px]">
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black uppercase">
-                PURCHASE ORDER NO
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-medium uppercase">
-                {poNo || '-'}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black">
-                GRN No.
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-bold">
-                {grnNo || '-'}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black uppercase">
-                INVOICE/CHALLAN NO
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-medium uppercase">
-                {invoiceChallanNo}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black uppercase">
-                DATE GOODS RECEIVED
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-medium">
-                {dateGoodsReceived || '-'}
-              </div>
-            </div>
+          <div style={{ padding: '4px 8px', flex: 1, display: 'flex', alignItems: 'center' }}>
+            Rev Date- 01/04/2021
           </div>
-
-          {/* Items & Verification Table */}
-          <div className="border-x border-b border-black">
-            <table className="w-full text-left border-collapse text-[11px]">
-              <thead>
-                <tr className="border-b border-black text-center font-bold uppercase">
-                  <th className="py-1.5 px-3 border-r border-black w-[42%] text-center">
-                    NAME
-                  </th>
-                  <th className="py-1.5 px-3 border-r border-black w-[28%] text-center">
-                    RECEIVED QTY
-                  </th>
-                  <th className="py-1.5 px-3 w-[30%] text-center">
-                    REMARKS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Material rows */}
-                {materials.map((mat, idx) => {
-                  const name = [mat.description, mat.item_code ? `(${mat.item_code})` : ''].filter(Boolean).join(' ') || mat.description || mat.item_code || '-';
-                  const qty = mat.received_qty || mat.accepted_qty || '';
-                  const qtyDisplay = qty ? `${qty} ${mat.uom || 'KG'}` : '';
-                  return (
-                    <tr key={idx} className="border-b border-black min-h-[30px] h-[30px]">
-                      <td className="py-1.5 px-3 border-r border-black font-semibold uppercase">
-                        {name}
-                      </td>
-                      <td className="py-1.5 px-3 border-r border-black text-center font-bold">
-                        {qtyDisplay}
-                      </td>
-                      <td className="py-1.5 px-3">
-                        {mat.remarks || ''}
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {/* Additional empty rows for standard height */}
-                {Array.from({ length: blankRowsCount }).map((_, i) => (
-                  <tr key={`blank-${i}`} className="border-b border-black h-[28px]">
-                    <td className="border-r border-black">&nbsp;</td>
-                    <td className="border-r border-black">&nbsp;</td>
-                    <td>&nbsp;</td>
-                  </tr>
-                ))}
-
-                {/* Verification rows */}
-                <tr className="border-b border-black h-[28px]">
-                  <td className="py-1 px-3 border-r border-black font-bold uppercase text-center">
-                    T.C RECEIVED
-                  </td>
-                  <td className="py-1 px-3 border-r border-black text-center font-medium">
-                    {tcReceived}
-                  </td>
-                  <td className="py-1 px-3">
-                    {entry.tc_coa_remarks || ''}
-                  </td>
-                </tr>
-
-                <tr className="border-b border-black h-[28px]">
-                  <td className="py-1 px-3 border-r border-black font-bold uppercase text-center">
-                    QTY VERIFIED BY
-                  </td>
-                  <td className="py-1 px-3 border-r border-black text-center font-medium">
-                    {qtyVerifiedBy}
-                  </td>
-                  <td className="py-1 px-3">
-                    {entry.qty_verified_remarks || ''}
-                  </td>
-                </tr>
-
-                <tr className="border-b border-black h-[28px]">
-                  <td className="py-1 px-3 border-r border-black font-bold uppercase text-center">
-                    QUALITY VERIFIED
-                  </td>
-                  <td className="py-1 px-3 border-r border-black text-center font-medium">
-                    {qualityVerified}
-                  </td>
-                  <td className="py-1 px-3">
-                    {entry.qc_verified_remarks || ''}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Receiver Signed Row */}
-          <div className="border-x border-b border-black grid grid-cols-12 text-[11px] h-[36px] items-stretch">
-            <div className="col-span-4 p-2 px-3 font-bold border-r border-black flex items-center uppercase">
-              RECEIVER SIGNED
-            </div>
-            <div className="col-span-4 p-2 px-3 border-r border-black flex items-center font-medium">
-              {entry.recv_verified_name || ''}
-            </div>
-            <div className="col-span-2 p-2 px-2 font-bold border-r border-black flex items-center justify-center uppercase text-[10px]">
-              RECEIVED DATE
-            </div>
-            <div className="col-span-2 p-2 px-2 flex items-center justify-center font-medium text-[10px]">
-              {dateGoodsReceived || '-'}
-            </div>
-          </div>
-
-          {/* Office Use Section Banner */}
-          <div className="border-x border-b border-black bg-white py-2 text-center font-bold text-xs tracking-wider uppercase text-black">
-            FOR OFFICE USES ONLY
-          </div>
-
-          {/* Office Use Rows */}
-          <div className="border-x border-b border-black text-[11px]">
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black uppercase text-center">
-                PO NUMBER
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-medium uppercase">
-                {poNo || '-'}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-4 p-1.5 px-3 font-bold border-r border-black uppercase text-center">
-                GRN NO
-              </div>
-              <div className="col-span-8 p-1.5 px-3 font-bold uppercase">
-                {grnNo || '-'}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12 min-h-[50px]">
-              <div className="col-span-4 p-2 px-3 font-bold border-r border-black uppercase text-center flex items-center justify-center">
-                AUTHORISED SIGNATURE
-              </div>
-              <div className="col-span-8 p-2 px-3 flex items-end justify-end">
-                <span className="text-[10px] text-slate-500 italic">Authorised Signatory</span>
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
 
-      {/* Print-specific CSS injected */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @media print {
-            body {
-              background: white !important;
-              color: black !important;
-            }
-            body * {
-              visibility: hidden;
-            }
-            #grn-print-area, #grn-print-area * {
-              visibility: visible;
-            }
-            #grn-print-area {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100% !important;
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              border: 2px solid #000 !important;
-              box-shadow: none !important;
-            }
-            @page {
-              size: A4 portrait;
-              margin: 12mm;
-            }
-          }
-        `
-      }} />
+      {/* ── Main Title Banner ── */}
+      <div style={{ borderBottom: b1, backgroundColor: '#e2e8f0', padding: '6px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+        GOODS RECEIVED NOTE (GRN)
+      </div>
+
+      {/* ── Metadata Info Table ── */}
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <tbody>
+          <tr>
+            <td style={{ ...cellLabel, width: '30%' }}>PURCHASE ORDER NO</td>
+            <td style={{ ...cellVal, width: '70%', textTransform: 'uppercase' }}>{poNo}</td>
+          </tr>
+          <tr>
+            <td style={{ ...cellLabel, width: '30%' }}>GRN No.</td>
+            <td style={{ ...cellVal, width: '70%', fontWeight: 'bold' }}>{grnNo || '-'}</td>
+          </tr>
+          <tr>
+            <td style={{ ...cellLabel, width: '30%' }}>INVOICE/CHALLAN NO</td>
+            <td style={{ ...cellVal, width: '70%', textTransform: 'uppercase' }}>{invoiceChallanNo}</td>
+          </tr>
+          <tr>
+            <td style={{ ...cellLabel, width: '30%' }}>DATE GOODS RECEIVED</td>
+            <td style={{ ...cellVal, width: '70%' }}>{dateGoodsReceived}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Items & Verification Table ── */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: b1 }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f8fafc', borderBottom: b1 }}>
+            <th style={{ width: '45%', padding: '5px 8px', borderRight: b1, textAlign: 'center', fontWeight: 'bold', fontSize: '10.5px' }}>
+              NAME
+            </th>
+            <th style={{ width: '25%', padding: '5px 8px', borderRight: b1, textAlign: 'center', fontWeight: 'bold', fontSize: '10.5px' }}>
+              RECEIVED QTY
+            </th>
+            <th style={{ width: '30%', padding: '5px 8px', textAlign: 'center', fontWeight: 'bold', fontSize: '10.5px' }}>
+              REMARKS
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* Material rows */}
+          {materials.map((mat, idx) => {
+            const name = [mat.description, mat.item_code ? `(${mat.item_code})` : ''].filter(Boolean).join(' ') || mat.description || mat.item_code || '-';
+            const qty = mat.received_qty || mat.accepted_qty || '';
+            const qtyDisplay = qty ? `${qty} ${mat.uom || 'KG'}` : '';
+            return (
+              <tr key={idx} style={{ borderBottom: b1, height: '28px', verticalAlign: 'middle' }}>
+                <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: '600', textTransform: 'uppercase' }}>
+                  {name}
+                </td>
+                <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center', fontWeight: 'bold' }}>
+                  {qtyDisplay}
+                </td>
+                <td style={{ padding: '4px 8px' }}>
+                  {mat.remarks || ''}
+                </td>
+              </tr>
+            );
+          })}
+
+          {/* Additional empty rows for standard document proportion */}
+          {Array.from({ length: blankRowsCount }).map((_, i) => (
+            <tr key={`blank-${i}`} style={{ borderBottom: b1, height: '26px' }}>
+              <td style={{ borderRight: b1 }}>&nbsp;</td>
+              <td style={{ borderRight: b1 }}>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>
+          ))}
+
+          {/* Verification rows */}
+          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+              T.C RECEIVED
+            </td>
+            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+              {tcReceived}
+            </td>
+            <td style={{ padding: '4px 8px' }}>
+              {tcRemarks}
+            </td>
+          </tr>
+
+          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+              QTY VERIFIED BY
+            </td>
+            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+              {qtyVerifiedBy}
+            </td>
+            <td style={{ padding: '4px 8px' }}>
+              {qtyRemarks}
+            </td>
+          </tr>
+
+          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+              QUALITY VERIFIED
+            </td>
+            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+              {qualityVerified}
+            </td>
+            <td style={{ padding: '4px 8px' }}>
+              {qcRemarks}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Receiver Signed Row ── */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: b1 }}>
+        <tbody>
+          <tr>
+            <td style={{ width: '30%', padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
+              RECEIVER SIGNED
+            </td>
+            <td style={{ width: '35%', padding: '6px 8px', borderRight: b1 }}>
+              {receiverName}
+            </td>
+            <td style={{ width: '18%', padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', fontSize: '10px' }}>
+              RECEIVED DATE
+            </td>
+            <td style={{ width: '17%', padding: '6px 8px', textAlign: 'center', fontSize: '10px' }}>
+              {dateGoodsReceived}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Office Use Section ── */}
+      <div style={{ backgroundColor: '#ffffff', padding: '4px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', borderBottom: b1 }}>
+        FOR OFFICE USES ONLY
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <tbody>
+          <tr>
+            <td style={{ width: '30%', padding: '4px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
+              PO NUMBER
+            </td>
+            <td style={{ width: '70%', padding: '4px 8px', borderBottom: b1, textTransform: 'uppercase' }}>
+              {poNo}
+            </td>
+          </tr>
+          <tr>
+            <td style={{ width: '30%', padding: '4px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
+              GRN NO
+            </td>
+            <td style={{ width: '70%', padding: '4px 8px', borderBottom: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
+              {grnNo || '-'}
+            </td>
+          </tr>
+          <tr style={{ minHeight: '50px' }}>
+            <td style={{ width: '30%', padding: '12px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', verticalAlign: 'middle' }}>
+              AUTHORISED SIGNATURE
+            </td>
+            <td style={{ width: '70%', padding: '12px 12px 4px', textAlign: 'right', verticalAlign: 'bottom' }}>
+              <span style={{ fontSize: '10px', color: '#666', fontStyle: 'italic' }}>Authorised Signatory</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
