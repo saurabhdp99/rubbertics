@@ -267,7 +267,7 @@ export const PARTY_MASTER_FIELDS = [
   },
   {
     key: 'transport',
-    label: 'Transport',
+    label: 'Recommended Transporter',
     type: 'dynamic-select',
     section: 'Terms & Logistics',
   },

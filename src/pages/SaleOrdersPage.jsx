@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { useHsnSacStore } from '../store/hsnSacStore';
 import { useDispatchStore } from '../store/dispatchStore';
+import { useTransportMasterStore } from '../store/transportMasterStore';
 import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
 
@@ -43,6 +44,8 @@ const EMPTY_ORDER = {
     schedules: [{ scheduleQty: '', deliveryDate: '' }]
   }],
   paymentTerms: '',
+  transport: '',
+  deliveryTerms: '',
   remark: '',
   attachments: [],
   _poDocumentFile: null,
@@ -113,6 +116,7 @@ const saleOrderSchema = z.object({
   shippingAddress: z.string().optional(),
   items: z.array(itemSchema).min(1, 'At least one item is required'),
   paymentTerms: z.string().optional(),
+  transport: z.string().optional(),
   deliveryTerms: z.string().optional(),
   remark: z.string().optional(),
   attachments: z.array(z.any()).optional(),
@@ -393,6 +397,7 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
     openDeleteConfirm,
   } = useSaleOrderStore();
   const { parties: partyMasterItems, fetchParties } = usePartyMasterStore();
+  const { transporters, fetchTransporters } = useTransportMasterStore();
   const { items: itemMasterItems } = useItemMasterStore();
   const { items: hsnSacItems, fetchItems: fetchHsnSacItems } = useHsnSacStore();
   const { currentOrg, currentUser } = useAuthStore();
@@ -404,17 +409,32 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
       if (currentOrg?.id) {
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
+          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, standard_packing_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) {
           setFreshItems(data);
         }
         fetchHsnSacItems(currentOrg.id);
         fetchParties(currentOrg.id);
+        fetchTransporters(currentOrg.id);
       }
     };
     fetchItems();
   }, [currentOrg]);
+
+  const transportOptions = useMemo(() => {
+    const set = new Set();
+    (transporters || []).forEach(t => {
+      if (t.transporterName) set.add(t.transporterName.trim());
+    });
+    (partyMasterItems || []).forEach(p => {
+      if (p.transport) set.add(p.transport.trim());
+    });
+    if (saleOrderLookups?.transport) {
+      saleOrderLookups.transport.forEach(t => set.add(t.trim()));
+    }
+    return Array.from(set).filter(Boolean).sort();
+  }, [transporters, partyMasterItems, saleOrderLookups]);
 
   const productOptions = useMemo(() => {
     const options = [];
@@ -482,13 +502,15 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
       let partyAddress = order.partyAddress || '';
       let shippingAddress = order.shippingAddress || '';
       let paymentTerms = order.paymentTerms || '';
+      let transport = order.transport || '';
       let deliveryTerms = order.deliveryTerms || '';
-      if ((!partyAddress || !shippingAddress || !paymentTerms || !deliveryTerms) && order.partyName) {
+      if ((!partyAddress || !shippingAddress || !paymentTerms || !deliveryTerms || !transport) && order.partyName) {
         const party = partyMasterItems?.find(p => p.partyName === order.partyName);
         if (party) {
           if (!partyAddress) partyAddress = party.address || '';
           if (!shippingAddress) shippingAddress = party.shippingAddress || party.address || '';
           if (!paymentTerms && party.paymentTerms) paymentTerms = party.paymentTerms;
+          if (!transport && party.transport) transport = party.transport;
           if (!deliveryTerms && party.deliveryTerms) deliveryTerms = party.deliveryTerms;
         }
       }
@@ -509,6 +531,7 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
         partyAddress,
         shippingAddress,
         paymentTerms,
+        transport,
         deliveryTerms,
         attachments,
         _poDocumentFile: null,
@@ -571,7 +594,7 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
             newItem.hsnCode = matchedItem.item_hsn;
             itemChanged = true;
           }
-          const masterUom = matchedItem.item_net_weight_uom || matchedItem.uom;
+          const masterUom = matchedItem.standard_packing_uom || matchedItem.standardPackingUom || matchedItem.uom;
           if (masterUom && newItem.uom !== masterUom) {
             newItem.uom = masterUom;
             itemChanged = true;
@@ -859,6 +882,7 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
                           let shipAddr = '';
                           let payTerms = '';
                           let delTerms = '';
+                          let transVal = '';
                           if (currentOrg?.id) {
                             const { data, error } = await supabase
                               .from('party_master')
@@ -887,12 +911,14 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
                               }) || billAddr;
                               payTerms = data.payment_terms || '';
                               delTerms = data.delivery_terms || '';
+                              transVal = data.transport || '';
                             } else {
                               const party = allParties.find(p => p.partyName === val);
                               billAddr = party?.address || '';
                               shipAddr = party?.shippingAddress || billAddr;
                               payTerms = party?.paymentTerms || '';
                               delTerms = party?.deliveryTerms || '';
+                              transVal = party?.transport || '';
                             }
                           } else {
                             const party = allParties.find(p => p.partyName === val);
@@ -900,11 +926,15 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
                             shipAddr = party?.shippingAddress || billAddr;
                             payTerms = party?.paymentTerms || '';
                             delTerms = party?.deliveryTerms || '';
+                            transVal = party?.transport || '';
                           }
                           setValue('partyAddress', billAddr, { shouldValidate: true, shouldDirty: true });
                           setValue('shippingAddress', shipAddr, { shouldValidate: true, shouldDirty: true });
                           if (payTerms) {
                             setValue('paymentTerms', payTerms, { shouldValidate: true, shouldDirty: true });
+                          }
+                          if (transVal) {
+                            setValue('transport', transVal, { shouldValidate: true, shouldDirty: true });
                           }
                           if (delTerms) {
                             setValue('deliveryTerms', delTerms, { shouldValidate: true, shouldDirty: true });
@@ -973,6 +1003,25 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
                         placeholder="Enter payment terms"
                         className={`${inputCls} px-4 py-3`}
                         aria-label="Payment Terms"
+                      />
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  control={control}
+                  name="transport"
+                  render={({ field: { onChange, value } }) => (
+                    <Field label="Transport">
+                      <EditableCreatableSelect
+                        value={value}
+                        options={transportOptions}
+                        disabled={isView}
+                        placeholder="Select or enter transport details"
+                        onChange={onChange}
+                        onAdd={(newOption) => addSaleOrderLookupOption('transport', newOption)}
+                        onRename={(oldOption, newOption) => renameSaleOrderLookupOption('transport', oldOption, newOption)}
+                        onDelete={(option) => deleteSaleOrderLookupOption('transport', option)}
                       />
                     </Field>
                   )}
@@ -1085,8 +1134,9 @@ function SaleOrderForm({ mode, order, onBack, onPrint }) {
                                       if (matchedItem.item_hsn) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
                                       }
-                                      if (matchedItem.item_net_weight_uom || matchedItem.uom) {
-                                        setValue(`items.${index}.uom`, matchedItem.item_net_weight_uom || matchedItem.uom, { shouldValidate: true, shouldDirty: true });
+                                      const uomVal = matchedItem.standard_packing_uom || matchedItem.standardPackingUom || matchedItem.uom;
+                                      if (uomVal) {
+                                        setValue(`items.${index}.uom`, uomVal, { shouldValidate: true, shouldDirty: true });
                                       }
                                       if (matchedItem.item_price !== undefined && matchedItem.item_price !== null) {
                                         setValue(`items.${index}.price`, Number(matchedItem.item_price || 0), { shouldValidate: true, shouldDirty: true });
@@ -1302,6 +1352,7 @@ export default function SaleOrdersPage() {
   } = useSaleOrderStore();
   const { currentOrg } = useAuthStore();
   const { parties, fetchParties } = usePartyMasterStore();
+  const { fetchTransporters } = useTransportMasterStore();
   const { fetchItems } = useItemMasterStore();
   const { fetchItems: fetchHsnSacItems } = useHsnSacStore();
   const { dispatches, fetchDispatches } = useDispatchStore();
@@ -1313,6 +1364,7 @@ export default function SaleOrdersPage() {
       fetchItems(currentOrg.id);
       fetchHsnSacItems(currentOrg.id);
       fetchDispatches(currentOrg.id);
+      fetchTransporters(currentOrg.id);
     }
   }, [currentOrg?.id]);
 
@@ -1388,6 +1440,7 @@ export default function SaleOrdersPage() {
       'Schedule Qty',
       'Schedule Delivery Date(s)',
       'Payment Terms',
+      'Transport',
       'Delivery Terms',
       'Billing Address',
       'Shipping Address',
@@ -1517,6 +1570,7 @@ export default function SaleOrdersPage() {
           scheduleQty,
           scheduleDates,
           order.paymentTerms || '',
+          order.transport || '',
           order.deliveryTerms || '',
           order.partyAddress || '',
           order.shippingAddress || '',

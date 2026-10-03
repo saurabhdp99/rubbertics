@@ -17,6 +17,7 @@ import { usePartyMasterStore } from '../store/partyMasterStore';
 import { useAuthStore } from '../store/authStore';
 import { useItemMasterStore } from '../store/itemMasterStore';
 import { useInwardStore } from '../store/inwardStore';
+import { useTransportMasterStore } from '../store/transportMasterStore';
 import { supabase } from '../lib/supabase';
 import { formatTableDate } from '../utils/dateFormatter';
 
@@ -409,6 +410,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
     openDeleteConfirm,
   } = usePurchaseOrderStore();
   const { parties: partyMasterItems, fetchParties } = usePartyMasterStore();
+  const { transporters, fetchTransporters } = useTransportMasterStore();
   const { currentOrg, currentUser } = useAuthStore();
 
   const [freshItems, setFreshItems] = useState([]);
@@ -417,15 +419,30 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
     const fetchItems = async () => {
       if (currentOrg?.id) {
         fetchParties(currentOrg.id);
+        fetchTransporters(currentOrg.id);
         const { data, error } = await supabase
           .from('item_master')
-          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, item_net_weight_uom')
+          .select('item_code, customer_item_code, item_name, part_no, part_name, item_hsn, item_price, standard_packing_uom')
           .eq('org_id', currentOrg.id);
         if (!error && data) setFreshItems(data);
       }
     };
     fetchItems();
   }, [currentOrg]);
+
+  const transportOptions = useMemo(() => {
+    const set = new Set();
+    (transporters || []).forEach(t => {
+      if (t.transporterName) set.add(t.transporterName.trim());
+    });
+    (partyMasterItems || []).forEach(p => {
+      if (p.transport) set.add(p.transport.trim());
+    });
+    if (purchaseOrderLookups?.transport) {
+      purchaseOrderLookups.transport.forEach(t => set.add(t.trim()));
+    }
+    return Array.from(set).filter(Boolean).sort();
+  }, [transporters, partyMasterItems, purchaseOrderLookups]);
 
   const getInitialValues = () => {
     if (order) {
@@ -440,7 +457,12 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
           return item;
         });
       }
-      return { ...EMPTY_ORDER, ...order, items };
+      let transport = order.transport || '';
+      if (!transport && order.vendorName) {
+        const matched = (partyMasterItems || []).find(p => p.partyName === order.vendorName);
+        if (matched?.transport) transport = matched.transport;
+      }
+      return { ...EMPTY_ORDER, ...order, items, transport };
     }
     return { ...EMPTY_ORDER };
   };
@@ -489,7 +511,7 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
             newItem.hsnCode = matchedItem.item_hsn;
             itemChanged = true;
           }
-          const masterUom = matchedItem.item_net_weight_uom || matchedItem.uom;
+          const masterUom = matchedItem.standard_packing_uom || matchedItem.standardPackingUom || matchedItem.uom;
           if (masterUom && newItem.uom !== masterUom) {
             newItem.uom = masterUom;
             itemChanged = true;
@@ -673,12 +695,18 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                           if (matched?.address) {
                             setValue('vendorAddress', matched.address, { shouldDirty: true });
                           }
+                          if (matched?.transport) {
+                            setValue('transport', matched.transport, { shouldDirty: true, shouldValidate: true });
+                          }
                         }}
                         onSelectParty={(party) => {
                           if (party?.address) {
                             setValue('vendorAddress', party.address, { shouldDirty: true });
                           } else if (!party) {
                             setValue('vendorAddress', '', { shouldDirty: true });
+                          }
+                          if (party?.transport) {
+                            setValue('transport', party.transport, { shouldDirty: true, shouldValidate: true });
                           }
                           if (party?.paymentTerms && !watch('paymentTerms')) {
                             setValue('paymentTerms', party.paymentTerms, { shouldDirty: true });
@@ -749,9 +777,18 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                 <Controller
                   control={control}
                   name="transport"
-                  render={({ field: { onChange, value, ref } }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Field label="Transport">
-                      <Input type="text" value={value || ''} disabled={isView} onChange={onChange} ref={ref} placeholder="Enter transport details" className={`${inputCls} px-4 py-3`} aria-label="Transport" />
+                      <EditableCreatableSelect
+                        value={value}
+                        options={transportOptions}
+                        disabled={isView}
+                        placeholder="Select or enter transport details"
+                        onChange={onChange}
+                        onAdd={(newOption) => addPurchaseOrderLookupOption('transport', newOption)}
+                        onRename={(oldOption, newOption) => renamePurchaseOrderLookupOption('transport', oldOption, newOption)}
+                        onDelete={(option) => deletePurchaseOrderLookupOption('transport', option)}
+                      />
                     </Field>
                   )}
                 />
@@ -885,8 +922,9 @@ function PurchaseOrderForm({ mode, order, onBack, onPrint }) {
                                       if (matchedItem.item_hsn) {
                                         setValue(`items.${index}.hsnCode`, matchedItem.item_hsn, { shouldValidate: true, shouldDirty: true });
                                       }
-                                      if (matchedItem.item_net_weight_uom || matchedItem.uom) {
-                                        setValue(`items.${index}.uom`, matchedItem.item_net_weight_uom || matchedItem.uom, { shouldValidate: true, shouldDirty: true });
+                                      const uomVal = matchedItem.standard_packing_uom || matchedItem.standardPackingUom || matchedItem.uom;
+                                      if (uomVal) {
+                                        setValue(`items.${index}.uom`, uomVal, { shouldValidate: true, shouldDirty: true });
                                       }
                                       if (matchedItem.item_price !== undefined && matchedItem.item_price !== null) {
                                         setValue(`items.${index}.price`, Number(matchedItem.item_price || 0), { shouldValidate: true, shouldDirty: true });
@@ -1073,6 +1111,7 @@ export default function PurchaseOrdersPage() {
   } = usePurchaseOrderStore();
   const { currentOrg } = useAuthStore();
   const { parties, fetchParties } = usePartyMasterStore();
+  const { fetchTransporters } = useTransportMasterStore();
   const { fetchItems } = useItemMasterStore();
   const { entries: inwardEntries, fetchEntries: fetchInwardEntries } = useInwardStore();
 
@@ -1082,6 +1121,7 @@ export default function PurchaseOrdersPage() {
       fetchParties(currentOrg.id);
       fetchItems(currentOrg.id);
       fetchInwardEntries(currentOrg.id);
+      fetchTransporters(currentOrg.id);
     }
   }, [currentOrg?.id]);
 
