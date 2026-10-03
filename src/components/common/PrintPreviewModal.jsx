@@ -19,6 +19,7 @@ export default function PrintPreviewModal({
   title = 'Document',
   documentNo = '',
   elementId = 'printable-doc-root',
+  actions = null,
   children,
 }) {
   if (!isOpen) return null;
@@ -30,7 +31,7 @@ export default function PrintPreviewModal({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-start p-3 sm:p-6 overflow-y-auto">
       {/* ── Top Action Bar ── */}
-      <div className="w-full max-w-4xl mb-3 flex items-center justify-between gap-3 px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-xl flex-shrink-0">
+      <div className="w-full max-w-4xl mb-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-xl flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 flex-shrink-0">
             <FileText size={20} />
@@ -45,7 +46,8 @@ export default function PrintPreviewModal({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+          {actions}
           {/* Print action (opens print dialog, user can print or select 'Save as PDF') */}
           <button
             onClick={handlePrint}

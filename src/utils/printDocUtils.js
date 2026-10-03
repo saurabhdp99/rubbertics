@@ -84,6 +84,13 @@ export function printHtmlElement(elementId, title = 'Document') {
       table { border-collapse: collapse; width: 100%; }
       th, td { box-sizing: border-box; }
       img { object-fit: contain; }
+      .page-break { page-break-before: always !important; break-before: page !important; }
+      .no-print { display: none !important; }
+      @media print {
+        .page-break { page-break-before: always !important; break-before: page !important; }
+        .no-print { display: none !important; }
+        body { padding: 0 !important; margin: 0 !important; }
+      }
     </style>
   </head><body><div style="width:100%;">${el.innerHTML}</div></body></html>`);
   win.document.close();

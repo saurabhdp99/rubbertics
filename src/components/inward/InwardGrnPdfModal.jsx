@@ -27,9 +27,9 @@ export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
   const qtyVerifiedBy = entry.qty_verified_name || entry.recv_verified_name || 'Verified';
   const qualityVerified = entry.qc_verified_status || entry.qc_status || entry.final_qc_decision_by || 'Verified';
 
-  // Ensure table has at least 5 material rows
-  const minMaterialRows = 5;
-  const blankRowsCount = Math.max(0, minMaterialRows - materials.length);
+  // Ensure table proportion naturally fills standard A4 page
+  const minMaterialRows = 10;
+  const blankRowsCount = Math.max(2, minMaterialRows - materials.length);
 
   return (
     <PrintPreviewModal
@@ -39,16 +39,27 @@ export default function InwardGrnPdfModal({ isOpen, onClose, entry, org }) {
       documentNo={grnNo}
       elementId="grn-preview-doc"
     >
-      <GrnDocument
-        {...{
-          companyName, logoUrl, poNo, grnNo, invoiceChallanNo, dateGoodsReceived,
-          materials, blankRowsCount, tcReceived, qtyVerifiedBy, qualityVerified,
-          tcRemarks: entry.tc_coa_remarks || '',
-          qtyRemarks: entry.qty_verified_remarks || '',
-          qcRemarks: entry.qc_verified_remarks || '',
-          receiverName: entry.recv_verified_name || '',
+      <div
+        style={{
+          padding: '16px 20px',
+          backgroundColor: '#ffffff',
+          boxSizing: 'border-box',
+          minHeight: '260mm',
+          display: 'flex',
+          flexDirection: 'column',
         }}
-      />
+      >
+        <GrnDocument
+          {...{
+            companyName, logoUrl, poNo, grnNo, invoiceChallanNo, dateGoodsReceived,
+            materials, blankRowsCount, tcReceived, qtyVerifiedBy, qualityVerified,
+            tcRemarks: entry.tc_coa_remarks || '',
+            qtyRemarks: entry.qty_verified_remarks || '',
+            qcRemarks: entry.qc_verified_remarks || '',
+            receiverName: entry.recv_verified_name || '',
+          }}
+        />
+      </div>
     </PrintPreviewModal>
   );
 }
@@ -195,7 +206,7 @@ function GrnDocument({
 
           {/* Additional empty rows for standard document proportion */}
           {Array.from({ length: blankRowsCount }).map((_, i) => (
-            <tr key={`blank-${i}`} style={{ borderBottom: b1, height: '26px' }}>
+            <tr key={`blank-${i}`} style={{ borderBottom: b1, height: '30px' }}>
               <td style={{ borderRight: b1 }}>&nbsp;</td>
               <td style={{ borderRight: b1 }}>&nbsp;</td>
               <td>&nbsp;</td>
@@ -203,38 +214,38 @@ function GrnDocument({
           ))}
 
           {/* Verification rows */}
-          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
-            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+          <tr style={{ borderBottom: b1, height: '32px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
               T.C RECEIVED
             </td>
-            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, textAlign: 'center' }}>
               {tcReceived}
             </td>
-            <td style={{ padding: '4px 8px' }}>
+            <td style={{ padding: '6px 8px' }}>
               {tcRemarks}
             </td>
           </tr>
 
-          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
-            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+          <tr style={{ borderBottom: b1, height: '32px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
               QTY VERIFIED BY
             </td>
-            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, textAlign: 'center' }}>
               {qtyVerifiedBy}
             </td>
-            <td style={{ padding: '4px 8px' }}>
+            <td style={{ padding: '6px 8px' }}>
               {qtyRemarks}
             </td>
           </tr>
 
-          <tr style={{ borderBottom: b1, height: '26px', verticalAlign: 'middle' }}>
-            <td style={{ padding: '4px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
+          <tr style={{ borderBottom: b1, height: '32px', verticalAlign: 'middle' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center' }}>
               QUALITY VERIFIED
             </td>
-            <td style={{ padding: '4px 8px', borderRight: b1, textAlign: 'center' }}>
+            <td style={{ padding: '6px 8px', borderRight: b1, textAlign: 'center' }}>
               {qualityVerified}
             </td>
-            <td style={{ padding: '4px 8px' }}>
+            <td style={{ padding: '6px 8px' }}>
               {qcRemarks}
             </td>
           </tr>
@@ -245,16 +256,16 @@ function GrnDocument({
       <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: b1 }}>
         <tbody>
           <tr>
-            <td style={{ width: '30%', padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
+            <td style={{ width: '30%', padding: '8px 8px', borderRight: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
               RECEIVER SIGNED
             </td>
-            <td style={{ width: '35%', padding: '6px 8px', borderRight: b1 }}>
+            <td style={{ width: '35%', padding: '8px 8px', borderRight: b1 }}>
               {receiverName}
             </td>
-            <td style={{ width: '18%', padding: '6px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', fontSize: '10px' }}>
+            <td style={{ width: '18%', padding: '8px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', fontSize: '10px' }}>
               RECEIVED DATE
             </td>
-            <td style={{ width: '17%', padding: '6px 8px', textAlign: 'center', fontSize: '10px' }}>
+            <td style={{ width: '17%', padding: '8px 8px', textAlign: 'center', fontSize: '10px' }}>
               {dateGoodsReceived}
             </td>
           </tr>
@@ -262,33 +273,33 @@ function GrnDocument({
       </table>
 
       {/* ── Office Use Section ── */}
-      <div style={{ backgroundColor: '#ffffff', padding: '4px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', borderBottom: b1 }}>
+      <div style={{ backgroundColor: '#ffffff', padding: '5px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', borderBottom: b1 }}>
         FOR OFFICE USES ONLY
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr>
-            <td style={{ width: '30%', padding: '4px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
+            <td style={{ width: '30%', padding: '6px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
               PO NUMBER
             </td>
-            <td style={{ width: '70%', padding: '4px 8px', borderBottom: b1, textTransform: 'uppercase' }}>
+            <td style={{ width: '70%', padding: '6px 8px', borderBottom: b1, textTransform: 'uppercase' }}>
               {poNo}
             </td>
           </tr>
           <tr>
-            <td style={{ width: '30%', padding: '4px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
+            <td style={{ width: '30%', padding: '6px 8px', borderRight: b1, borderBottom: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' }}>
               GRN NO
             </td>
-            <td style={{ width: '70%', padding: '4px 8px', borderBottom: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
+            <td style={{ width: '70%', padding: '6px 8px', borderBottom: b1, fontWeight: 'bold', textTransform: 'uppercase' }}>
               {grnNo || '-'}
             </td>
           </tr>
-          <tr style={{ minHeight: '50px' }}>
-            <td style={{ width: '30%', padding: '12px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', verticalAlign: 'middle' }}>
+          <tr style={{ height: '75px' }}>
+            <td style={{ width: '30%', padding: '16px 8px', borderRight: b1, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', verticalAlign: 'middle' }}>
               AUTHORISED SIGNATURE
             </td>
-            <td style={{ width: '70%', padding: '12px 12px 4px', textAlign: 'right', verticalAlign: 'bottom' }}>
+            <td style={{ width: '70%', padding: '16px 12px 6px', textAlign: 'right', verticalAlign: 'bottom' }}>
               <span style={{ fontSize: '10px', color: '#666', fontStyle: 'italic' }}>Authorised Signatory</span>
             </td>
           </tr>

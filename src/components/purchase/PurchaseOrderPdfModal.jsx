@@ -1,7 +1,12 @@
+import { useState } from 'react';
+import { ScrollText } from 'lucide-react';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import { numberToIndianWords, formatDocDate, DEFAULT_COMPANY } from '../../utils/printDocUtils';
+import { PoTermsConditionsPage1, PoTermsConditionsPage2 } from './PoTermsAndConditions';
 
 export default function PurchaseOrderPdfModal({ isOpen, onClose, order, vendorParty, org }) {
+  const [includeTerms, setIncludeTerms] = useState(true);
+
   if (!isOpen || !order) return null;
 
   // ── Derived data ────────────────────────────────────────────────────────────
@@ -70,6 +75,62 @@ export default function PurchaseOrderPdfModal({ isOpen, onClose, order, vendorPa
   const amountInWords = numberToIndianWords(grandTotal);
   const uom = processedItems[0]?.uom || 'kg';
 
+  // Toolbar actions (Toggle terms & conditions + jump links)
+  const previewActions = (
+    <div className="flex items-center gap-2">
+      {/* Toggle Terms & Conditions */}
+      <button
+        type="button"
+        onClick={() => setIncludeTerms(!includeTerms)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+          includeTerms
+            ? 'bg-indigo-600/25 text-indigo-200 border-indigo-500/40 hover:bg-indigo-600/35'
+            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700'
+        }`}
+        title="Toggle Standard Terms & Conditions in print and PDF"
+      >
+        <ScrollText size={14} className={includeTerms ? 'text-indigo-400' : 'text-slate-400'} />
+        <span>Terms &amp; Conditions</span>
+        <span
+          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+            includeTerms ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-700 text-slate-400'
+          }`}
+        >
+          {includeTerms ? '3 pgs' : '1 pg'}
+        </span>
+      </button>
+
+      {/* Quick Jump Buttons when terms included */}
+      {includeTerms && (
+        <div className="hidden md:flex items-center gap-1 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/80 text-[11px] font-medium text-slate-300">
+          <button
+            type="button"
+            onClick={() => document.getElementById('po-sheet-doc')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2 py-0.5 rounded hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            PO
+          </button>
+          <span className="text-slate-600">•</span>
+          <button
+            type="button"
+            onClick={() => document.getElementById('po-terms-sheet-1')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2 py-0.5 rounded hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            Terms P1
+          </button>
+          <span className="text-slate-600">•</span>
+          <button
+            type="button"
+            onClick={() => document.getElementById('po-terms-sheet-2')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2 py-0.5 rounded hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            Terms P2
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <PrintPreviewModal
       isOpen={isOpen}
@@ -77,18 +138,121 @@ export default function PurchaseOrderPdfModal({ isOpen, onClose, order, vendorPa
       title="Purchase Order"
       documentNo={voucherNo}
       elementId="po-preview-doc"
+      actions={previewActions}
     >
-      <PoDocument
-        {...{
-          voucherNo, poDate, paymentTerms, transport, destination, deliveryTerms,
-          supplierRef, otherRefs, companyName, companyAddress, companyCountry,
-          companyContact, companyGstin, companyState, companyPan, companyCin,
-          companyEmail, logoUrl, vendorName, vendorAddress, vendorGstin,
-          vendorStateName, vendorStateCode, processedItems, totalQty, grandTotal,
-          amountInWords, isIntraState, cgstRate, sgstRate, igstRate,
-          cgstAmount, sgstAmount, igstAmount, uom,
-        }}
-      />
+      <div style={{ backgroundColor: '#ffffff' }}>
+        {/* ── Page 1: Purchase Order Sheet ── */}
+        <div
+          id="po-sheet-doc"
+          style={{
+            padding: '16px 20px',
+            backgroundColor: '#ffffff',
+            boxSizing: 'border-box',
+            minHeight: '260mm',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <PoDocument
+            {...{
+              voucherNo, poDate, paymentTerms, transport, destination, deliveryTerms,
+              supplierRef, otherRefs, companyName, companyAddress, companyCountry,
+              companyContact, companyGstin, companyState, companyPan, companyCin,
+              companyEmail, logoUrl, vendorName, vendorAddress, vendorGstin,
+              vendorStateName, vendorStateCode, processedItems, totalQty, grandTotal,
+              amountInWords, isIntraState, cgstRate, sgstRate, igstRate,
+              cgstAmount, sgstAmount, igstAmount, uom,
+            }}
+          />
+        </div>
+
+        {/* ── Pages 2 & 3: Standard Terms & Conditions ── */}
+        {includeTerms && (
+          <>
+            {/* Screen-Only Visual Divider between PO and Terms Page 1 */}
+            <div
+              className="no-print"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                backgroundColor: '#0f172a',
+                color: '#94a3b8',
+                fontSize: '11px',
+                fontWeight: '700',
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+                borderTop: '2px dashed #334155',
+                borderBottom: '2px dashed #334155',
+                margin: '20px 0 10px',
+              }}
+            >
+              <span>Page 2 — Standard Terms &amp; Conditions (Clauses 1 – 10)</span>
+            </div>
+
+            {/* Terms Sheet - Page 1 */}
+            <div
+              id="po-terms-sheet-1"
+              className="page-break"
+              style={{
+                pageBreakBefore: 'always',
+                breakBefore: 'page',
+                backgroundColor: '#ffffff',
+                padding: '20px 28px',
+                boxSizing: 'border-box',
+                minHeight: '260mm',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <PoTermsConditionsPage1 companyName={companyName} />
+            </div>
+
+            {/* Screen-Only Visual Divider between Terms Page 1 and Page 2 */}
+            <div
+              className="no-print"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                backgroundColor: '#0f172a',
+                color: '#94a3b8',
+                fontSize: '11px',
+                fontWeight: '700',
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+                borderTop: '2px dashed #334155',
+                borderBottom: '2px dashed #334155',
+                margin: '20px 0 10px',
+              }}
+            >
+              <span>Page 3 — Standard Terms &amp; Conditions (Clauses 11 – 22)</span>
+            </div>
+
+            {/* Terms Sheet - Page 2 */}
+            <div
+              id="po-terms-sheet-2"
+              className="page-break"
+              style={{
+                pageBreakBefore: 'always',
+                breakBefore: 'page',
+                backgroundColor: '#ffffff',
+                padding: '20px 28px',
+                boxSizing: 'border-box',
+                minHeight: '260mm',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <PoTermsConditionsPage2 companyName={companyName} />
+            </div>
+          </>
+        )}
+      </div>
     </PrintPreviewModal>
   );
 }
@@ -111,6 +275,9 @@ function PoDocument({
   const cell = (extra = {}) => ({ padding: '5px 7px', borderBottom: '1px solid #000', ...extra });
   const cellLast = (extra = {}) => ({ padding: '5px 7px', ...extra });
 
+  // Calculate dynamic spacer height so the items table expands naturally to fill standard A4 page proportions
+  const itemCount = processedItems.length;
+  const spacerHeight = Math.max(35, 330 - (itemCount - 1) * 35);
 
   return (
     <div style={{ width: '100%', border: '1.5px solid #000', backgroundColor: '#fff', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '10px', color: '#000' }}>
@@ -258,8 +425,8 @@ function PoDocument({
             </tr>
           )}
 
-          {/* Spacer */}
-          <tr style={{ height: '20px' }}>
+          {/* Spacer row to extend vertical column lines to fill A4 proportions */}
+          <tr style={{ height: `${spacerHeight}px` }}>
             {Array.from({ length: 7 }).map((_, i) => (
               <td key={i} style={{ borderRight: i < 6 ? '1px solid #000' : 'none' }}></td>
             ))}

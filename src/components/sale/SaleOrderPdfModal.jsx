@@ -77,6 +77,10 @@ export default function SaleOrderPdfModal({ isOpen, onClose, order, customerPart
   const amountInWords = numberToIndianWords(grandTotal);
   const primaryUom   = processedItems[0]?.uom || 'nos.';
 
+  // Calculate dynamic spacer height to naturally fill standard A4 page proportions
+  const itemCount = processedItems.length;
+  const spacerHeight = Math.max(35, 330 - (itemCount - 1) * 35);
+
   return (
     <PrintPreviewModal
       isOpen={isOpen}
@@ -85,7 +89,17 @@ export default function SaleOrderPdfModal({ isOpen, onClose, order, customerPart
       documentNo={voucherNo}
       elementId="so-preview-doc"
     >
-      <div style={{ backgroundColor: '#ffffff', padding: '16px 20px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          padding: '16px 20px',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          minHeight: '260mm',
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
 
         {/* ── Document Title (Proforma Invoice) ── */}
         <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', padding: '0 0 8px', letterSpacing: '0.4px', color: '#000' }}>
@@ -337,8 +351,8 @@ export default function SaleOrderPdfModal({ isOpen, onClose, order, customerPart
                 </tr>
               )}
 
-              {/* Spacer rows to extend vertical column lines */}
-              <tr style={{ height: '35px' }}>
+              {/* Spacer rows to extend vertical column lines to fill A4 proportions */}
+              <tr style={{ height: `${spacerHeight}px` }}>
                 {Array.from({ length: 8 }).map((_, i) => (
                   <td key={i} style={{ borderRight: i < 7 ? '1px solid #000' : 'none' }}></td>
                 ))}
